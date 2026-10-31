@@ -1,0 +1,1738 @@
+/* Tokens: a cool ledger palette; status colours carry the meaning on the calendar. */
+:root {
+  --bg: #e9eef2;
+  --surface: #ffffff;
+  --surface-2: #f4f7f9;
+  --ink: #1b2b3a;
+  --ink-2: #536474;
+  --line: #d3dce4;
+  --accent: #1f5f8b;
+  --accent-ink: #ffffff;
+
+  --full: #2e7d64;
+  --partial: #c98a1b;
+  --missing: #c0392b;
+  --over: #2f6db5;
+  --leave: #6d5bb0;
+  --off: #c3ccd5;
+  --pending: #1f5f8b;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --font: "Be Vietnam Pro", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121a22;
+    --surface: #1a2530;
+    --surface-2: #213040;
+    --ink: #e4ebf1;
+    --ink-2: #9aabbb;
+    --line: #2c3c4c;
+    --accent: #6fb0e0;
+    --accent-ink: #0d1a24;
+
+    --full: #4fb48f;
+    --partial: #e0a83d;
+    --missing: #e2665a;
+    --over: #5b97dc;
+    --leave: #9a88dd;
+    --off: #3a4a5a;
+    --pending: #6fb0e0;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 14px/1.5 var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+.text-missing {
+  color: var(--missing);
+}
+.text-ok {
+  color: var(--full);
+}
+.text-partial {
+  color: var(--partial);
+}
+.text-pending {
+  color: var(--pending);
+  font-weight: 500;
+}
+.small {
+  font-size: 12px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Shell */
+.shell {
+  display: grid;
+  grid-template-columns: 184px 1fr;
+  height: 100%;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 17px;
+  padding: 0 10px 20px;
+}
+
+/* A day cell in miniature: a tank filled to 8h. */
+.brand-mark {
+  width: 14px;
+  height: 18px;
+  border-radius: 3px;
+  border: 2px solid var(--ink);
+  background: linear-gradient(to top, var(--full) 70%, transparent 70%);
+}
+
+.rail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rail-item:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.rail-item[aria-current="page"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.rail-badge {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--pending);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.rail-badge.has-failed {
+  background: var(--missing);
+}
+.rail-server {
+  margin: auto 10px 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.rail-server strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.rail-error + .rail-server {
+  margin-top: 12px;
+}
+.rail-error {
+  margin: auto 10px 0;
+  font-size: 12px;
+  color: var(--missing);
+}
+
+.main {
+  overflow: auto;
+}
+
+/* Buttons */
+.btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-s);
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn.ghost:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.btn.danger {
+  color: var(--missing);
+}
+.btn.danger-solid {
+  background: var(--missing);
+  border-color: var(--missing);
+  color: #fff;
+  font-weight: 600;
+}
+.btn.small {
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.btn.block {
+  width: 100%;
+}
+
+/* Inline text action. */
+.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--ink-2);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--missing);
+}
+
+/* Calendar page */
+.calendar-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  min-height: 100%;
+}
+
+.calendar-col {
+  padding: 28px 32px;
+  min-width: 0;
+}
+
+.month-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.month-title {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.month-year {
+  margin-left: 12px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.month-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.month-summary {
+  margin: 14px 0 22px;
+  color: var(--ink-2);
+}
+.month-summary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.grid[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.grid-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 0 4px 4px;
+}
+
+/*
+ * Each day is a tank. The fill is only a faint tint; what you read is the
+ * water-level line at the logged hours, in the status colour. Full days stay
+ * quiet so short, missing and over days are what catch the eye.
+ */
+.day {
+  --tone: var(--off);
+  --tint: 12%;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 / 0.8;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  padding: 7px 9px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.day:hover {
+  border-color: var(--ink-2);
+}
+.day[aria-selected="true"] {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+/* Days off carry no frame: they are not part of the quota. */
+.day.off {
+  background: transparent;
+  border-color: transparent;
+}
+.day.off:hover {
+  border-color: var(--line);
+}
+.day.s-future {
+  background: transparent;
+  border-style: dashed;
+}
+
+.day-fill {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: color-mix(in srgb, var(--tone) var(--tint), transparent);
+  border-top: 2px solid var(--tone);
+  transition: height 0.35s ease;
+}
+.day.s-full {
+  --tint: 7%;
+}
+.day.s-full .day-fill {
+  border-top-color: color-mix(in srgb, var(--tone) 55%, transparent);
+}
+/* Hours waiting to be written sit on top of the logged level, hatched,
+   with a dashed line where the level will be. */
+.day-plan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--pending) 26%, transparent) 0 2px,
+    transparent 2px 7px
+  );
+  border-top: 2px dashed var(--pending);
+}
+.day-top,
+.day-hours {
+  position: relative;
+}
+.day-plus {
+  margin-left: 4px;
+  color: var(--pending);
+}
+.day-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.day-num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  margin-left: -3px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.day.today .day-num {
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+}
+.day-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.day-hours {
+  align-self: flex-end;
+  font-size: 13px;
+  font-weight: 600;
+}
+.day-logged {
+  color: var(--tone);
+}
+.day.s-full .day-logged {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.day.off .day-num {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+/* A missing past day has nothing to fill, so its level line sits on the floor. */
+.day.s-missing {
+  box-shadow: inset 0 -3px 0 var(--missing);
+}
+.day.s-missing[aria-selected="true"] {
+  box-shadow: inset 0 -3px 0 var(--missing), 0 0 0 1px var(--ink);
+}
+
+.s-full { --tone: var(--full); }
+.s-partial { --tone: var(--partial); }
+.s-missing { --tone: var(--missing); }
+.s-over { --tone: var(--over); }
+.s-leave { --tone: var(--leave); }
+.s-weekend,
+.s-holiday,
+.s-future { --tone: var(--ink-2); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--tone);
+}
+.swatch.pending {
+  background: repeating-linear-gradient(135deg, var(--pending) 0 2px, transparent 2px 4px);
+  outline: 1px solid var(--pending);
+}
+
+.empty {
+  margin-top: 40px;
+  padding: 28px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-m);
+}
+.empty p {
+  margin: 0 0 14px;
+}
+
+/* Day panel */
+.day-panel {
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  padding: 28px 22px;
+  overflow: auto;
+}
+.panel-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.status-pill {
+  display: inline-block;
+  margin: 8px 0 18px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+.panel-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+}
+.panel-numbers {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.panel-numbers strong {
+  font-size: 22px;
+}
+/*
+ * The day panel is a stack of blocks (actions or a composer, queue, logged
+ * entries). Each block starts with a hairline and a small heading row, so
+ * one never runs into the next.
+ */
+.panel-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.panel-head + .panel-block {
+  margin-top: 4px;
+}
+.block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.block-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.block-head h3.text-pending {
+  color: var(--pending);
+}
+.panel-block .entries {
+  margin-top: -6px;
+}
+.panel-block > .hint,
+.panel-block > .muted {
+  margin: 0;
+}
+
+/* Calendar day report composer */
+.day-report-text {
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  padding: 8px 10px;
+  line-height: 1.55;
+}
+.day-report-sum {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.rtasks.compact {
+  border-top: 1px solid var(--line);
+}
+.rtasks.compact .rtask {
+  gap: 8px;
+  padding: 12px 0;
+}
+.rtasks.compact .rtask-title {
+  font-size: 14px;
+}
+.rtasks.compact .rtask-grid {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 8px;
+}
+.rtasks.compact .rtask-grid dt {
+  padding-top: 4px;
+  font-size: 12px;
+}
+.rtasks.compact .rtask-reason {
+  display: none;
+}
+.rtasks.compact .subject-input {
+  min-width: 0;
+}
+.rtasks.compact .rdup {
+  margin-left: 0;
+}
+.rtasks.compact .rwarn {
+  margin-left: 0;
+}
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.entry {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.entry-hours {
+  font-weight: 700;
+}
+.entry-title {
+  font-weight: 500;
+}
+.issue-ref {
+  color: var(--accent);
+  margin-right: 6px;
+}
+.entry-meta {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.entry-comment {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+/* Settings */
+.page-pad {
+  padding: 28px 32px 0;
+}
+.page-title {
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: 700;
+}
+/*
+ * Settings use the whole window. Cards share one width; cards in a row share
+ * one height, and cards are ordered so each row pairs similar amounts of
+ * content. Inside a card, long inputs grow to take any slack and actions sit
+ * on the card's floor, so every card is filled edge to edge.
+ */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.settings-grid > .card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.card-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card-foot .notice {
+  margin: 0;
+}
+.grow-field {
+  flex: 1;
+  min-height: 0;
+}
+.grow-field textarea {
+  flex: 1;
+  min-height: 72px;
+}
+.field-pair {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+}
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+.row.wrap {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.foot-meta {
+  margin-left: auto;
+}
+.card {
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+.card-scroll {
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 6px;
+}
+.card {
+  margin-bottom: 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.hint {
+  margin: -6px 0 14px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+.field > span,
+.field > legend {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  padding: 7px 10px;
+}
+.field textarea {
+  resize: vertical;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.toggles {
+  display: flex;
+  gap: 6px;
+}
+.toggle input {
+  position: absolute;
+  opacity: 0;
+}
+.toggle span {
+  display: inline-block;
+  min-width: 42px;
+  text-align: center;
+  padding: 5px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.toggle input:checked + span {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+}
+.toggle input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.notice {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+.notice.ok {
+  color: var(--full);
+}
+.notice.error {
+  color: var(--missing);
+}
+
+.tools {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tools li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+}
+.tools code {
+  font-size: 12px;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.save-bar .notice {
+  margin: 0 auto 0 0;
+}
+
+/* Day panel: queue and add form */
+.panel-sub {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.panel-sub.text-pending {
+  color: var(--pending);
+}
+.pending-entry {
+  grid-template-columns: 44px 1fr 26px;
+}
+.pending-entry .entry-hours {
+  color: var(--pending);
+}
+.entry-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--missing);
+}
+
+.panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel-actions .row .btn {
+  flex: 1;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+}
+.add-form .field {
+  margin-bottom: 12px;
+}
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.form-actions .btn.primary {
+  flex: 1;
+}
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+.field-row .field:first-child {
+  width: 104px;
+}
+.field.grow {
+  flex: 1;
+  min-width: 0;
+}
+.issue-hint {
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.segmented {
+  display: flex;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 2px;
+  background: var(--surface-2);
+}
+.segmented button {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.segmented button[aria-checked="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+/* Review */
+.review-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: 100%;
+}
+.review-main {
+  padding: 28px 32px 40px;
+  min-width: 0;
+}
+.review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+/* A day: big date numeral on the left, its 8h rail and items on the right. */
+.rday {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.rday-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.rday-num {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.rday-wd {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+.rday.is-over .rday-num {
+  color: var(--over);
+}
+.rday.is-short .rday-num {
+  color: var(--partial);
+}
+
+.rday-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rday-total {
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 76px;
+  text-align: right;
+}
+.rday-existing {
+  margin: 8px 0 0 30px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.rail-bar {
+  position: relative;
+  /* Grows along a row, keeps its height in a column. */
+  flex: 1 1 auto;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.rail-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.rail-seg.existing {
+  left: 0;
+  background: var(--ink-2);
+  opacity: 0.55;
+  border-radius: 3px 0 0 3px;
+}
+.rail-seg.planned {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--pending) 0 3px,
+    color-mix(in srgb, var(--pending) 25%, transparent) 3px 7px
+  );
+}
+.rail-over {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  border: 2px solid var(--over);
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+.rail-tick {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+
+.ritems {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.ritem {
+  display: grid;
+  grid-template-columns: 18px 58px 1fr 26px;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+}
+.ritem + .ritem {
+  border-top: 1px dashed var(--line);
+}
+.ritem > input[type="checkbox"] {
+  margin-top: 8px;
+}
+.ritem.is-off .ritem-main,
+.ritem.is-off .ritem-hours {
+  opacity: 0.45;
+}
+.ritem-comment {
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  background: transparent;
+  padding: 4px 6px;
+}
+.ritem-hours {
+  display: flex;
+  align-items: baseline;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  padding: 4px 6px;
+  color: var(--pending);
+  font-weight: 700;
+}
+.ritem-hours input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.ritem-hours input::-webkit-inner-spin-button,
+.ritem-hours input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+.ritem-hours:hover,
+.ritem-hours:focus-within,
+.ritem-comment:hover,
+.ritem-comment:focus {
+  border-color: var(--line);
+  background: var(--surface);
+}
+.ritem-hours input:focus-visible {
+  outline: none;
+}
+.ritem-hours:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ritem-target {
+  padding: 4px 6px 0;
+  font-weight: 500;
+}
+.ritem-main .entry-error {
+  padding-left: 6px;
+}
+.ritem.is-leave .ritem-target {
+  color: var(--leave);
+}
+.ritem-comment {
+  width: 100%;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.rwarn {
+  margin: 6px 0 0 28px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--partial);
+}
+.rday.is-over .rwarn {
+  color: var(--over);
+}
+
+.review-side {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow: auto;
+  padding: 28px 22px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  min-height: 100vh;
+}
+.side-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.side-sum {
+  margin: 6px 0 18px;
+  color: var(--ink-2);
+}
+.side-sum strong {
+  color: var(--ink);
+}
+.side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.side-why {
+  margin: 2px 0 0;
+}
+
+.subtask-warn {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--partial);
+  background: color-mix(in srgb, var(--partial) 9%, transparent);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+.subtask-warn p {
+  margin: 0 0 6px;
+}
+.subtask-warn ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+.subtask-warn .check {
+  margin: 0;
+  align-items: flex-start;
+}
+.check.compact {
+  margin: 0;
+}
+
+.confirm {
+  padding: 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-m);
+}
+.confirm p {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+.confirm-text {
+  align-self: center;
+}
+
+.progress {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+.op {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 6px;
+  padding: 4px 0;
+}
+.op-mark {
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.op.is-done .op-mark {
+  color: var(--full);
+}
+.op.is-failed .op-mark {
+  color: var(--missing);
+}
+.op.is-undone {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.op-error {
+  display: block;
+  color: var(--missing);
+}
+
+.done-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--full);
+  background: color-mix(in srgb, var(--full) 9%, transparent);
+}
+.done-note.has-failed {
+  border-color: var(--missing);
+  background: color-mix(in srgb, var(--missing) 8%, transparent);
+}
+.done-note p {
+  margin: 0 0 6px;
+}
+
+.preview {
+  margin-top: 18px;
+}
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.preview pre {
+  margin: 6px 0 0;
+  padding: 12px;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--surface-2);
+  border-radius: var(--radius-s);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* History */
+.history {
+  padding-bottom: 40px;
+}
+.batches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.batch {
+  border-bottom: 1px solid var(--line);
+}
+.batch-head {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.batch-head:hover {
+  background: var(--surface);
+}
+.batch-time {
+  color: var(--ink-2);
+}
+.batch-label {
+  font-weight: 600;
+}
+.batch-counts {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+.batch-body {
+  padding: 0 4px 18px 158px;
+}
+.batch-body .progress {
+  margin: 8px 0 14px;
+}
+
+@media (max-width: 860px) {
+  .calendar-page {
+    grid-template-columns: 1fr;
+  }
+  .day-panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .review-page {
+    grid-template-columns: 1fr;
+  }
+  .review-side {
+    position: static;
+    min-height: 0;
+    max-height: none;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .batch-body {
+    padding-left: 4px;
+  }
+}
+
+/* Down to the 900px minimum window, keep the side panels beside the work so
+   the main actions never fall below the fold. */
+@media (max-width: 1120px) {
+  .shell {
+    grid-template-columns: 156px 1fr;
+  }
+  .calendar-page {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+  .review-page {
+    grid-template-columns: minmax(0, 1fr) 290px;
+  }
+  .report-page {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+  .calendar-col,
+  .review-main,
+  .report-result {
+    padding: 24px 20px 40px;
+  }
+  .report-input {
+    padding: 24px 18px 40px 20px;
+  }
+  .day-panel,
+  .review-side {
+    padding: 24px 18px;
+  }
+  .month-title {
+    font-size: 32px;
+  }
+  .day {
+    padding: 6px 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-fill {
+    transition: none;
+  }
+}
+
+/* Report → plan */
+.report-page {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  min-height: 100%;
+}
+.report-input {
+  padding: 28px 24px 40px 32px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.report-input .page-title {
+  margin-bottom: 0;
+}
+.report-input .hint {
+  margin: 0;
+}
+.warn-line {
+  padding-left: 10px;
+  border-left: 3px solid var(--partial);
+}
+.report-mode {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 2px;
+  background: var(--surface-2);
+}
+.report-mode button {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.report-mode button[aria-checked="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.report-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 17px;
+}
+.rdup {
+  list-style: none;
+  margin: 8px 0 0 84px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.report-text {
+  min-height: 260px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+.report-result {
+  padding: 28px 32px 40px;
+  min-width: 0;
+}
+.section-title {
+  margin: 26px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ai-log {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.ai-log-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.ai-log-head .btn {
+  margin-left: auto;
+}
+/* The one motion on the page: a slow breathing dot while Claude works. */
+.ai-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pending);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+.ai-log-list {
+  margin: 8px 0 0;
+  padding: 0 0 0 20px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.ai-log-list li {
+  padding: 1px 0;
+}
+
+.ai-questions {
+  padding: 12px 14px;
+  border-left: 3px solid var(--partial);
+  background: color-mix(in srgb, var(--partial) 9%, transparent);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+.ai-questions p {
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+.ai-questions ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.rtasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.rtask {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  padding: 16px 0 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rtask > input {
+  align-self: start;
+  margin-top: 4px;
+}
+.rtask.is-off .rtask-body {
+  opacity: 0.45;
+}
+.rtask-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.rtask-hours {
+  font-weight: 700;
+  color: var(--pending);
+}
+.rtask-grid {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px 12px;
+  margin: 10px 0 0;
+}
+.rtask-grid dt {
+  padding-top: 5px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.rtask-grid dd {
+  margin: 0;
+  min-width: 0;
+}
+.rtask-grid .check {
+  margin: 4px 0 0;
+  align-items: flex-start;
+}
+.rtask-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.rtask-subject {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.rtask-reason {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.issue-input,
+.subject-input {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  padding: 4px 8px;
+}
+.issue-input {
+  width: 84px;
+  font-weight: 600;
+}
+.subject-input {
+  flex: 1;
+  min-width: 200px;
+}
+.rtask.is-unsure .rtask-title strong {
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--partial) 60%, transparent);
+}
+.conf {
+  margin-left: 0;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.conf-hi {
+  color: var(--full);
+  background: color-mix(in srgb, var(--full) 14%, transparent);
+}
+.conf-mid {
+  color: var(--partial);
+  background: color-mix(in srgb, var(--partial) 14%, transparent);
+}
+.conf-lo {
+  color: var(--missing);
+  background: color-mix(in srgb, var(--missing) 12%, transparent);
+}
+
+.rplan {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px 24px;
+}
+.rplan-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rplan-date {
+  font-weight: 600;
+}
+.rplan-allocs {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+.rplan-allocs li {
+  padding: 2px 0;
+}
+.rplan-allocs strong {
+  display: inline-block;
+  min-width: 38px;
+  color: var(--pending);
+}
+.rplan-allocs .is-leave {
+  color: var(--leave);
+}
+.rwarn-line {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--partial);
+}
+
+.report-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 14px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.report-actions .notice {
+  margin: 0 auto 0 0;
+}
+
+/* Redmine profile (settings) */
+.settings-grid .profile {
+  max-height: 240px;
+  overflow: auto;
+  padding-right: 8px;
+  overscroll-behavior: contain;
+}
+.profile-rule {
+  margin: 0 0 10px;
+  font-weight: 500;
+}
+.profile-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 16px;
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.profile-facts dt {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.profile-facts dd {
+  margin: 0;
+}
+.profile-summary {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.notice.inline {
+  margin: 0;
+  align-self: center;
+}
+
+@media (max-width: 860px) {
+  .report-page {
+    grid-template-columns: 1fr;
+  }
+  .report-input {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-pulse {
+    animation: none;
+  }
+}

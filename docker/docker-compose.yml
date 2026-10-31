@@ -1,0 +1,32 @@
+# Local Redmine for developing/testing write operations safely.
+#   docker compose -f docker/docker-compose.yml up -d
+#   docker compose -f docker/docker-compose.yml exec redmine bin/rails runner /seed.rb
+# Then open http://localhost:3000 (admin / admin).
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: redmine
+      POSTGRES_PASSWORD: redmine
+      POSTGRES_DB: redmine
+    volumes:
+      - db:/var/lib/postgresql/data
+
+  redmine:
+    image: redmine:6
+    ports:
+      - "3000:3000"
+    environment:
+      REDMINE_DB_POSTGRES: db
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_SECRET_KEY_BASE: local-dev-only-not-a-secret
+      SECRET_KEY_BASE: local-dev-only-not-a-secret
+    volumes:
+      - ./seed.rb:/seed.rb:ro
+    depends_on:
+      - db
+
+volumes:
+  db:

@@ -1,0 +1,9 @@
+[package]
+name = "logtime-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+redmine-client.workspace = true
+serde = { workspace = true }

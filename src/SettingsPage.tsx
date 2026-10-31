@@ -1,0 +1,375 @@
+import { useEffect, useState } from "react";
+import { api, errorText, type Activity, type Settings, type ToolStatus, type Tracker } from "./api";
+import ProfileSection from "./ProfileSection";
+
+const WEEKDAYS: [number, string][] = [
+  [1, "T2"],
+  [2, "T3"],
+  [3, "T4"],
+  [4, "T5"],
+  [5, "T6"],
+  [6, "T7"],
+  [7, "CN"],
+];
+
+type Notice = { kind: "ok" | "error"; text: string } | null;
+
+/** Accepts YYYY-MM-DD or DD/MM/YYYY per line; returns ISO dates or the first bad line. */
+function parseHolidays(text: string): { dates: string[]; bad: string | null } {
+  const dates: string[] = [];
+  for (const raw of text.split(/\n|,/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    let m = line.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    let iso: string | null = null;
+    if (m) iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+    m = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) iso = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    if (!iso || Number.isNaN(Date.parse(iso))) return { dates, bad: line };
+    dates.push(iso);
+  }
+  return { dates: [...new Set(dates)].sort(), bad: null };
+}
+
+function toOptionalId(v: string): number | null {
+  const n = Number(v);
+  return v.trim() && Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [hasKey, setHasKey] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [holidayText, setHolidayText] = useState("");
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [trackers, setTrackers] = useState<Tracker[]>([]);
+  const [tools, setTools] = useState<ToolStatus[] | null>(null);
+  const [aiCheck, setAiCheck] = useState<Notice | "running">(null);
+  const [connNotice, setConnNotice] = useState<Notice>(null);
+  const [saveNotice, setSaveNotice] = useState<Notice>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadLists = () => {
+    api.listActivities().then(setActivities).catch(() => {});
+    api.listTrackers().then(setTrackers).catch(() => {});
+  };
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((v) => {
+        setSettings(v.settings);
+        setHasKey(v.has_api_key);
+        setHolidayText(v.settings.holidays.join("\n"));
+        if (v.settings.redmine_url && v.has_api_key) loadLists();
+      })
+      .catch((e) => setSaveNotice({ kind: "error", text: errorText(e) }));
+    api.checkTools().then(setTools);
+  }, []);
+
+  if (!settings) return <div className="page-pad muted">Đang tải cài đặt…</div>;
+
+  const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
+    setSettings({ ...settings, [key]: value });
+
+  const toggleWorkday = (d: number) =>
+    update(
+      "workdays",
+      settings.workdays.includes(d)
+        ? settings.workdays.filter((x) => x !== d)
+        : [...settings.workdays, d].sort(),
+    );
+
+  const testConnection = async () => {
+    setBusy(true);
+    setConnNotice(null);
+    try {
+      const user = await api.testConnection(
+        settings.redmine_url,
+        apiKey.trim() || null,
+        settings.accept_invalid_certs,
+      );
+      const name = `${user.firstname} ${user.lastname}`.trim();
+      setConnNotice({ kind: "ok", text: `Kết nối được. Bạn đang đăng nhập là ${name} (${user.login}).` });
+    } catch (e) {
+      setConnNotice({ kind: "error", text: errorText(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    const { dates, bad } = parseHolidays(holidayText);
+    if (bad) {
+      setSaveNotice({ kind: "error", text: `Ngày lễ "${bad}" không đúng định dạng. Dùng 2026-09-02 hoặc 02/09/2026.` });
+      return;
+    }
+    setBusy(true);
+    setSaveNotice(null);
+    try {
+      await api.saveSettings({ ...settings, holidays: dates, redmine_url: settings.redmine_url.trim() });
+      if (apiKey.trim()) {
+        await api.saveApiKey(apiKey);
+        setApiKey("");
+        setHasKey(true);
+      }
+      setHolidayText(dates.join("\n"));
+      setSaveNotice({ kind: "ok", text: "Đã lưu cài đặt." });
+      loadLists();
+    } catch (e) {
+      setSaveNotice({ kind: "error", text: errorText(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeKey = async () => {
+    await api.saveApiKey("");
+    setHasKey(false);
+    setConnNotice({ kind: "ok", text: "Đã xoá API key khỏi máy." });
+  };
+
+  const activeActivities = activities.filter((a) => a.active);
+
+  return (
+    <div className="settings page-pad">
+      <h1 className="page-title">Cài đặt</h1>
+
+      <div className="settings-grid">
+
+      <section className="card">
+        <h2>Kết nối Redmine</h2>
+        <label className="field">
+          <span>Địa chỉ Redmine</span>
+          <input
+            type="url"
+            placeholder="https://redmine.congty.vn"
+            value={settings.redmine_url}
+            onChange={(e) => update("redmine_url", e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>API key</span>
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder={hasKey ? "Đã lưu trên máy. Nhập key mới để thay." : "Trong Redmine: Tài khoản của tôi → API access key"}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={settings.accept_invalid_certs}
+            onChange={(e) => update("accept_invalid_certs", e.target.checked)}
+          />
+          Chấp nhận chứng chỉ SSL tự ký (chỉ dùng cho Redmine nội bộ)
+        </label>
+        <div className="card-foot">
+          {connNotice && <p className={`notice ${connNotice.kind}`}>{connNotice.text}</p>}
+          <div className="row">
+            <button className="btn" onClick={testConnection} disabled={busy || !settings.redmine_url}>
+              Kiểm tra kết nối
+            </button>
+            {hasKey && (
+              <button className="btn ghost danger" onClick={removeKey} disabled={busy}>
+                Xoá API key
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Claude</h2>
+        <p className="hint">Phân tích báo cáo cần Claude CLI (đã đăng nhập) và uv để chạy MCP Redmine.</p>
+        {!tools ? (
+          <p className="muted">Đang kiểm tra…</p>
+        ) : (
+          <ul className="tools">
+            {tools.map((t) => (
+              <li key={t.name}>
+                <code>{t.name}</code>
+                {t.version ? (
+                  <span className="text-ok">{t.version}</span>
+                ) : (
+                  <span>
+                    <span className="text-missing">Chưa cài.</span> Cài bằng <code>{t.install_hint}</code>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={settings.claude_ignore_user_settings}
+            onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
+          />
+          Không dùng ~/.claude/settings.json khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự bật khi
+          cấu hình Claude của bạn bị từ chối API key.
+        </label>
+        <div className="card-foot">
+          {aiCheck && aiCheck !== "running" && <p className={`notice ${aiCheck.kind}`}>{aiCheck.text}</p>}
+          <div className="row">
+          <button
+            className="btn"
+            disabled={aiCheck === "running"}
+            onClick={async () => {
+              setAiCheck("running");
+              try {
+                const reply = await api.aiTest();
+                const saved = await api.getSettings();
+                setSettings((cur) =>
+                  cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
+                );
+                setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
+              } catch (e) {
+                setAiCheck({ kind: "error", text: errorText(e) });
+              }
+            }}
+          >
+            {aiCheck === "running" ? "Đang gọi Claude…" : "Chạy thử Claude"}
+          </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Ngày làm việc</h2>
+        <div className="field-pair">
+        <label className="field hours-field">
+          <span>Số giờ mỗi ngày</span>
+          <input
+            type="number"
+            min={1}
+            max={24}
+            step={0.5}
+            value={settings.hours_per_day}
+            onChange={(e) => update("hours_per_day", Number(e.target.value))}
+          />
+        </label>
+        <fieldset className="field">
+          <legend>Các ngày làm việc trong tuần</legend>
+          <div className="toggles">
+            {WEEKDAYS.map(([d, label]) => (
+              <label key={d} className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.workdays.includes(d)}
+                  onChange={() => toggleWorkday(d)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        </div>
+        <label className="field grow-field">
+          <span>Ngày lễ, mỗi dòng một ngày (2026-09-02 hoặc 02/09/2026)</span>
+          <textarea
+            rows={4}
+            placeholder={"2026-09-02\n01/01/2027"}
+            value={holidayText}
+            onChange={(e) => setHolidayText(e.target.value)}
+          />
+        </label>
+      </section>
+
+      <section className="card">
+        <h2>Ghi logtime</h2>
+        <p className="hint">
+          Ngày nghỉ phép vẫn log đủ giờ vào issue nghỉ phép. Lịch sẽ tính những entry trên issue này là ngày nghỉ.
+        </p>
+        <div className="field-grid">
+        <label className="field">
+          <span>Issue nghỉ phép</span>
+          <input
+            inputMode="numeric"
+            placeholder="Ví dụ 1234"
+            value={settings.leave_issue_id ?? ""}
+            onChange={(e) => update("leave_issue_id", toOptionalId(e.target.value))}
+          />
+        </label>
+        <ActivitySelect
+          label="Hoạt động khi log nghỉ phép"
+          value={settings.leave_activity_id}
+          options={activeActivities}
+          onChange={(v) => update("leave_activity_id", v)}
+        />
+        <ActivitySelect
+          label="Hoạt động mặc định khi log công việc"
+          value={settings.default_activity_id}
+          options={activeActivities}
+          onChange={(v) => update("default_activity_id", v)}
+        />
+        <label className="field">
+          <span>Tracker khi tạo task con</span>
+          <select
+            value={settings.subtask_tracker_id ?? ""}
+            onChange={(e) => update("subtask_tracker_id", e.target.value ? Number(e.target.value) : null)}
+            disabled={trackers.length === 0}
+          >
+            <option value="">{trackers.length ? "Chọn tracker" : "Kết nối Redmine để tải danh sách"}</option>
+            {trackers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        </div>
+      </section>
+
+
+      <ProfileSection
+        settings={settings}
+        trackers={trackers}
+        onApply={(patch) => {
+          setSettings({ ...settings, ...patch });
+          setSaveNotice({ kind: "ok", text: "Đã điền gợi ý. Bấm “Lưu cài đặt” để giữ." });
+        }}
+      />
+
+      </div>
+
+      <div className="save-bar">
+        {saveNotice && <p className={`notice ${saveNotice.kind}`}>{saveNotice.text}</p>}
+        <button className="btn" onClick={onSaved} disabled={busy}>
+          Về lịch
+        </button>
+        <button className="btn primary" onClick={save} disabled={busy}>
+          Lưu cài đặt
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActivitySelect(props: {
+  label: string;
+  value: number | null;
+  options: Activity[];
+  onChange: (v: number | null) => void;
+}) {
+  const { label, value, options, onChange } = props;
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+        disabled={options.length === 0}
+      >
+        <option value="">{options.length ? "Chọn hoạt động" : "Kết nối Redmine để tải danh sách"}</option>
+        {options.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}

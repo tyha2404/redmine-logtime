@@ -1,0 +1,17 @@
+[package]
+name = "logtime-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+logtime-core.workspace = true
+redmine-client.workspace = true
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+wiremock = "0.6"

@@ -1,0 +1,48 @@
+import { useEffect, useRef, useState } from "react";
+import type { AiRun } from "./useAiRun";
+
+/** Live view of a Claude run: elapsed time, the Redmine requests, cancel. */
+export default function AiLog({ ai, idleHint }: { ai: AiRun; idleHint?: string }) {
+  const [seconds, setSeconds] = useState(0);
+  const listRef = useRef<HTMLOListElement>(null);
+
+  useEffect(() => {
+    if (!ai.running) return;
+    setSeconds(0);
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [ai.running]);
+
+  useEffect(() => {
+    listRef.current?.lastElementChild?.scrollIntoView({ block: "nearest" });
+  }, [ai.log.length]);
+
+  if (!ai.running && ai.log.length === 0 && !ai.error) {
+    return idleHint ? <p className="hint">{idleHint}</p> : null;
+  }
+
+  return (
+    <div className="ai-log" aria-live="polite">
+      {ai.running && (
+        <div className="ai-log-head">
+          <span className="ai-pulse" aria-hidden />
+          <span>
+            Claude đang làm việc, {seconds}s
+            {ai.log.length > 0 && `, ${ai.log.length} lần đọc Redmine`}
+          </span>
+          <button className="btn ghost small" onClick={ai.cancel}>
+            Huỷ
+          </button>
+        </div>
+      )}
+      {ai.log.length > 0 && (
+        <ol ref={listRef} className="ai-log-list">
+          {ai.log.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ol>
+      )}
+      {ai.error && <p className="notice error">{ai.error}</p>}
+    </div>
+  );
+}

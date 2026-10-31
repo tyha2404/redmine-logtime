@@ -1,0 +1,18 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+redmine-client = { path = "crates/redmine-client" }
+logtime-core = { path = "crates/logtime-core" }
+logtime-engine = { path = "crates/logtime-engine" }
+ai-bridge = { path = "crates/ai-bridge" }
