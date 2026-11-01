@@ -105,7 +105,15 @@ function monthSummary(year: number, month: number) {
     missingDays = 0;
   for (let d = 1; d <= last; d++) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const entries = ENTRIES.filter((e) => e.spent_on === date);
+    // Like the backend: each entry's issue with its subject.
+    const entries = ENTRIES.filter((e) => e.spent_on === date).map((e) =>
+      {
+        const found = e.issue && ISSUES.find((i) => i.id === e.issue!.id);
+        if (!found) return e;
+        const parent = found.parent && { id: found.parent.id, subject: ISSUES.find((i) => i.id === found.parent!.id)?.subject };
+        return { ...e, issue: { id: found.id, subject: found.subject, parent } };
+      },
+    );
     const hours = entries.reduce((s, e) => s + e.hours, 0);
     const leave = entries
       .filter((e) => settings.leave_types.some((t) => t.project_id === e.project.id))

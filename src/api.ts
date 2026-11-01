@@ -89,7 +89,8 @@ export interface Issue {
 export interface TimeEntry {
   id: number;
   project: IdName;
-  issue: { id: number } | null;
+  /** `subject` is filled in by the app (Redmine sends only the id). */
+  issue: { id: number; subject?: string | null; parent?: { id: number; subject?: string | null } | null } | null;
   user: IdName;
   activity: IdName;
   hours: number;

@@ -501,6 +501,14 @@ function MonthPicker({
   );
 }
 
+/**
+ * A stable colour per project, so entries of one project look alike: the id
+ * spread around the hue wheel by the golden angle (neighbouring ids differ).
+ */
+function projectHue(id: number): CSSProperties {
+  return { "--hue": Math.round((id * 137.508) % 360) } as CSSProperties;
+}
+
 function DayCell(props: {
   day: DaySummary;
   hoursPerDay: number;
@@ -653,11 +661,7 @@ function DayPanel(props: {
         </section>
       )}
 
-      {locked ? (
-        <p className="panel-block panel-locked">
-          Ngày này đã đủ {fmtHours(hpd)} trên Redmine nên chỉ xem, không ghi thêm.
-        </p>
-      ) : mode === "idle" && (
+      {!locked && mode === "idle" && (
         <section className="panel-block panel-actions">
           <button className="btn primary" onClick={() => setMode("report")}>
             <Icon name="report" size={16} />
@@ -684,23 +688,29 @@ function DayPanel(props: {
           <p className="muted">Chưa có logtime ngày này.</p>
         ) : (
           <ul className="entries">
-            {day.entries.map((e) => (
-              <li key={e.id} className="entry">
-                <span className="entry-hours">{fmtHours(e.hours)}</span>
-                <div className="entry-body">
-                  <div className="entry-title">
-                    {e.issue ? (
-                      <span className="issue-ref">#{e.issue.id}</span>
-                    ) : null}
-                    {e.project.name}
+            {day.entries.map((e) => {
+              const parent = e.issue?.parent;
+              const title = e.issue?.subject ?? (e.issue ? `Issue #${e.issue.id}` : e.project.name);
+              const note = e.comments?.trim();
+              return (
+                <li key={e.id} className="entry" style={projectHue(e.project.id)}>
+                  {/* Where the task sits: the project, then its parent task. */}
+                  <div className="entry-context">
+                    <span className="entry-project">{e.project.name}</span>
+                    {parent && <span className="entry-parent">{parent.subject ?? `#${parent.id}`}</span>}
                   </div>
-                  <div className="entry-meta">{e.activity.name}</div>
-                  {e.comments ? (
-                    <div className="entry-comment">{e.comments}</div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
+                  <div className="entry-line">
+                    <span className="entry-title">{title}</span>
+                    <span className="entry-hours">{fmtHours(e.hours)}</span>
+                  </div>
+                  <div className="entry-meta">
+                    {e.issue && <span>#{e.issue.id}</span>}
+                    <span>{e.activity.name}</span>
+                  </div>
+                  {note && !title.toLowerCase().includes(note.toLowerCase()) && <p className="entry-comment">{note}</p>}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

@@ -11,6 +11,12 @@ pub struct IdName {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IdRef {
     pub id: u32,
+    /// Not sent by Redmine on time entries; the app fills it in for display.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    /// The issue's parent task, also filled in by the app for display.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<Box<IdRef>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

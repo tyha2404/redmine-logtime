@@ -159,7 +159,7 @@ mod tests {
                 id: if issue == 999 { 108 } else { 1 },
                 name: "P".into(),
             },
-            issue: Some(IdRef { id: issue }),
+            issue: Some(IdRef { id: issue, subject: None, parent: None }),
             user: IdName {
                 id: 1,
                 name: "Me".into(),

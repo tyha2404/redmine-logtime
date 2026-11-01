@@ -1,7 +1,8 @@
 use chrono::Local;
 use logtime_core::Settings;
 use logtime_core::calendar::{self, MonthSummary};
-use redmine_client::{Activity, ClientOptions, RedmineClient, User};
+use redmine_client::{Activity, ClientOptions, IdRef, Issue, RedmineClient, TimeEntry, User};
+use std::collections::HashMap;
 use serde::Serialize;
 use tauri::{Manager, State};
 use tauri_plugin_autostart::ManagerExt;
@@ -129,10 +130,9 @@ pub async fn month_summary(
 ) -> CmdResult<MonthSummary> {
     let settings = state.settings();
     let (from, to) = calendar::month_range(year, month).ok_or("Tháng không hợp lệ.")?;
-    let entries = client_for(&state.credentials, &settings, None)?
-        .my_time_entries(from, to)
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = client_for(&state.credentials, &settings, None)?;
+    let mut entries = client.my_time_entries(from, to).await.map_err(|e| e.to_string())?;
+    add_issue_subjects(&client, &mut entries).await;
     let today = Local::now().date_naive();
     calendar::summarize_month(year, month, entries, &settings, today)
         .ok_or_else(|| "Tháng không hợp lệ.".into())
@@ -143,6 +143,50 @@ pub async fn check_tools() -> Vec<tools::ToolStatus> {
     tauri::async_runtime::spawn_blocking(tools::check_all)
         .await
         .unwrap_or_default()
+}
+
+/// Time entries carry only the issue id; look up each issue's subject and
+/// parent task (one request per 100 issues, plus one for the parents) so the
+/// calendar can say what was logged. Best effort: the month still shows if a
+/// lookup fails.
+async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
+    let mut ids: Vec<u32> = entries.iter().filter_map(|e| e.issue.as_ref().map(|i| i.id)).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return;
+    }
+    let mut issues: HashMap<u32, Issue> = match client.issues_by_ids(&ids).await {
+        Ok(found) => found.into_iter().map(|i| (i.id, i)).collect(),
+        Err(e) => {
+            log::warn!("issue subjects for the month: {e}");
+            return;
+        }
+    };
+    let mut parents: Vec<u32> = issues
+        .values()
+        .filter_map(|i| i.parent.as_ref().map(|p| p.id))
+        .filter(|id| !issues.contains_key(id))
+        .collect();
+    parents.sort_unstable();
+    parents.dedup();
+    if !parents.is_empty() {
+        match client.issues_by_ids(&parents).await {
+            Ok(found) => issues.extend(found.into_iter().map(|i| (i.id, i))),
+            Err(e) => log::warn!("parent tasks for the month: {e}"),
+        }
+    }
+    for issue in entries.iter_mut().filter_map(|e| e.issue.as_mut()) {
+        let Some(found) = issues.get(&issue.id) else { continue };
+        issue.subject = Some(found.subject.clone());
+        issue.parent = found.parent.as_ref().map(|p| {
+            Box::new(IdRef {
+                id: p.id,
+                subject: issues.get(&p.id).map(|i| i.subject.clone()),
+                parent: None,
+            })
+        });
+    }
 }
 
 pub(crate) fn open_in_browser(url: &str) -> CmdResult<()> {

@@ -133,6 +133,23 @@ impl RedmineClient {
         Ok(env.issue)
     }
 
+    /// Issues by id, any status, in pages of 100. Ids the user cannot see are
+    /// simply missing from the result.
+    pub async fn issues_by_ids(&self, ids: &[u32]) -> Result<Vec<Issue>> {
+        let mut issues = Vec::new();
+        for chunk in ids.chunks(100) {
+            let list = chunk.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let env: IssuesPage = self
+                .get(
+                    "issues.json",
+                    &[("issue_id", &list), ("status_id", "*"), ("limit", "100")],
+                )
+                .await?;
+            issues.extend(env.issues);
+        }
+        Ok(issues)
+    }
+
     /// Direct children of an issue, any status (first 100).
     pub async fn children(&self, parent_id: u32) -> Result<Vec<Issue>> {
         let parent = parent_id.to_string();
@@ -362,6 +379,30 @@ mod tests {
             ClientOptions::default(),
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn issues_by_ids_asks_for_every_status() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/issues.json"))
+            .and(query_param("issue_id", "12,15"))
+            .and(query_param("status_id", "*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "issues": [{
+                    "id": 12, "subject": "Màn hình công nợ",
+                    "project": {"id": 1, "name": "ABC"},
+                    "tracker": {"id": 2, "name": "Task"},
+                    "status": {"id": 5, "name": "Closed"},
+                    "author": {"id": 7, "name": "Dev One"}
+                }]
+            })))
+            .mount(&server)
+            .await;
+
+        let issues = client(&server, "").issues_by_ids(&[12, 15]).await.unwrap();
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].subject, "Màn hình công nợ");
     }
 
     #[test]
