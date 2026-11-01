@@ -13,6 +13,7 @@ import {
   type TaskView,
 } from "./api";
 import { fmtDayShort, fmtHours } from "./fmt";
+import { buildLeave, type ParentCache } from "./leave";
 import { useAiRun } from "./useAiRun";
 import type { DraftApi } from "./useDraft";
 
@@ -125,8 +126,8 @@ export function useReportFlow(day: string | null, settings: Settings, draft: Dra
       ? `${missingParent} việc chưa có task cha.`
       : needsTracker && !trackerId
         ? "Chưa chọn tracker cho task con trong Cài đặt."
-        : leave.length > 0 && !settings.leave_issue_id
-          ? "Báo cáo có ngày nghỉ nhưng chưa đặt issue nghỉ phép trong Cài đặt."
+        : leave.length > 0 && settings.leave_types.length === 0
+          ? "Báo cáo có ngày nghỉ nhưng chưa cài nghỉ phép trong Cài đặt (mục Nghỉ phép, “Tìm trên Redmine”)."
           : totalHours === 0 && leave.length === 0
             ? "Không có giờ nào để log."
             : null;
@@ -168,25 +169,33 @@ export function useReportFlow(day: string | null, settings: Settings, draft: Dra
         });
       }
     }
-    for (const l of leave) {
-      const id = settings.leave_issue_id!;
-      items.push({
-        id: newId(),
-        date: l.date,
-        target: { type: "issue", issue_id: id, label: `#${id} Nghỉ phép` },
-        hours: l.hours,
-        activity_id: settings.leave_activity_id ?? settings.default_activity_id,
-        comments: l.hours < settings.hours_per_day ? "Nghỉ phép nửa ngày" : "Nghỉ phép",
-        kind: "leave",
-        last_error: null,
-      });
+    // Each day off becomes its own issue under HR's parent for that month.
+    try {
+      const cache: ParentCache = new Map();
+      for (const l of leave) {
+        const type = settings.leave_types.find((t) => t.key === l.kind) ?? settings.leave_types[0];
+        const span = l.hours + 1e-6 >= settings.hours_per_day ? "full" : "half";
+        const built = await buildLeave({ settings, type, date: l.date, span, cache });
+        items.push({ ...built.item, hours: l.hours });
+        subtasks.push(built.subtask);
+      }
+    } catch (e) {
+      setNotice(errorText(e));
+      return 0;
     }
     await draft.add(items, subtasks);
     return items.length;
   };
 
+  /** Drops the analysis after its plan is queued; the text stays for reference. */
+  const finish = async () => {
+    adopt(null);
+    await api.clearLastReport(day).catch(() => {});
+  };
+
   return {
     ai,
+    finish,
     text,
     setText,
     view,

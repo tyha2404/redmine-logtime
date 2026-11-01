@@ -78,6 +78,8 @@ pub fn preview(ops: &[OpPayload], draft: &Draft, assignee_id: Option<u32>) -> Ve
                     "subject": s.subject,
                     "parent_issue_id": s.parent_id,
                     "assigned_to_id": assignee_id,
+                    "start_date": s.start_date,
+                    "due_date": s.start_date,
                 }}),
             },
             OpPayload::CreateTimeEntry(i) => {
@@ -229,6 +231,7 @@ mod tests {
             project_name: "Salex".into(),
             tracker_id: 4,
             subject: format!("Task {key}"),
+            start_date: None,
         }
     }
 

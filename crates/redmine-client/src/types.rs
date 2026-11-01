@@ -90,6 +90,20 @@ pub struct NewIssue {
     pub assigned_to_id: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<NaiveDate>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<NaiveDate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Project {
+    pub id: u32,
+    pub name: String,
+    #[serde(default)]
+    pub identifier: String,
+    #[serde(default)]
+    pub parent: Option<IdName>,
 }
 
 /// Body for `POST /time_entries.json`.
@@ -142,4 +156,11 @@ pub(crate) struct TimeEntryEnvelope<T> {
 #[derive(Debug, Deserialize)]
 pub(crate) struct IssuesPage {
     pub issues: Vec<Issue>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct ProjectsPage {
+    pub projects: Vec<Project>,
+    #[serde(default)]
+    pub total_count: u32,
 }

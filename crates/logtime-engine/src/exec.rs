@@ -129,6 +129,8 @@ async fn create_subtask(
             parent_issue_id: Some(sub.parent_id),
             assigned_to_id: Some(assignee_id),
             description: None,
+            start_date: sub.start_date,
+            due_date: sub.start_date,
         })
         .await?;
     store.save_subtask(&sub.key, issue.id, batch_id)?;
@@ -190,6 +192,7 @@ mod tests {
                 project_name: "Salex".into(),
                 tracker_id: 4,
                 subject: "Sửa feedback công nợ".into(),
+                start_date: None,
             }],
             items: vec![
                 PlanItem {

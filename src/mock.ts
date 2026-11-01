@@ -22,8 +22,12 @@ let settings: Settings = {
   hours_per_day: HPD,
   workdays: [1, 2, 3, 4, 5],
   holidays: ["2026-09-02"],
-  leave_issue_id: 6,
-  leave_activity_id: 9,
+  leave_types: [
+    { key: "annual", label: "Nghỉ phép năm", project_id: 108, project_name: "Annual Leave", activity_id: 21, verb: "xin nghỉ phép", days_per_year: 12 },
+    { key: "sick", label: "Nghỉ đột xuất", project_id: 109, project_name: "Sick Leave", activity_id: 22, verb: "xin nghỉ đột xuất", days_per_year: 4 },
+    { key: "unpaid", label: "Nghỉ không lương", project_id: 110, project_name: "Unpaid Leave", activity_id: 23, verb: "xin nghỉ không lương", days_per_year: null },
+  ],
+  leave_name: "BE - Minh",
   default_activity_id: 9,
   subtask_tracker_id: 4,
   claude_ignore_user_settings: true,
@@ -33,7 +37,7 @@ const iso = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
 let nextEntry = 1000;
 const entry = (day: number, issue: number, hours: number, comments: string, project = "Davipharm - Salex"): TimeEntry => ({
   id: nextEntry++,
-  project: { id: 1, name: project },
+  project: { id: project === "Annual Leave" ? 108 : 1, name: project },
   issue: { id: issue },
   user: { id: 6, name: "Minh Trần" },
   activity: { id: 9, name: "Development" },
@@ -50,7 +54,7 @@ const ENTRIES: TimeEntry[] = [
   entry(19, 4, 8, "Màn hình danh sách công nợ"),
   entry(20, 4, 3, "Filter + paging"),
   entry(20, 5, 2, "Review PR"),
-  entry(21, 6, 8, "Nghỉ phép", "Nội bộ"),
+  entry(21, 16930, 8, "", "Annual Leave"),
   entry(23, 4, 6, "Fix bug"),
   entry(23, 5, 3, "Review"),
   entry(26, 4, 5, "Sửa feedback công nợ"),
@@ -69,11 +73,21 @@ let draft: Draft = {
       tracker_id: 4,
       subject: "[FE] Biểu đồ doanh số theo vùng",
     },
+    {
+      key: "sub-leave",
+      parent_id: 15973,
+      parent_subject: "Xin nghỉ phép Tháng 10.2026",
+      project_id: 108,
+      project_name: "Annual Leave",
+      tracker_id: 5,
+      subject: "BE - Minh xin nghỉ phép 1/2 ngày 28/10/2026",
+      start_date: "2026-10-28",
+    },
   ],
   items: [
     item("i1", 27, { type: "new_subtask", key: "sub-1" }, 4, "Dựng biểu đồ cột"),
     item("i2", 28, { type: "issue", issue_id: 5, label: "#5 Review Module Sự kiện" }, 4, "Review Module Sự kiện"),
-    item("i3", 28, { type: "issue", issue_id: 6, label: "#6 Nghỉ phép" }, 4, "Nghỉ phép nửa ngày", "leave"),
+    item("i3", 28, { type: "new_subtask", key: "sub-leave" }, 4, "Nghỉ phép năm nửa ngày", "leave"),
     item("i4", 29, { type: "new_subtask", key: "sub-1" }, 5, "Lọc theo vùng", "work", "Redmine từ chối dữ liệu: Activity cannot be blank"),
   ],
 };
@@ -107,7 +121,9 @@ function monthSummary(year: number, month: number) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const entries = ENTRIES.filter((e) => e.spent_on === date);
     const hours = entries.reduce((s, e) => s + e.hours, 0);
-    const leave = entries.filter((e) => e.issue?.id === settings.leave_issue_id).reduce((s, e) => s + e.hours, 0);
+    const leave = entries
+      .filter((e) => settings.leave_types.some((t) => t.project_id === e.project.id))
+      .reduce((s, e) => s + e.hours, 0);
     total += hours;
     let status: DayStatus;
     if (settings.holidays.includes(date)) status = "holiday";
@@ -163,7 +179,7 @@ const PROFILE: Profile = {
   ],
   naming: "Sub-task đặt tên tiếng Việt, đôi khi có tiền tố tầng như [FE].",
   summary:
-    "Developer là Minh Trần (id 6, role Developer), làm việc trong 2 dự án: Davipharm - Salex và Nội bộ. Task cha là các issue tracker Feature không có parent, đều do Lan Nguyễn (id 5) tạo: #1 “Quản lý công nợ khách hàng”, #2 “Module Sự kiện”, #3 “Báo cáo doanh số theo vùng”. Developer tự tạo sub-task tracker Task, gán cho chính mình và log time trên sub-task. Để tìm task cha cho một dòng báo cáo, so khớp nội dung với subject của Feature; nếu đã có sub-task của developer dưới Feature đó thì dùng lại. Nghỉ phép log vào issue chung #6.",
+    "Developer là Minh Trần (id 6, role Developer), làm việc trong 2 dự án: Davipharm - Salex và Nội bộ. Task cha là các issue tracker Feature không có parent, đều do Lan Nguyễn (id 5) tạo: #1 “Quản lý công nợ khách hàng”, #2 “Module Sự kiện”, #3 “Báo cáo doanh số theo vùng”. Developer tự tạo sub-task tracker Task, gán cho chính mình và log time trên sub-task. Để tìm task cha cho một dòng báo cáo, so khớp nội dung với subject của Feature; nếu đã có sub-task của developer dưới Feature đó thì dùng lại. Nghỉ phép: issue con dưới task cha của HR mỗi tháng trong ESTUARY → GNA.",
   user_notes: "",
   generated_at: "2026-10-28T16:40:00Z",
 };
@@ -271,17 +287,26 @@ const BATCHES: Batch[] = [
     label: "1 logtime, 21/10",
     redmine_url: settings.redmine_url,
     ops: [
-      { id: 11, seq: 0, payload: { op: "create_time_entry", ...item("y1", 21, { type: "issue", issue_id: 6, label: "#6 Nghỉ phép" }, 8, "Nghỉ phép", "leave") }, status: "undone", result_id: 1100, error: null },
+      { id: 11, seq: 0, payload: { op: "create_time_entry", ...item("y1", 21, { type: "issue", issue_id: 16930, label: "#16930 BE - Minh xin nghỉ phép ngày 21/10/2026" }, 8, "Nghỉ phép năm", "leave") }, status: "undone", result_id: 1100, error: null },
     ],
   },
 ];
+
+let fresh = new URLSearchParams(location.search).has("setup");
 
 const delay = <T,>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms));
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
   switch (cmd) {
     case "get_settings":
+      // ?setup=1 shows the first-run screen of a fresh install.
+      if (fresh) return delay({ settings: { ...settings, redmine_url: "" }, has_api_key: false });
       return delay({ settings, has_api_key: true });
+    case "save_api_key":
+      fresh = false;
+      return delay(undefined);
+    case "test_connection":
+      return delay({ id: 6, login: "minh.tran", firstname: "Minh", lastname: "Trần" }, 900);
     case "save_settings":
       settings = args.settings as Settings;
       return delay(undefined);
@@ -300,6 +325,9 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay([
         { id: 8, name: "Design", is_default: false, active: true },
         { id: 9, name: "Development", is_default: true, active: true },
+        { id: 21, name: "Annual Leave", is_default: false, active: true },
+        { id: 22, name: "Sick Leave", is_default: false, active: true },
+        { id: 23, name: "Unpaid Leave", is_default: false, active: true },
       ]);
     case "list_trackers":
       return delay([
@@ -319,6 +347,52 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay(
         args.day === TODAY ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW } : { text: "", day: args.day ?? null, view: null },
       );
+    case "analyze_report":
+      return delay({ ...REPORT_VIEW, day: (args.day as string | null) ?? null }, 1200);
+    case "discover_leave":
+      return delay({ types: settings.leave_types, name: "BE - Minh" }, 700);
+    case "leave_parent": {
+      const [y, m] = String(args.date).split("-");
+      const t = settings.leave_types.find((x) => x.project_id === args.projectId);
+      if (m === "11") throw `Chưa có task cha nghỉ phép tháng ${m}/${y} trong ${t?.project_name}. HR thường tạo vào đầu tháng; khi có rồi thử lại.`;
+      const names: Record<string, [number, string]> = {
+        annual: [15973, "Xin nghỉ phép Tháng"],
+        sick: [15974, "Xin nghỉ phép Đột Xuất Tháng"],
+        unpaid: [16198, "Xin nghỉ phép KL Tháng"],
+      };
+      const [id, name] = names[t?.key ?? "annual"];
+      return delay({ id, subject: `${name} ${m}.${y}`, project_id: t?.project_id, project_name: t?.project_name, tracker_id: 5 }, 300);
+    }
+    case "leave_entries": {
+      if (args.year !== 2026) return delay([]);
+      const leave = (date: string, projectId: number, project: string, hours: number, issue: number): TimeEntry => ({
+        id: nextEntry++,
+        project: { id: projectId, name: project },
+        issue: { id: issue },
+        user: { id: 6, name: "Minh Trần" },
+        activity: { id: 21, name: project },
+        hours,
+        comments: "",
+        spent_on: date,
+      });
+      return delay(
+        [
+          leave("2026-01-02", 108, "Annual Leave", 8, 3335),
+          leave("2026-02-12", 108, "Annual Leave", 8, 6105),
+          leave("2026-02-13", 108, "Annual Leave", 8, 6106),
+          leave("2026-03-19", 108, "Annual Leave", 7, 7657),
+          leave("2026-05-27", 108, "Annual Leave", 8, 10296),
+          leave("2026-05-28", 108, "Annual Leave", 8, 10297),
+          leave("2026-07-27", 108, "Annual Leave", 4, 12667),
+          leave("2026-08-25", 108, "Annual Leave", 8, 13930),
+          leave("2026-10-21", 108, "Annual Leave", 8, 16930),
+          leave("2026-10-19", 109, "Sick Leave", 8, 16659),
+        ],
+        400,
+      );
+    }
+    case "clear_last_report":
+      return delay(undefined);
     case "plan_report":
       return delay(planReport(args.view as ReportView, args.excluded as string[]));
     case "lookup_issue":

@@ -49,6 +49,9 @@ pub struct SubtaskDraft {
     pub project_name: String,
     pub tracker_id: u32,
     pub subject: String,
+    /// Start and due date of the new issue (a leave issue's day), if any.
+    #[serde(default)]
+    pub start_date: Option<NaiveDate>,
 }
 
 /// Everything waiting for review. Persisted so it survives restarts.

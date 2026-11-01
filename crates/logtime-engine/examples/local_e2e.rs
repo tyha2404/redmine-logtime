@@ -47,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             project_name: parent.project.name.clone(),
             tracker_id: task.id,
             subject: format!("E2E sửa feedback công nợ {key}"),
+            start_date: None,
         }],
         items: vec![PlanItem {
             id: "i1".into(),

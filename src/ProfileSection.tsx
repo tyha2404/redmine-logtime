@@ -58,8 +58,6 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
   const suggestions: Partial<Settings> = {};
   if (profile?.subtask_tracker_id && profile.subtask_tracker_id !== settings.subtask_tracker_id)
     suggestions.subtask_tracker_id = profile.subtask_tracker_id;
-  if (profile?.leave_issue_id && profile.leave_issue_id !== settings.leave_issue_id)
-    suggestions.leave_issue_id = profile.leave_issue_id;
 
   const rule = profile?.parent_rule;
   const facts: [string, string][] = profile
@@ -67,7 +65,6 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
         ["Tracker task cha", rule!.tracker_names.join(", ")],
         ["Người tạo", [...rule!.role_names, ...rule!.author_names].join(", ")],
         ["Tracker task con", trackerName(profile.subtask_tracker_id)],
-        ["Issue nghỉ phép", profile.leave_issue_id ? `#${profile.leave_issue_id}` : ""],
         ["Dự án", profile.projects.map((p) => p.name).join(", ")],
       ].filter(([, v]) => v) as [string, string][])
     : [];
@@ -77,7 +74,7 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
       <section className="card">
         <h2>Cấu trúc Redmine</h2>
         <p className="hint">
-          Claude đọc Redmine (chỉ đọc) để biết task cha do BA tạo trông thế nào, tracker của task con và issue nghỉ phép.
+          Claude đọc Redmine (chỉ đọc) để biết task cha do BA tạo trông thế nào và tracker của task con.
         </p>
 
         {profile?.generated_at ? (
@@ -109,7 +106,6 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
               <button className="btn" onClick={() => onApply(suggestions)}>
                 Dùng gợi ý
                 {suggestions.subtask_tracker_id ? `: tracker ${trackerName(suggestions.subtask_tracker_id)}` : ""}
-                {suggestions.leave_issue_id ? `${suggestions.subtask_tracker_id ? "," : ":"} nghỉ phép #${suggestions.leave_issue_id}` : ""}
               </button>
             )}
             {profile?.generated_at && <span className="muted small foot-meta">Phân tích lúc {fmtTimestamp(profile.generated_at)}</span>}

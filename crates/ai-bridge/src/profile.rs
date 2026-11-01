@@ -76,12 +76,11 @@ Investigate with `redmine_request` (GET only, keep it under ~40 requests, use li
 2. GET /projects.json and GET /trackers.json.
 3. GET /time_entries.json?user_id=me&limit=100 — the issues this developer logs time on. For a sample of those issues GET /issues/{id}.json and follow `parent` upwards: note tracker, author and subject of the parents vs. the sub-tasks.
 4. For the 1–5 projects the developer is most active in: GET /projects/{id}/memberships.json (roles: who is BA / Business Analyst / PO / Tester…), and GET /issues.json?project_id={id}&status_id=*&sort=updated_on:desc&limit=100 to see which trackers and authors have children.
-5. Look for a shared "leave" issue (subject like "Nghỉ phép", "Leave", "Day off", "OFF") that people log leave hours on, e.g. GET /issues.json?status_id=*&subject=~phép and the issues of time entries with leave-like comments.
 
 Decide:
 - parent_rule: trackers and authors/roles that define a BA parent task, plus a short Vietnamese `description` a model can follow (e.g. "Task cha là issue tracker Feature do thành viên role BA tạo, thường chưa có parent").
 - subtask_tracker_id: the tracker developers use for their sub-tasks (null if unclear).
-- leave_issue_id: the leave issue (null if none found).
+- leave_issue_id: always null (the app handles leave itself).
 - projects: the projects the developer works in (id, name, identifier).
 - naming: Vietnamese note on sub-task naming conventions seen (prefixes like [FE]/[BE], language…).
 - summary: 3–8 Vietnamese sentences describing the structure, written as guidance for a later model that must find the right parent for a report line.
@@ -117,9 +116,6 @@ pub fn to_instructions(p: &Profile) -> String {
     }
     if let Some(t) = p.subtask_tracker_id {
         s += &format!("- Tracker cho task con: id {t}\n");
-    }
-    if let Some(l) = p.leave_issue_id {
-        s += &format!("- Issue nghỉ phép: #{l}\n");
     }
     if !p.projects.is_empty() {
         s += "\n## Dự án\n\n";
@@ -162,7 +158,8 @@ mod tests {
         };
         let md = to_instructions(&p);
         assert!(md.contains("Feature (id [2])"));
-        assert!(md.contains("#6"));
+        // Leave is handled by the app, not by the profile.
+        assert!(!md.contains("#6"));
         assert!(md.contains("prefix [SX]"));
     }
 

@@ -15,10 +15,12 @@ use serde::de::DeserializeOwned;
 use url::Url;
 
 use types::{
-    ActivitiesEnvelope, ErrorsEnvelope, IssueEnvelope, IssuesPage, TimeEntriesPage,
+    ActivitiesEnvelope, ErrorsEnvelope, IssueEnvelope, IssuesPage, ProjectsPage, TimeEntriesPage,
     TimeEntryEnvelope, TrackersEnvelope, UserEnvelope,
 };
-pub use types::{Activity, IdName, IdRef, Issue, NewIssue, NewTimeEntry, TimeEntry, Tracker, User};
+pub use types::{
+    Activity, IdName, IdRef, Issue, NewIssue, NewTimeEntry, Project, TimeEntry, Tracker, User,
+};
 
 const PAGE_SIZE: u32 = 100;
 
@@ -80,25 +82,35 @@ impl RedmineClient {
 
     /// All time entries of the current user with `spent_on` in `[from, to]`.
     pub async fn my_time_entries(&self, from: NaiveDate, to: NaiveDate) -> Result<Vec<TimeEntry>> {
+        self.my_time_entries_in(None, from, to).await
+    }
+
+    /// Like [`Self::my_time_entries`], limited to a project (and its sub-projects).
+    pub async fn my_time_entries_in(
+        &self,
+        project_id: Option<u32>,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<TimeEntry>> {
         let from = from.to_string();
         let to = to.to_string();
+        let project = project_id.map(|p| p.to_string());
         let mut entries = Vec::new();
         let mut offset = 0u32;
         loop {
             let offset_s = offset.to_string();
             let limit_s = PAGE_SIZE.to_string();
-            let page: TimeEntriesPage = self
-                .get(
-                    "time_entries.json",
-                    &[
-                        ("user_id", "me"),
-                        ("from", &from),
-                        ("to", &to),
-                        ("limit", &limit_s),
-                        ("offset", &offset_s),
-                    ],
-                )
-                .await?;
+            let mut query = vec![
+                ("user_id", "me"),
+                ("from", from.as_str()),
+                ("to", to.as_str()),
+                ("limit", limit_s.as_str()),
+                ("offset", offset_s.as_str()),
+            ];
+            if let Some(p) = &project {
+                query.push(("project_id", p.as_str()));
+            }
+            let page: TimeEntriesPage = self.get("time_entries.json", &query).await?;
             let fetched = page.time_entries.len() as u32;
             entries.extend(page.time_entries);
             offset += fetched;
@@ -131,6 +143,62 @@ impl RedmineClient {
             )
             .await?;
         Ok(env.issues)
+    }
+
+    /// Issues with no parent in exactly this project (not its sub-projects),
+    /// any status, newest first (first 100).
+    pub async fn top_level_issues(&self, project_id: u32) -> Result<Vec<Issue>> {
+        let project = project_id.to_string();
+        let env: IssuesPage = self
+            .get(
+                "issues.json",
+                &[
+                    ("project_id", &project),
+                    ("subproject_id", "!*"),
+                    ("parent_id", "!*"),
+                    ("status_id", "*"),
+                    ("sort", "created_on:desc"),
+                    ("limit", "100"),
+                ],
+            )
+            .await?;
+        Ok(env.issues)
+    }
+
+    /// The current user's latest issues in a project, any status.
+    pub async fn my_recent_issues(&self, project_id: u32) -> Result<Vec<Issue>> {
+        let project = project_id.to_string();
+        let env: IssuesPage = self
+            .get(
+                "issues.json",
+                &[
+                    ("project_id", &project),
+                    ("author_id", "me"),
+                    ("status_id", "*"),
+                    ("sort", "created_on:desc"),
+                    ("limit", "10"),
+                ],
+            )
+            .await?;
+        Ok(env.issues)
+    }
+
+    /// Every project the user can see.
+    pub async fn projects(&self) -> Result<Vec<Project>> {
+        let mut projects = Vec::new();
+        loop {
+            let offset = projects.len().to_string();
+            let limit = PAGE_SIZE.to_string();
+            let page: ProjectsPage = self
+                .get("projects.json", &[("limit", &limit), ("offset", &offset)])
+                .await?;
+            let fetched = page.projects.len();
+            projects.extend(page.projects);
+            if fetched == 0 || projects.len() as u32 >= page.total_count {
+                break;
+            }
+        }
+        Ok(projects)
     }
 
     pub async fn trackers(&self) -> Result<Vec<Tracker>> {
@@ -348,6 +416,8 @@ mod tests {
                 parent_issue_id: Some(5),
                 assigned_to_id: None,
                 description: None,
+                start_date: None,
+                due_date: None,
             })
             .await
             .unwrap_err();

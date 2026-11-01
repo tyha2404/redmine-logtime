@@ -240,6 +240,16 @@ pub fn get_last_report(
         .unwrap_or_default())
 }
 
+/// Forgets the analysis once its plan is queued, keeping the text, so the
+/// same report is not queued twice when the page opens again.
+#[tauri::command]
+pub fn clear_last_report(state: State<'_, AppState>, day: Option<NaiveDate>) -> CmdResult<()> {
+    let key = report_key(day);
+    let mut last: LastReport = state.store.get_json(&key).map_err(err)?.unwrap_or_default();
+    last.view = None;
+    state.store.set_json(&key, &last).map_err(err)
+}
+
 /// Report text → tasks with verified parent issues and each day's free hours.
 /// With `day`, the text is that one calendar day's report. Work already
 /// logged or queued for a day is dropped from the plan as a duplicate.

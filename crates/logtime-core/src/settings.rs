@@ -11,9 +11,11 @@ pub struct Settings {
     /// ISO weekday numbers, Monday = 1 … Sunday = 7.
     pub workdays: Vec<u8>,
     pub holidays: Vec<NaiveDate>,
-    /// Issue that leave days are logged against (8h/day).
-    pub leave_issue_id: Option<u32>,
-    pub leave_activity_id: Option<u32>,
+    /// Kinds of leave. Each lives in its own project, where HR opens a parent
+    /// issue every month; a day off is a new sub-task of that month's parent.
+    pub leave_types: Vec<LeaveType>,
+    /// How you appear at the start of a leave issue's subject, e.g. "BE - Tỷ".
+    pub leave_name: String,
     pub default_activity_id: Option<u32>,
     /// Tracker used when creating sub-tasks under a BA's parent issue.
     pub subtask_tracker_id: Option<u32>,
@@ -30,8 +32,8 @@ impl Default for Settings {
             hours_per_day: 8.0,
             workdays: vec![1, 2, 3, 4, 5],
             holidays: Vec::new(),
-            leave_issue_id: None,
-            leave_activity_id: None,
+            leave_types: Vec::new(),
+            leave_name: String::new(),
             default_activity_id: None,
             subtask_tracker_id: None,
             claude_ignore_user_settings: false,
@@ -39,7 +41,39 @@ impl Default for Settings {
     }
 }
 
+/// One kind of leave (annual, unplanned, unpaid…).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct LeaveType {
+    /// "annual", "sick", "unpaid" or "other".
+    pub key: String,
+    /// Shown in the app, e.g. "Nghỉ phép năm".
+    pub label: String,
+    /// The project holding this kind's monthly parents and leave issues.
+    pub project_id: u32,
+    pub project_name: String,
+    pub activity_id: Option<u32>,
+    /// Goes after the name in a leave issue's subject, e.g. "xin nghỉ phép".
+    pub verb: String,
+    /// Days allowed per year; `None` means no limit (unpaid leave).
+    pub days_per_year: Option<f64>,
+}
+
+/// The usual yearly allowance for a kind of leave.
+pub fn default_allowance(key: &str) -> Option<f64> {
+    match key {
+        "annual" => Some(12.0),
+        "sick" => Some(4.0),
+        _ => None,
+    }
+}
+
 impl Settings {
+    /// Time on a leave project counts as leave on the calendar.
+    pub fn is_leave_project(&self, project_id: u32) -> bool {
+        self.leave_types.iter().any(|t| t.project_id == project_id)
+    }
+
     pub fn is_workday(&self, date: NaiveDate) -> bool {
         let iso = date.weekday().number_from_monday() as u8;
         self.workdays.contains(&iso) && !self.holidays.contains(&date)

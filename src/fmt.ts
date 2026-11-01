@@ -50,7 +50,8 @@ export function targetLabel(item: PlanItem, draft: Pick<Draft, "subtasks">): str
   if (item.target.type === "issue") return item.target.label;
   const key = item.target.key;
   const sub = draft.subtasks.find((s) => s.key === key);
-  return sub ? `Task con mới: ${sub.subject}` : "Task con mới";
+  if (!sub) return "Task con mới";
+  return item.kind === "leave" ? sub.subject : `Task con mới: ${sub.subject}`;
 }
 
 /** One line describing a batch operation; `ops` resolves new sub-task names. */

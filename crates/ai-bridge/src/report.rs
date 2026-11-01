@@ -39,6 +39,9 @@ pub struct ReportTask {
 pub struct LeaveDay {
     pub date: NaiveDate,
     pub hours: f64,
+    /// "annual" (planned), "sick" (unplanned or ill) or "unpaid".
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -165,7 +168,10 @@ pub fn schema() -> Value {
             "period_from": date, "period_to": date,
             "leave": {"type": "array", "items": {
                 "type": "object", "required": ["date", "hours"],
-                "properties": {"date": date, "hours": {"type": "number"}}
+                "properties": {
+                    "date": date, "hours": {"type": "number"},
+                    "kind": {"type": "string", "enum": ["annual", "sick", "unpaid"]}
+                }
             }},
             "questions": {"type": "array", "items": {"type": "string"}},
             "tasks": {"type": "array", "items": {
@@ -212,7 +218,7 @@ Today is {today} ({weekday}). Working days (ISO, Monday=1): {workdays:?}. A full
 
 ## What to produce
 - period_from / period_to: the dates the report covers.
-- leave: days the report says the developer was off ("nghỉ phép", "nghỉ ốm", "off", "nghỉ nửa ngày" = {half}h).
+- leave: days the report says the developer was off ("nghỉ phép", "nghỉ ốm", "off", "nghỉ nửa ngày" = {half}h). kind: "sick" for unplanned or ill ("đột xuất", "ốm", "bệnh"), "unpaid" for "không lương", otherwise "annual".
 - tasks: one per distinct line of work:
   - days: the working dates it was done on. A line in a DAILY report → that date only. Dates with no daily report → the WEEKLY lines. Skip leave-only days. `weight` = relative effort on that date (1 = normal; bigger = more of the day). Do not compute hours.
   - parent_issue_id: the BA parent task this work belongs to. Search with GET /issues.json (project_id, tracker_id, status_id=open or *, subject=~keyword, limit=100) and follow the rules above. Prefer open parents in the hinted project. null if nothing fits — never invent ids.
@@ -504,10 +510,12 @@ mod tests {
                 LeaveDay {
                     date: d(27),
                     hours: 8.0,
+                    kind: None,
                 },
                 LeaveDay {
                     date: d(29),
                     hours: 4.0,
+                    kind: None,
                 },
             ],
             questions: vec![],

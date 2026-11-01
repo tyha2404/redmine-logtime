@@ -1,5 +1,6 @@
 mod ai_commands;
 mod commands;
+mod leave_commands;
 mod plan_commands;
 mod secrets;
 mod state;
@@ -39,8 +40,12 @@ pub fn run() {
             ai_commands::save_profile,
             ai_commands::discover_profile,
             ai_commands::get_last_report,
+            ai_commands::clear_last_report,
             ai_commands::analyze_report,
             ai_commands::plan_report,
+            leave_commands::discover_leave,
+            leave_commands::leave_parent,
+            leave_commands::leave_entries,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

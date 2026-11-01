@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import AboutCard from "./AboutCard";
 import { api, errorText, type Activity, type Settings, type ToolStatus, type Tracker } from "./api";
+import LeaveSettings from "./LeaveSettings";
 import ProfileSection from "./ProfileSection";
+import type { UpdateState } from "./useUpdate";
 
 const WEEKDAYS: [number, string][] = [
   [1, "T2"],
@@ -31,13 +34,22 @@ function parseHolidays(text: string): { dates: string[]; bad: string | null } {
   return { dates: [...new Set(dates)].sort(), bad: null };
 }
 
-function toOptionalId(v: string): number | null {
-  const n = Number(v);
-  return v.trim() && Number.isInteger(n) && n > 0 ? n : null;
+/** Comparable form of everything the save button writes. */
+function snapshot(s: Settings, holidayText: string, apiKey: string): string {
+  return JSON.stringify({ ...s, holidays: holidayText.trim(), apiKey: apiKey.trim() });
 }
 
-export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
+interface Props {
+  onSaved: () => void;
+  update: UpdateState;
+  /** Scroll to a section once loaded, e.g. "about" from the rail's update notice. */
+  focus?: "about" | null;
+}
+
+export default function SettingsPage({ onSaved, update: updateState, focus }: Props) {
   const [settings, setSettings] = useState<Settings | null>(null);
+  /** What is on disk, to tell the user when the form has unsaved changes. */
+  const [savedSnapshot, setSavedSnapshot] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [holidayText, setHolidayText] = useState("");
@@ -59,6 +71,7 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
       .getSettings()
       .then((v) => {
         setSettings(v.settings);
+        setSavedSnapshot(snapshot(v.settings, v.settings.holidays.join("\n"), ""));
         setHasKey(v.has_api_key);
         setHolidayText(v.settings.holidays.join("\n"));
         if (v.settings.redmine_url && v.has_api_key) loadLists();
@@ -66,6 +79,11 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
       .catch((e) => setSaveNotice({ kind: "error", text: errorText(e) }));
     api.checkTools().then(setTools);
   }, []);
+
+  const loaded = settings !== null;
+  useEffect(() => {
+    if (loaded && focus) document.getElementById(focus)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [loaded, focus]);
 
   if (!settings) return <div className="page-pad muted">Đang tải cài đặt…</div>;
 
@@ -107,7 +125,10 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
     setBusy(true);
     setSaveNotice(null);
     try {
-      await api.saveSettings({ ...settings, holidays: dates, redmine_url: settings.redmine_url.trim() });
+      const next = { ...settings, holidays: dates, redmine_url: settings.redmine_url.trim() };
+      await api.saveSettings(next);
+      setSettings(next);
+      setSavedSnapshot(snapshot(next, dates.join("\n"), ""));
       if (apiKey.trim()) {
         await api.saveApiKey(apiKey);
         setApiKey("");
@@ -130,6 +151,7 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
   };
 
   const activeActivities = activities.filter((a) => a.active);
+  const dirty = snapshot(settings, holidayText, apiKey) !== savedSnapshot;
 
   return (
     <div className="settings page-pad">
@@ -208,8 +230,10 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
             checked={settings.claude_ignore_user_settings}
             onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
           />
-          Không dùng ~/.claude/settings.json khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự bật khi
-          cấu hình Claude của bạn bị từ chối API key.
+          <span>
+            Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự
+            bật khi cấu hình Claude của bạn bị từ chối API key.
+          </span>
         </label>
         <div className="card-foot">
           {aiCheck && aiCheck !== "running" && <p className={`notice ${aiCheck.kind}`}>{aiCheck.text}</p>}
@@ -224,6 +248,10 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
                 const saved = await api.getSettings();
                 setSettings((cur) =>
                   cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
+                );
+                // The backend may have flipped this flag on disk; that is not an unsaved edit.
+                setSavedSnapshot((prev) =>
+                  JSON.stringify({ ...JSON.parse(prev), claude_ignore_user_settings: saved.settings.claude_ignore_user_settings }),
                 );
                 setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
               } catch (e) {
@@ -280,25 +308,8 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
 
       <section className="card">
         <h2>Ghi logtime</h2>
-        <p className="hint">
-          Ngày nghỉ phép vẫn log đủ giờ vào issue nghỉ phép. Lịch sẽ tính những entry trên issue này là ngày nghỉ.
-        </p>
+        <p className="hint">Dùng khi app tạo task con cho công việc và ghi logtime lên Redmine.</p>
         <div className="field-grid">
-        <label className="field">
-          <span>Issue nghỉ phép</span>
-          <input
-            inputMode="numeric"
-            placeholder="Ví dụ 1234"
-            value={settings.leave_issue_id ?? ""}
-            onChange={(e) => update("leave_issue_id", toOptionalId(e.target.value))}
-          />
-        </label>
-        <ActivitySelect
-          label="Hoạt động khi log nghỉ phép"
-          value={settings.leave_activity_id}
-          options={activeActivities}
-          onChange={(v) => update("leave_activity_id", v)}
-        />
         <ActivitySelect
           label="Hoạt động mặc định khi log công việc"
           value={settings.default_activity_id}
@@ -324,6 +335,12 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
       </section>
 
 
+      <LeaveSettings
+        settings={settings}
+        activities={activeActivities}
+        onChange={(patch) => setSettings({ ...settings, ...patch })}
+      />
+
       <ProfileSection
         settings={settings}
         trackers={trackers}
@@ -333,10 +350,16 @@ export default function SettingsPage({ onSaved }: { onSaved: () => void }) {
         }}
       />
 
+      <AboutCard update={updateState} />
+
       </div>
 
-      <div className="save-bar">
-        {saveNotice && <p className={`notice ${saveNotice.kind}`}>{saveNotice.text}</p>}
+      <div className={`save-bar${dirty ? " is-dirty" : ""}`}>
+        {saveNotice && !dirty ? (
+          <p className={`notice ${saveNotice.kind}`}>{saveNotice.text}</p>
+        ) : (
+          dirty && <p className="save-dirty">Có thay đổi chưa lưu</p>
+        )}
         <button className="btn" onClick={onSaved} disabled={busy}>
           Về lịch
         </button>

@@ -3,3 +3,6 @@ node_modules
 /dist
 .DS_Store
 docker/.data
+# GitLab CI caches
+/.cargo
+/.npm

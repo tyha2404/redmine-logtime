@@ -10,11 +10,33 @@ export interface Settings {
   workdays: number[];
   /** YYYY-MM-DD */
   holidays: string[];
-  leave_issue_id: number | null;
-  leave_activity_id: number | null;
+  /** Kinds of leave; HR opens a parent issue per month in each one's project. */
+  leave_types: LeaveType[];
+  /** Start of a leave issue's subject, e.g. "BE - Tỷ". */
+  leave_name: string;
   default_activity_id: number | null;
   subtask_tracker_id: number | null;
   claude_ignore_user_settings: boolean;
+}
+
+export interface LeaveType {
+  key: string;
+  label: string;
+  project_id: number;
+  project_name: string;
+  activity_id: number | null;
+  /** After the name in a leave subject, e.g. "xin nghỉ phép". */
+  verb: string;
+  /** Days allowed per year; null = no limit (or the usual default, see leave.ts). */
+  days_per_year?: number | null;
+}
+
+export interface LeaveParent {
+  id: number;
+  subject: string;
+  project_id: number;
+  project_name: string;
+  tracker_id: number;
 }
 
 export interface SettingsView {
@@ -127,6 +149,8 @@ export interface SubtaskDraft {
   project_name: string;
   tracker_id: number;
   subject: string;
+  /** Start and due date of the new issue (a leave issue's day). */
+  start_date?: string | null;
 }
 
 export interface Draft {
@@ -257,7 +281,7 @@ export interface ReportView {
   analysis: {
     period_from: string;
     period_to: string;
-    leave: { date: string; hours: number }[];
+    leave: { date: string; hours: number; kind?: "annual" | "sick" | "unpaid" | null }[];
     questions: string[];
     tasks: ReportTask[];
   };
@@ -327,6 +351,10 @@ export const api = {
   discoverProfile: () => invoke<Profile>("discover_profile"),
   getLastReport: (day: string | null) =>
     invoke<{ text: string; day: string | null; view: ReportView | null }>("get_last_report", { day }),
+  discoverLeave: () => invoke<{ types: LeaveType[]; name: string | null }>("discover_leave"),
+  leaveEntries: (year: number) => invoke<TimeEntry[]>("leave_entries", { year }),
+  leaveParent: (projectId: number, date: string) => invoke<LeaveParent>("leave_parent", { projectId, date }),
+  clearLastReport: (day: string | null) => invoke<void>("clear_last_report", { day }),
   analyzeReport: (text: string, day: string | null) => invoke<ReportView>("analyze_report", { text, day }),
   planReport: (view: ReportView, excluded: string[]) => invoke<DayPlan[]>("plan_report", { view, excluded }),
   onAiProgress: (cb: (p: AiProgress) => void): Promise<UnlistenFn> =>

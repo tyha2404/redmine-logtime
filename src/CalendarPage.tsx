@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AddEntryForm from "./AddEntryForm";
 import AiLog from "./AiLog";
-import { api, errorText, newId, type DayStatus, type DaySummary, type MonthSummary, type PlanItem, type Settings } from "./api";
+import LeaveForm from "./LeaveForm";
+import { api, errorText, type DayStatus, type DaySummary, type MonthSummary, type PlanItem, type Settings } from "./api";
 import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, targetLabel, todayIso } from "./fmt";
+import { Icon } from "./icons";
 import QuotaRail from "./QuotaRail";
 import { summaryLine, TaskRow, useReportFlow } from "./reportFlow";
+import { useToast } from "./toast";
 import type { DraftApi } from "./useDraft";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -91,10 +94,17 @@ export default function CalendarPage({ settings, draft, onOpenSettings, onOpenRe
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus());
   };
 
-  // Monday-first grid: blank cells before the 1st.
+  // Monday-first grid: blank cells before the 1st, then the month in weeks.
   const leading = useMemo(() => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7, [ym]);
+  const weeks = useMemo(() => {
+    if (!summary) return [];
+    const cells: (DaySummary | null)[] = [...Array(leading).fill(null), ...summary.days];
+    while (cells.length % 7) cells.push(null);
+    return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  }, [summary, leading]);
   const selectedDay = summary?.days.find((d) => d.date === selected) ?? null;
   const today = todayIso();
+  const isCurrentMonth = ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
   const pendingCount = draft.draft.items.length;
 
   return (
@@ -106,17 +116,25 @@ export default function CalendarPage({ settings, draft, onOpenSettings, onOpenRe
             <span className="month-year">{ym.year}</span>
           </h1>
           <div className="month-nav">
-            <button className="btn ghost" onClick={() => shift(-1)} aria-label="Tháng trước">
-              ‹
-            </button>
-            <button className="btn ghost" onClick={goToday}>
-              Hôm nay
-            </button>
-            <button className="btn ghost" onClick={() => shift(1)} aria-label="Tháng sau">
-              ›
-            </button>
-            <button className="btn ghost" onClick={load} disabled={loading}>
-              {loading ? "Đang tải…" : "Tải lại"}
+            <div className="nav-group" role="group" aria-label="Chọn tháng">
+              <button className="nav-btn icon-only" onClick={() => shift(-1)} aria-label="Tháng trước" title="Tháng trước">
+                <Icon name="chevronLeft" />
+              </button>
+              <button className="nav-btn" onClick={goToday} disabled={isCurrentMonth && selected === today}>
+                Hôm nay
+              </button>
+              <button className="nav-btn icon-only" onClick={() => shift(1)} aria-label="Tháng sau" title="Tháng sau">
+                <Icon name="chevronRight" />
+              </button>
+            </div>
+            <button
+              className={`nav-btn icon-only refresh${loading ? " is-loading" : ""}`}
+              onClick={load}
+              disabled={loading}
+              aria-label={loading ? "Đang tải lại từ Redmine" : "Tải lại từ Redmine"}
+              title="Tải lại từ Redmine"
+            >
+              <Icon name="refresh" />
             </button>
           </div>
         </header>
@@ -143,24 +161,29 @@ export default function CalendarPage({ settings, draft, onOpenSettings, onOpenRe
               )}
             </p>
 
-            <div className="grid" role="grid" aria-busy={loading} onKeyDown={onGridKey}>
+            <div
+              className="grid"
+              role="grid"
+              aria-busy={loading}
+              onKeyDown={onGridKey}
+            >
               {WEEKDAYS.map((w) => (
                 <div key={w} className="grid-head" role="columnheader">
                   {w}
                 </div>
               ))}
-              {Array.from({ length: leading }, (_, i) => (
-                <div key={`b${i}`} aria-hidden />
-              ))}
-              {summary?.days.map((day) => (
-                <DayCell
-                  key={day.date}
-                  day={day}
-                  planned={sumHours(plannedByDate.get(day.date))}
+              <div className="grid-head week-head" role="columnheader">
+                Tuần
+              </div>
+              {weeks.map((week, wi) => (
+                <WeekRow
+                  key={wi}
+                  week={week}
+                  plannedByDate={plannedByDate}
                   hoursPerDay={hpd}
-                  isToday={day.date === today}
-                  isSelected={day.date === selected}
-                  onSelect={() => setSelected(day.date)}
+                  today={today}
+                  selected={selected}
+                  onSelect={setSelected}
                 />
               ))}
             </div>
@@ -196,6 +219,60 @@ export default function CalendarPage({ settings, draft, onOpenSettings, onOpenRe
 
 function sumHours(items: { hours: number }[] | undefined): number {
   return (items ?? []).reduce((s, i) => s + i.hours, 0);
+}
+
+function WeekRow(props: {
+  week: (DaySummary | null)[];
+  plannedByDate: Map<string, PlanItem[]>;
+  hoursPerDay: number;
+  today: string;
+  selected: string;
+  onSelect: (date: string) => void;
+}) {
+  const { week, plannedByDate, hoursPerDay, today, selected, onSelect } = props;
+  const days = week.filter((d): d is DaySummary => !!d);
+  const logged = days.reduce((s, d) => s + d.hours, 0);
+  const planned = days.reduce((s, d) => s + sumHours(plannedByDate.get(d.date)), 0);
+  // Quota for this week's workdays inside the month; days off and holidays don't count.
+  const expected = days.filter((d) => d.status !== "weekend" && d.status !== "holiday").length * hoursPerDay;
+  const short = days.some((d) => d.status === "missing" || d.status === "partial");
+  const tone = short ? "is-short" : expected > 0 && logged >= expected ? "is-full" : "";
+
+  return (
+    <>
+      {week.map((day, i) =>
+        day ? (
+          <DayCell
+            key={day.date}
+            day={day}
+            planned={sumHours(plannedByDate.get(day.date))}
+            hoursPerDay={hoursPerDay}
+            isToday={day.date === today}
+            isSelected={day.date === selected}
+            onSelect={() => onSelect(day.date)}
+          />
+        ) : (
+          <div key={`b${i}`} aria-hidden />
+        ),
+      )}
+      <div
+        className={`week-sum ${tone}`}
+        role="gridcell"
+        aria-label={`Tuần: ${fmtHours(logged)} trên ${fmtHours(expected)}${planned ? `, ${fmtHours(planned)} chờ ghi` : ""}`}
+      >
+        {expected > 0 && (
+          <>
+            <span className="week-logged">{fmtHours(logged)}</span>
+            <span className="week-expected">/ {fmtHours(expected)}</span>
+            {planned > 0 && <span className="week-plus">+{fmtHours(planned)}</span>}
+            <span className="week-bar" aria-hidden>
+              <span style={{ width: `${Math.min(logged / expected, 1) * 100}%` }} />
+            </span>
+          </>
+        )}
+      </div>
+    </>
+  );
 }
 
 function MonthLine({ s, onOpenReport }: { s: MonthSummary; onOpenReport: () => void }) {
@@ -260,7 +337,7 @@ function DayCell(props: {
 }
 
 
-type PanelMode = "idle" | "report" | "add";
+type PanelMode = "idle" | "report" | "add" | "leave";
 
 function DayPanel(props: {
   day: DaySummary | null;
@@ -271,6 +348,7 @@ function DayPanel(props: {
   onOpenReview: () => void;
 }) {
   const { day, planned, settings, draft, onOpenSettings, onOpenReview } = props;
+  const toast = useToast();
   const [mode, setMode] = useState<PanelMode>(() =>
     // Browser mock mode can open a composer directly: ?panel=report
     import.meta.env.VITE_MOCK === "1" ? ((new URLSearchParams(location.search).get("panel") as PanelMode) ?? "idle") : "idle",
@@ -289,22 +367,13 @@ function DayPanel(props: {
   const remaining = Math.max(hpd - day.hours - plannedHours, 0);
   const off = day.status === "weekend" || day.status === "holiday";
 
-  const addLeave = (hours: number, comments: string) => {
-    const id = settings.leave_issue_id;
-    if (!id) return;
-    draft.add([
-      {
-        id: newId(),
-        date: day.date,
-        target: { type: "issue", issue_id: id, label: `#${id} Nghỉ phép` },
-        hours,
-        activity_id: settings.leave_activity_id ?? settings.default_activity_id,
-        comments,
-        kind: "leave",
-        last_error: null,
-      },
-    ]);
+  const removeItem = async (item: PlanItem) => {
+    const removed = await draft.remove([item.id]);
+    toast(`Đã bỏ ${fmtHours(item.hours)} ngày ${fmtDayShort(item.date)} khỏi hàng chờ.`, {
+      action: { label: "Hoàn tác", run: () => draft.restore(removed) },
+    });
   };
+
 
   return (
     <aside className="day-panel">
@@ -339,11 +408,40 @@ function DayPanel(props: {
             date={day.date}
             settings={settings}
             remainingHours={remaining}
-            onAdd={(items, subtasks) => {
-              draft.add(items, subtasks);
+            onAdd={async (items, subtasks) => {
+              await draft.add(items, subtasks);
               setMode("idle");
+              toast(`Đã thêm ${fmtHours(sumHours(items))} vào hàng chờ.`, {
+                action: { label: "Hoàn tác", run: () => draft.remove(items.map((i) => i.id)) },
+              });
             }}
             onCancel={() => setMode("idle")}
+          />
+        </section>
+      )}
+
+      {mode === "leave" && (
+        <section className="panel-block">
+          <header className="block-head">
+            <h3>Xin nghỉ ngày {fmtDayShort(day.date)}</h3>
+            <button className="link" onClick={() => setMode("idle")}>
+              Đóng
+            </button>
+          </header>
+          <LeaveForm
+            date={day.date}
+            settings={settings}
+            draft={draft.draft}
+            onOpenSettings={onOpenSettings}
+            onCancel={() => setMode("idle")}
+            onAdd={async (item, subtask) => {
+              await draft.add([item], [subtask]);
+              setMode("idle");
+              const kind = settings.leave_types.find((t) => t.project_id === subtask.project_id)?.label ?? "Nghỉ";
+              toast(`Đã thêm ${fmtHours(item.hours)} ${kind.toLowerCase()} ngày ${fmtDayShort(day.date)} vào hàng chờ.`, {
+                action: { label: "Hoàn tác", run: () => draft.remove([item.id]) },
+              });
+            }}
           />
         </section>
       )}
@@ -351,32 +449,17 @@ function DayPanel(props: {
       {mode === "idle" && (
         <section className="panel-block panel-actions">
           <button className="btn primary" onClick={() => setMode("report")}>
+            <Icon name="report" size={16} />
             Nhập báo cáo ngày này
           </button>
           <button className="btn" onClick={() => setMode("add")}>
+            <Icon name="plus" size={16} />
             Thêm logtime vào issue
           </button>
-          <div className="row">
-            <button className="btn" disabled={!settings.leave_issue_id} onClick={() => addLeave(hpd, "Nghỉ phép")}>
-              Nghỉ cả ngày
-            </button>
-            <button
-              className="btn"
-              disabled={!settings.leave_issue_id}
-              onClick={() => addLeave(hpd / 2, "Nghỉ phép nửa ngày")}
-            >
-              Nghỉ nửa ngày
-            </button>
-          </div>
-          {!settings.leave_issue_id && (
-            <p className="hint">
-              Để log nghỉ phép, đặt issue nghỉ phép trong{" "}
-              <button className="link" onClick={onOpenSettings}>
-                Cài đặt
-              </button>
-              .
-            </p>
-          )}
+          <button className="btn" onClick={() => setMode("leave")}>
+            <Icon name="leave" size={16} />
+            Xin nghỉ ngày này
+          </button>
         </section>
       )}
 
@@ -385,7 +468,7 @@ function DayPanel(props: {
           <header className="block-head">
             <h3 className="text-pending">Chờ ghi</h3>
             <button className="link" onClick={onOpenReview}>
-              Duyệt và ghi
+              Xem hàng chờ
             </button>
           </header>
           <ul className="entries">
@@ -397,8 +480,8 @@ function DayPanel(props: {
                   {i.comments && <div className="entry-comment">{i.comments}</div>}
                   {i.last_error && <div className="entry-error">Lần ghi trước lỗi: {i.last_error}</div>}
                 </div>
-                <button className="icon-btn" onClick={() => draft.remove([i.id])} aria-label="Bỏ khỏi hàng chờ">
-                  ×
+                <button className="icon-btn" onClick={() => removeItem(i)} aria-label="Bỏ khỏi hàng chờ" title="Bỏ khỏi hàng chờ">
+                  <Icon name="close" size={16} />
                 </button>
               </li>
             ))}
@@ -466,7 +549,9 @@ function DayReport(props: { date: string; settings: Settings; draft: DraftApi; o
         disabled={ai.running}
         aria-label={`Báo cáo ngày ${fmtDayShort(date)}`}
       />
-      <p className="hint">Mỗi dòng một việc. Việc đã log hoặc đang chờ ghi của ngày này sẽ tự bỏ qua.</p>
+      <p className="hint">
+        Mỗi dòng một việc. Việc đã log hoặc đang chờ ghi của ngày này sẽ tự bỏ qua.
+      </p>
       <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
         {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
       </button>

@@ -123,9 +123,7 @@ pub fn summarize_month(
 }
 
 fn is_leave(e: &TimeEntry, settings: &Settings) -> bool {
-    settings
-        .leave_issue_id
-        .is_some_and(|id| e.issue.as_ref().is_some_and(|i| i.id == id))
+    settings.is_leave_project(e.project.id)
 }
 
 fn classify(hours: f64, leave_hours: f64, hpd: f64, future: bool) -> DayStatus {
@@ -156,8 +154,9 @@ mod tests {
     fn entry(day: u32, issue: u32, hours: f64) -> TimeEntry {
         TimeEntry {
             id: day * 100 + issue,
+            // Issue 999 lives in the leave project.
             project: IdName {
-                id: 1,
+                id: if issue == 999 { 108 } else { 1 },
                 name: "P".into(),
             },
             issue: Some(IdRef { id: issue }),
@@ -178,7 +177,11 @@ mod tests {
     fn settings() -> Settings {
         Settings {
             holidays: vec![d(2)],
-            leave_issue_id: Some(999),
+            leave_types: vec![crate::LeaveType {
+                key: "annual".into(),
+                project_id: 108,
+                ..Default::default()
+            }],
             ..Settings::default()
         }
     }

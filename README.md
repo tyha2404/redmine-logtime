@@ -14,20 +14,47 @@ src/                    Giao diện React
 docker/                 Redmine local để test thao tác ghi
 ```
 
-## Cài đặt bằng một lệnh
+## Cài đặt
 
-Trên macOS hoặc Ubuntu/Debian, từ thư mục dự án:
+Trên macOS (Apple Silicon hoặc Intel) và Ubuntu/Debian, mở Terminal và chạy lệnh in ở job `release` của pipeline GitLab (hoặc trong trang Release, hoặc `make install-command`). Dạng lệnh:
 
 ```bash
-./scripts/install.sh        # hoặc: make install  /  npm run app:install
+curl -fsSL https://<gitlab>/api/v4/projects/<id>/packages/generic/redmine-logtime/latest/install.sh | bash
 ```
 
-Script tự cài Rust nếu thiếu (cần sẵn Node.js 20+), cài các gói hệ thống cần cho Tauri trên Ubuntu (hỏi `sudo`), build bản release rồi cài:
+Lệnh tải bản build sẵn của release mới nhất rồi cài: macOS vào `/Applications` (hoặc `~/Applications` nếu không có quyền ghi), Ubuntu qua `apt` (hỏi `sudo`). Không cần clone source, không cần Node hay Rust. Nếu release chưa có bản cho máy đó, script tự tải mã nguồn của đúng phiên bản và build (lúc này cần Node 20+, Rust được cài tự động).
 
-- macOS: chép `Redmine Logtime.app` vào `/Applications` (hoặc `~/Applications` nếu không có quyền ghi)
-- Ubuntu: build `.deb` rồi `sudo apt install` gói `redmine-logtime`
+- **Cập nhật**: chạy lại đúng lệnh trên. Đã là bản mới nhất thì không làm gì; app cũng báo ở góc trái khi có bản mới, và **Cài đặt → Phiên bản** có nút chép lệnh.
+- **Bản cụ thể**: `... | bash -s -- --version 0.2.0`
+- **Gỡ**: `... | bash -s -- --uninstall` (giữ lại cài đặt và API key)
+- **Project private**: `curl -fsSL -H "PRIVATE-TOKEN: <token>" <link> | GITLAB_TOKEN=<token> bash`, token cần quyền `read_api`.
 
-Các lệnh khác: `./scripts/install.sh --build-only` (chỉ build), `./scripts/install.sh --uninstall` (gỡ app, giữ lại cài đặt và API key). Cài lại bằng lệnh install sẽ ghi đè bản cũ.
+Lần đầu mở app sẽ hỏi địa chỉ Redmine và API key, sau đó vào thẳng lịch tháng.
+
+Từ thư mục source vẫn dùng được `make install` (build rồi cài), `./scripts/install.sh --prebuilt` (tải bản build sẵn), `make build`, `make uninstall`.
+
+## Phát hành lên GitLab
+
+Pipeline trong `.gitlab-ci.yml`:
+
+- Push lên nhánh / merge request: `tsc`, `cargo test`, kiểm tra cú pháp script cài.
+- Push tag `vX.Y.Z`: build `.deb` (Ubuntu 22.04, amd64), đưa lên Package Registry của project, đăng `install.sh` đã điền sẵn địa chỉ GitLab, tạo GitLab Release kèm link tải và lệnh cài.
+
+Phát hành một phiên bản:
+
+```bash
+make release VERSION=0.2.0     # đổi version ở package.json, tauri.conf.json, Cargo.toml; commit; tạo tag
+git push --follow-tags
+```
+
+**Bản macOS** cần máy Mac để build:
+
+- Có runner macOS (GitLab SaaS Premium hoặc runner tự dựng): đặt biến CI `MACOS_RUNNER_TAG` bằng tag của runner, job `build:macos` sẽ tự chạy.
+- Không có: sau khi push tag, trên máy Mac checkout tag đó rồi chạy `GITLAB_TOKEN=<token quyền api> make publish-macos`. Script build bản universal (Apple Silicon + Intel), tải lên Package Registry và gắn vào release.
+
+Thiết lập một lần trên GitLab: bật Package Registry cho project (Settings → General → Visibility). Project public thì ai cũng cài được bằng lệnh một dòng; private thì người cài cần token.
+
+App chưa ký bằng Apple Developer ID (chỉ ký ad-hoc). Cài bằng lệnh `curl` thì macOS không chặn; nếu tải file `.tar.gz` bằng trình duyệt, lần đầu mở bằng chuột phải → Open.
 
 ## Chạy dev
 
@@ -44,13 +71,21 @@ URL Redmine và API key nhập trong màn **Cài đặt**. API key được lưu
 - macOS: `~/Library/Application Support/app.redmine-logtime.desktop/`
 - Ubuntu: `~/.config/app.redmine-logtime.desktop/`
 
+## Nghỉ phép
+
+Theo cách HR đang làm: dưới ESTUARY → GNA mỗi loại nghỉ có một project (Annual Leave, Sick Leave, Unpaid Leave); đầu mỗi tháng HR tạo task cha trong từng project ("Xin nghỉ phép Tháng 10.2026", "… Đột Xuất …", "… KL …"). Mỗi ngày nghỉ là một issue con dưới task cha của tháng đó, log giờ vào issue con.
+
+- **Cài đặt → Nghỉ phép → Tìm trên Redmine**: app tìm các project có tên "Leave"/"Nghỉ", activity cùng tên, và tên bạn hay dùng trong tiêu đề (ví dụ "BE - Tỷ") từ các issue nghỉ cũ.
+- **Lịch → chọn ngày → Xin nghỉ ngày này**: chọn loại (phép năm, đột xuất, không lương) và cả ngày/buổi sáng/buổi chiều. App tìm task cha của tháng, đặt tên issue kiểu "BE - Tỷ xin nghỉ phép ngày 29/10/2026" (sửa được), ngày bắt đầu = ngày kết thúc = ngày nghỉ, rồi đưa vào hàng chờ. Ngày nghỉ trong báo cáo cũng đi theo cách này; loại nghỉ đổi được ngay trong hàng chờ.
+- Lịch tính giờ log trong các project nghỉ là ngày nghỉ. Nếu HR chưa tạo task cha cho tháng, app báo và chưa cho thêm.
+
 ## Tính năng AI
 
 Cần [Claude CLI](https://claude.ai/install.sh) đã đăng nhập và `uv` (để chạy [mcp-redmine](https://github.com/runekaagaard/mcp-redmine)). App tự cấu hình MCP với `REDMINE_READ_ONLY=1`: Claude chỉ đọc Redmine, mọi thao tác ghi do app làm sau khi bạn duyệt.
 
-1. **Cài đặt → Cấu trúc Redmine → Phân tích**: Claude tìm cách nhận biết task cha do BA tạo, tracker task con, issue nghỉ phép. Có thể thêm ghi chú riêng để Claude ưu tiên.
-2. **Nhập báo cáo**: dán báo cáo tuần + báo cáo ngày. Claude tìm task cha/task con có sẵn; app chia giờ (bội số 0.5h) cho đủ giờ còn trống mỗi ngày. Sửa task cha/tên task con nếu cần rồi đưa vào hàng chờ.
-3. **Duyệt và ghi**: kiểm tra từng ngày, ghi lên Redmine; có thể hoàn tác trong **Lịch sử ghi**.
+1. **Cài đặt → Cấu trúc Redmine → Phân tích**: Claude tìm cách nhận biết task cha do BA tạo và tracker task con. Có thể thêm ghi chú riêng để Claude ưu tiên.
+2. **Ghi logtime**, phần trên: dán báo cáo tuần + báo cáo ngày. Claude tìm task cha/task con có sẵn; app chia giờ (bội số 0.5h) cho đủ giờ còn trống mỗi ngày. Sửa task cha/tên task con nếu cần rồi đưa vào hàng chờ.
+3. **Ghi logtime**, phần dưới: hàng chờ theo từng ngày. Sửa giờ, ghi chú, hoặc bấm **Đổi task** để đổi task cha, tên task con, hay log thẳng vào một issue có sẵn; rồi ghi lên Redmine. Có thể hoàn tác trong **Lịch sử ghi**.
 
 Nếu `~/.claude/settings.json` đặt `ANTHROPIC_API_KEY` mà key đó không dùng được ở chế độ `claude -p`, bật tuỳ chọn “Không dùng ~/.claude/settings.json khi gọi Claude” để dùng tài khoản claude.ai đã đăng nhập.
 
@@ -65,8 +100,9 @@ REDMINE_API_KEY=... cargo run -p ai-bridge --example local_ai
 Không cần Redmine hay Tauri: chạy UI trong trình duyệt với dữ liệu tháng 10/2026 giả lập (`src/mock.ts`, không có trong bản build thật):
 
 ```bash
-VITE_MOCK=1 npx vite --port 1430
+make mock          # = VITE_MOCK=1 npx vite --port 1430
 # mở http://localhost:1430/?page=calendar  (report | review | history | settings)
+# màn chào lần đầu: http://localhost:1430/?setup=1
 ```
 
 ## Test
@@ -106,6 +142,4 @@ REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=... \
 npm run tauri build
 ```
 
-Ra `.dmg`/`.app` trên macOS và `.deb`/`.AppImage` trên Ubuntu (build trên từng hệ điều hành).
-
-Workflow `.github/workflows/release.yml` build cả 3 bản (macOS Apple Silicon, macOS Intel, Ubuntu) khi push tag `v*` và đính vào một GitHub release nháp. App chưa được ký: trên macOS lần đầu mở bằng chuột phải → Open.
+Ra `.app`/`.dmg` trên macOS và `.deb`/`.AppImage` trên Ubuntu (build trên từng hệ điều hành). Bản phát hành chính thức đi qua GitLab CI, xem phần trên.
