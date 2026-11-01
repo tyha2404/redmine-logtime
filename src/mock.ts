@@ -7,6 +7,7 @@ import type {
   DayStatus,
   DaySummary,
   Issue,
+  LearnedTask,
   Op,
   OpPayload,
   Profile,
@@ -34,6 +35,9 @@ let settings: Settings = {
   default_activity_id: 9,
   subtask_tracker_id: 4,
   claude_ignore_user_settings: true,
+  reminder_enabled: true,
+  reminder_time: "17:30",
+  start_at_login: false,
 };
 
 const iso = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
@@ -368,6 +372,15 @@ let gchat = new URLSearchParams(location.search).get("gchat") === "0"
   ? { connected: false, email: null as string | null, client_id: null as string | null }
   : { connected: true, email: "dev.a@congty.vn", client_id: "123-abc.apps.googleusercontent.com" };
 
+/** Tasks remembered from earlier writes; `?memory=0` starts empty. */
+let memory: LearnedTask[] =
+  new URLSearchParams(location.search).get("memory") === "0"
+    ? []
+    : [
+        { text: "Sửa feedback công nợ", parent_id: 1, parent_subject: "Quản lý công nợ khách hàng", subtask_id: 4, subtask_subject: "[FE] Màn hình danh sách công nợ", project_hint: "ABC", comment: "" },
+        { text: "Review Module Sự kiện", parent_id: 2, parent_subject: "Module Sự kiện", subtask_id: 5, subtask_subject: "Review Module Sự kiện", project_hint: "ABC", comment: "" },
+      ];
+
 const CHAT_MESSAGES = [
   { name: "spaces/TEAM/messages/1", create_time: "2026-10-26T10:05:00Z", text: "Thứ 2 26/10:\n- Sửa feedback công nợ\n- Review Module Sự kiện" },
   { name: "spaces/TEAM/messages/2", create_time: "2026-10-27T10:12:00Z", text: "Báo cáo hôm nay:\n- Sửa feedback công nợ (filter + export)" },
@@ -381,8 +394,8 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
   switch (cmd) {
     case "get_settings":
       // ?setup=1 shows the first-run screen of a fresh install.
-      if (fresh) return delay({ settings: { ...settings, redmine_url: "" }, has_api_key: false });
-      return delay({ settings, has_api_key: true });
+      if (fresh) return delay({ settings: { ...settings, redmine_url: "" }, has_api_key: false, secret_storage: "keychain" });
+      return delay({ settings, has_api_key: true, secret_storage: "keychain" });
     case "save_api_key":
       fresh = false;
       return delay(undefined);
@@ -421,6 +434,52 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay(
         args.day === TODAY ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW } : { text: "", day: args.day ?? null, view: null },
       );
+    case "install_update":
+      for (const downloaded of [2, 5, 8, 10]) {
+        await delay(undefined, 250);
+        emit("update-progress", { downloaded: downloaded * 1_000_000, total: 10_000_000 });
+      }
+      throw "Bản mock không cài được; bản thật sẽ tự khởi động lại.";
+    case "open_log_dir":
+      return delay(undefined, 50);
+    case "quick_report": {
+      if (memory.length === 0) throw "Chưa có việc nào được ghi nhớ. Phân tích bằng AI và ghi lần đầu, app sẽ nhớ cho các lần sau.";
+      const known = (t: string) => memory.some((m) => m.text.toLowerCase() === t.toLowerCase());
+      const v = structuredClone(WEEK_VIEW);
+      v.tasks = v.tasks
+        .filter((t) => known(t.task.text))
+        .map((t) => ({ ...t, problems: [], task: { ...t.task, parent_confidence: 1, parent_reason: "Lần trước bạn đã chọn task này." } }));
+      v.analysis.tasks = v.tasks.map((t) => t.task);
+      v.analysis.leave = [];
+      v.days = v.days.map((d) => ({ ...d, leave_hours: 0, capacity: Math.max(HPD - d.existing_hours, 0) }));
+      const unknown = WEEK_VIEW.tasks.filter((t) => !known(t.task.text)).map((t) => `“${t.task.text}”`);
+      v.analysis.questions = [
+        ...(unknown.length ? [`Chưa nhận ra ${unknown.length} dòng (chưa ghi lần nào): ${unknown.join(", ")}. Dùng Phân tích bằng AI cho các việc mới.`] : []),
+        "Khớp nhanh không ghi nghỉ phép: “T4 28/10 nghỉ buổi sáng”. Dùng Xin nghỉ trên Lịch tháng.",
+      ];
+      if (args.day) {
+        // A calendar day's report: every matched line is that day's work.
+        const day = args.day as string;
+        v.tasks = v.tasks.map((t) => ({ ...t, task: { ...t.task, days: [{ date: day, weight: 1 }] } }));
+        v.analysis = { ...v.analysis, period_from: day, period_to: day, tasks: v.tasks.map((t) => t.task) };
+        v.days = [{ date: day, workday: true, existing_hours: 0, leave_hours: 0, capacity: HPD }];
+        v.day = day;
+      }
+      return delay(v, 300);
+    }
+    case "remember_tasks": {
+      for (const t of args.tasks as LearnedTask[]) {
+        const i = memory.findIndex((m) => m.text.toLowerCase() === t.text.toLowerCase());
+        if (i >= 0) memory[i] = t;
+        else memory.push(t);
+      }
+      return delay(memory.length, 50);
+    }
+    case "memory_count":
+      return delay(memory.length, 50);
+    case "forget_memory":
+      memory = [];
+      return delay(undefined, 50);
     case "analyze_report":
       return delay(args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW), 1200);
     case "discover_leave":

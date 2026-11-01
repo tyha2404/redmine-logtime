@@ -4,6 +4,7 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use ai_bridge::memory::{self, Memory, Remembered};
 use ai_bridge::profile::{self, Profile};
 use ai_bridge::report::{
     self, DayCapacity, DayPlan, Duplicate, KnownWork, ReportAnalysis, ReportContext, ReportTask,
@@ -25,6 +26,11 @@ type CmdResult<T> = Result<T, String>;
 
 const PROFILE_KEY: &str = "profile";
 const REPORT_KEY: &str = "last_report";
+const MEMORY_KEY: &str = "task_memory";
+
+fn load_memory(state: &AppState) -> CmdResult<Memory> {
+    Ok(state.store.get_json(MEMORY_KEY).map_err(err)?.unwrap_or_default())
+}
 
 /// Where a report is kept: the report page has one slot, each calendar day
 /// its own.
@@ -83,7 +89,10 @@ async fn run_claude<T: DeserializeOwned>(
             state.save_settings(settings).map_err(err)?;
             Ok(out)
         }
-        other => other.map_err(err),
+        other => other.map_err(|e| {
+            log::warn!("Claude lỗi: {e}");
+            err(e)
+        }),
     }
 }
 
@@ -280,6 +289,8 @@ pub async fn analyze_report(
     let mcp = redmine_mcp(&state, &settings)?;
     let profile: Option<Profile> = state.store.get_json(PROFILE_KEY).map_err(err)?;
     let profile_md = profile.as_ref().map(profile::to_instructions);
+    let memory = load_memory(&state)?;
+    let known_tasks = memory.prompt_hint();
     let today = Local::now().date_naive();
 
     let prompt = report::prompt(
@@ -290,6 +301,7 @@ pub async fn analyze_report(
             workdays: &settings.workdays,
             profile: profile_md.as_deref(),
             day,
+            known_tasks: known_tasks.as_deref(),
         },
     );
     let mut analysis: ReportAnalysis = run_claude(
@@ -303,6 +315,15 @@ pub async fn analyze_report(
     if let Some(d) = day {
         analysis.pin_to_day(d);
     }
+    // The user's earlier choice beats a fresh guess for the same work.
+    let remembered = memory.apply(&mut analysis);
+    log::info!(
+        "Phân tích báo cáo: {} việc ({} lấy từ ghi nhớ), {} ngày nghỉ, {} câu hỏi",
+        analysis.tasks.len(),
+        remembered,
+        analysis.leave.len(),
+        analysis.questions.len()
+    );
 
     let _ = app.emit(
         "ai-progress",
@@ -310,6 +331,101 @@ pub async fn analyze_report(
             text: "Kiểm tra lại issue và việc đã log trên Redmine".into(),
         },
     );
+    let view = build_view(&client, &settings, analysis, today, day).await?;
+    remember(Some(view.clone())).map_err(err)?;
+    Ok(view)
+}
+
+/// "Khớp nhanh": the report matched against tasks logged before, without
+/// Claude. Lines it does not recognise are listed as questions.
+#[tauri::command]
+pub async fn quick_report(
+    state: State<'_, AppState>,
+    text: String,
+    day: Option<NaiveDate>,
+) -> CmdResult<ReportView> {
+    if text.trim().is_empty() {
+        return Err("Nhập báo cáo công việc vào trước đã.".into());
+    }
+    let settings = state.settings();
+    let client = client_for(&state.credentials, &settings, None)?;
+    let today = Local::now().date_naive();
+    let analysis = memory::quick_analysis(&load_memory(&state)?, &text, today, day)?;
+    log::info!(
+        "Khớp nhanh: {} việc, {} dòng cần xem lại",
+        analysis.tasks.len(),
+        analysis.questions.len()
+    );
+    let view = build_view(&client, &settings, analysis, today, day).await?;
+    state
+        .store
+        .set_json(
+            &report_key(day),
+            &LastReport {
+                text,
+                day,
+                view: Some(view.clone()),
+            },
+        )
+        .map_err(err)?;
+    Ok(view)
+}
+
+/// What the user wrote for one task, sent after a successful write.
+#[derive(Debug, Deserialize)]
+pub struct Learned {
+    pub text: String,
+    pub parent_id: u32,
+    pub parent_subject: String,
+    pub subtask_id: Option<u32>,
+    pub subtask_subject: String,
+    #[serde(default)]
+    pub project_hint: String,
+    #[serde(default)]
+    pub comment: String,
+}
+
+#[tauri::command]
+pub fn remember_tasks(state: State<'_, AppState>, tasks: Vec<Learned>) -> CmdResult<usize> {
+    let mut memory = load_memory(&state)?;
+    let today = Local::now().date_naive();
+    for t in tasks {
+        memory.learn(Remembered {
+            text: t.text,
+            parent_id: t.parent_id,
+            parent_subject: t.parent_subject,
+            subtask_id: t.subtask_id,
+            subtask_subject: t.subtask_subject,
+            project_hint: t.project_hint,
+            comment: t.comment,
+            uses: 0,
+            last_used: today,
+        });
+    }
+    state.store.set_json(MEMORY_KEY, &memory).map_err(err)?;
+    Ok(memory.len())
+}
+
+/// How many tasks are remembered.
+#[tauri::command]
+pub fn memory_count(state: State<'_, AppState>) -> CmdResult<usize> {
+    Ok(load_memory(&state)?.len())
+}
+
+#[tauri::command]
+pub fn forget_memory(state: State<'_, AppState>) -> CmdResult<()> {
+    state.store.set_json(MEMORY_KEY, &Memory::default()).map_err(err)
+}
+
+/// Checks an analysis against Redmine: drops work already logged, verifies
+/// the issues, and works out each day's free hours.
+async fn build_view(
+    client: &redmine_client::RedmineClient,
+    settings: &Settings,
+    mut analysis: ReportAnalysis,
+    today: NaiveDate,
+    day: Option<NaiveDate>,
+) -> CmdResult<ReportView> {
     // A day picked on the calendar is planned even if it is in the future.
     let last = if day.is_some() {
         analysis.period_to
@@ -339,7 +455,7 @@ pub async fn analyze_report(
 
     let mut tasks = Vec::new();
     for task in &analysis.tasks {
-        let mut view = verify_task(&client, task.clone()).await;
+        let mut view = verify_task(client, task.clone()).await;
         view.duplicates = duplicates.remove(&task.key).unwrap_or_default();
         tasks.push(view);
     }
@@ -382,15 +498,13 @@ pub async fn analyze_report(
         });
     }
 
-    let view = ReportView {
+    Ok(ReportView {
         analysis,
         tasks,
         days,
         skipped_future,
         day,
-    };
-    remember(Some(view.clone())).map_err(err)?;
-    Ok(view)
+    })
 }
 
 /// Checks the ids the model proposed actually exist and fit together.

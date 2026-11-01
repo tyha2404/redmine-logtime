@@ -27,7 +27,7 @@ export default function AiLog({ ai, idleHint }: { ai: AiRun; idleHint?: string }
         <div className="ai-log-head">
           <span className="ai-pulse" aria-hidden />
           <span>
-            Claude đang làm việc, {seconds}s
+            {ai.label}, {seconds}s
             {ai.log.length > 0 && `, ${ai.log.length} lần đọc Redmine`}
           </span>
           <button className="btn ghost small" onClick={ai.cancel}>

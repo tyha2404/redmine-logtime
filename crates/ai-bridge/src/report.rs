@@ -152,6 +152,8 @@ pub struct ReportContext<'a> {
     pub profile: Option<&'a str>,
     /// Set when the user reports one specific calendar day.
     pub day: Option<NaiveDate>,
+    /// Work the user logged before, from `memory::Memory::prompt_hint`.
+    pub known_tasks: Option<&'a str>,
 }
 
 pub fn schema() -> Value {
@@ -271,7 +273,7 @@ Today is {today} ({weekday}). Working days (ISO, Monday=1): {workdays:?}. A full
 ## How this Redmine is organised
 {profile}
 
-## How to read the report
+{known}## How to read the report
 The text is usually chat messages from a team group pasted together, but the wording and layout vary between people and over time. Work out what was done on which date from the meaning, not from fixed phrases. The rules below are principles; the example only shows one common habit.
 
 Example of one team's habit (others differ):
@@ -338,6 +340,12 @@ Here "tuần này" is just habit: the single date makes it the report for 27/10;
         hpd = ctx.hours_per_day,
         half = ctx.hours_per_day / 2.0,
         profile = profile,
+        known = ctx
+            .known_tasks
+            .map(|k| format!(
+                "## Tasks this developer logged before\nWhen a report line is the same work as one of these, reuse its parent and sub-task without searching again (the app also applies them). Search only for work not listed.\n{k}\n\n"
+            ))
+            .unwrap_or_default(),
         report = report.trim(),
         day_rule = ctx
             .day
@@ -628,13 +636,32 @@ mod tests {
                 workdays: &[1, 2, 3, 4, 5],
                 profile: Some("Task cha là Feature."),
                 day: None,
+                known_tasks: None,
             },
         );
         assert!(p.contains("Today is 2026-10-28 (Wed)"));
+        assert!(!p.contains("logged before"));
         assert!(p.contains("Task cha là Feature."));
         assert!(p.contains("<report>\n1. Dự án ABC\nSửa feedback công nợ\n</report>"));
         assert!(p.contains("The same task on several days"));
         assert!(!p.contains("ONE day"));
+    }
+
+    #[test]
+    fn prompt_lists_known_tasks_when_there_are_some() {
+        let p = prompt(
+            "Sửa feedback công nợ",
+            &ReportContext {
+                today: d(28),
+                hours_per_day: 8.0,
+                workdays: &[1, 2, 3, 4, 5],
+                profile: None,
+                day: None,
+                known_tasks: Some("- “Sửa feedback công nợ” → parent #1 “Công nợ”"),
+            },
+        );
+        assert!(p.contains("## Tasks this developer logged before"));
+        assert!(p.contains("→ parent #1 “Công nợ”"));
     }
 
     #[test]

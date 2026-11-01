@@ -1,7 +1,7 @@
 //! Commands for writing to Redmine: issue lookups, write batches, retry,
 //! history and undo.
 
-use logtime_engine::model::{Batch, Op, WritePlan};
+use logtime_engine::model::{Batch, Op, OpStatus, WritePlan};
 use logtime_engine::plan::{self, ApiCall};
 use logtime_engine::{Store, exec};
 use redmine_client::{Issue, RedmineClient, Tracker};
@@ -98,6 +98,20 @@ pub async fn write_plan(
     let settings = state.settings();
     let client = client_for(&state.credentials, &settings, None)?;
     let me = client.current_user().await.map_err(err)?;
+    // Re-check on this side of the bridge, with the hours Redmine holds now.
+    if let (Some(from), Some(to)) = (
+        plan.items.iter().map(|i| i.date).min(),
+        plan.items.iter().map(|i| i.date).max(),
+    ) {
+        let logged: Vec<_> = client
+            .my_time_entries(from, to)
+            .await
+            .map_err(err)?
+            .into_iter()
+            .map(|e| (e.spent_on, e.hours))
+            .collect();
+        plan::check_plan(&plan, &logged).map_err(err)?;
+    }
     let ops = plan::build_ops(&plan).map_err(err)?;
     let batch_id = state
         .store
@@ -143,7 +157,10 @@ async fn run(
     url: &str,
     assignee_id: u32,
 ) -> CmdResult<Batch> {
-    exec::run_batch(store, client, batch_id, url, assignee_id, &mut |op: &Op| {
+    let batch = exec::run_batch(store, client, batch_id, url, assignee_id, &mut |op: &Op| {
+        if let Some(e) = &op.error {
+            log::warn!("Lô {batch_id}, thao tác {}: {e}", op.seq);
+        }
         let _ = app.emit(
             "batch-progress",
             ProgressEvent {
@@ -153,7 +170,19 @@ async fn run(
         );
     })
     .await
-    .map_err(err)
+    .map_err(|e| {
+        log::error!("Lô {batch_id} dừng: {e}");
+        err(e)
+    })?;
+    let count = |s: OpStatus| batch.ops.iter().filter(|o| o.status == s).count();
+    log::info!(
+        "Lô {batch_id} “{}”: {} xong, {} lỗi / {} thao tác",
+        batch.label,
+        count(OpStatus::Done),
+        count(OpStatus::Failed),
+        batch.ops.len()
+    );
+    Ok(batch)
 }
 
 /// Deletes the time entries a batch created (sub-tasks are kept).

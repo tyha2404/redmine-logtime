@@ -484,9 +484,19 @@ function DayReport(props: {
         aria-label={`Báo cáo ngày ${fmtDayShort(date)}`}
       />
       <p className="hint">Mỗi dòng một việc. Việc đã log của ngày này sẽ tự bỏ qua.</p>
-      <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
-        {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
-      </button>
+      <div className="row">
+        <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
+          {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
+        </button>
+        <button
+          className="btn"
+          onClick={f.quick}
+          disabled={ai.running || !f.text.trim()}
+          title="Không dùng AI: khớp các dòng với những việc bạn đã ghi trước đây"
+        >
+          Khớp nhanh
+        </button>
+      </div>
       <AiLog ai={ai} />
 
       {view && <ReportResult f={f} settings={settings} compact onWritten={onWritten} onOpenHistory={onOpenHistory} />}

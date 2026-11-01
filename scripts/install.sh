@@ -223,7 +223,7 @@ ensure_mac_tools() {
 
 ensure_linux_deps() {
   command -v apt-get >/dev/null 2>&1 || die "Script hỗ trợ Ubuntu/Debian (apt). Với distro khác, cài các gói build của Tauri rồi chạy: npm run tauri build"
-  local pkgs="build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev"
+  local pkgs="build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev"
   local missing="" p
   for p in $pkgs; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
   if [ -n "$missing" ]; then

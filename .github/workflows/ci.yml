@@ -14,7 +14,7 @@ jobs:
       - name: Gói build của Tauri
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+          sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev libxdo-dev libssl-dev
       - uses: actions/setup-node@v4
         with:
           node-version: 22

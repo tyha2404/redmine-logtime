@@ -65,7 +65,7 @@ pub async fn gchat_connect(
         .begin_gchat_connect()
         .ok_or("Đang chờ đăng nhập Google trong trình duyệt.")?;
 
-    let err = |e: google_chat::Error| e.to_string();
+    let err = logged;
     let oauth = OAuthClient::new(&client_id, &client_secret, Endpoints::default()).map_err(err)?;
     let loopback = Loopback::bind().map_err(err)?;
     let redirect = loopback.redirect_uri().map_err(err)?;
@@ -96,6 +96,7 @@ pub async fn gchat_connect(
         email: who.email,
     }))?;
     cache_token(&state, tokens.access_token, tokens.expires_in);
+    log::info!("Đã kết nối Google Chat");
     Ok(status(&state))
 }
 
@@ -125,7 +126,7 @@ pub async fn gchat_spaces(state: State<'_, AppState>) -> CmdResult<Vec<Space>> {
         Err(google_chat::Error::Revoked) => chat(&state, true).await?.0.spaces().await,
         r => r,
     }
-    .map_err(|e| e.to_string())
+    .map_err(logged)
 }
 
 /// The signed-in user's own messages in `space`, from the start of `from` to
@@ -152,7 +153,13 @@ pub async fn gchat_messages(
         }
         r => r,
     }
-    .map_err(|e| e.to_string())
+    .map_err(logged)
+}
+
+/// A Google error as shown to the user, also written to the log.
+fn logged(e: google_chat::Error) -> String {
+    log::warn!("Google Chat: {e}");
+    e.to_string()
 }
 
 fn local_midnight(day: NaiveDate) -> CmdResult<DateTime<Utc>> {

@@ -58,7 +58,8 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
       </header>
       <p className="hint">
         Dán báo cáo tuần hoặc các báo cáo ngày. Claude đọc Redmine (chỉ đọc) để tìm task cha, rồi app chia giờ cho đủ{" "}
-        {fmtHours(settings.hours_per_day)} mỗi ngày. Việc đã log sẽ được bỏ qua.
+        {fmtHours(settings.hours_per_day)} mỗi ngày. Việc đã log sẽ được bỏ qua. <strong>Khớp nhanh</strong> không cần
+        AI, dùng các việc bạn đã ghi trước đây.
       </p>
       {!f.profile && (
         <p className="hint warn-line">
@@ -81,6 +82,14 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
       <div className="row">
         <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
           {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
+        </button>
+        <button
+          className="btn"
+          onClick={f.quick}
+          disabled={ai.running || !f.text.trim()}
+          title="Không dùng AI: khớp các dòng với những việc bạn đã ghi trước đây"
+        >
+          Khớp nhanh
         </button>
         <button className="btn" onClick={() => setImporting(true)} disabled={ai.running}>
           Lấy từ Google Chat

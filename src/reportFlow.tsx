@@ -7,6 +7,7 @@ import {
   type Batch,
   type DayPlan,
   type IssueBrief,
+  type LearnedTask,
   type PlanItem,
   type Profile,
   type ReportView,
@@ -24,6 +25,8 @@ import { useAiRun } from "./useAiRun";
 import WriteDialog from "./WriteDialog";
 
 const EPS = 1e-6;
+/** `parent_reason` of a task settled from the remembered choices (ai-bridge memory.rs). */
+const REMEMBERED = "Lần trước bạn đã chọn task này.";
 
 /** What the user decided for one task of the report. */
 export interface Choice {
@@ -154,6 +157,13 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const analyze = async () => {
     setNotice(null);
     const v = await ai.run(() => api.analyzeReport(text, day));
+    if (v) adopt(v);
+  };
+
+  /** Matches the report against tasks written before, without Claude. */
+  const quick = async () => {
+    setNotice(null);
+    const v = await ai.run(() => api.quickReport(text, day), "Đang khớp với việc đã ghi trước đây");
     if (v) adopt(v);
   };
 
@@ -313,6 +323,26 @@ export function useReportFlow(day: string | null, settings: Settings) {
     const now = { ...written };
     for (const o of done) if (o.payload.op === "create_time_entry") now[o.payload.id] = o.payload.hours;
     setWritten(now);
+    // Remember each written task's parent and sub-task for the next report.
+    const learned: LearnedTask[] = [];
+    for (const t of tasks) {
+      const c = choices[t.task.key];
+      if (!c?.parent || !daysOf(t).some((d) => d.id in now && !(d.id in written))) continue;
+      const created = batch.ops.find(
+        (o) => o.payload.op === "create_subtask" && o.payload.key === c.subKey && o.status === "done",
+      );
+      const sub = c.subtask === "new" ? null : subtasksOf(t).find((x) => x.id === c.subtask);
+      learned.push({
+        text: t.task.text,
+        parent_id: c.parent.id,
+        parent_subject: c.parent.subject,
+        subtask_id: c.subtask === "new" ? (created?.result_id ?? null) : c.subtask,
+        subtask_subject: sub?.subject ?? c.subject.trim(),
+        project_hint: t.task.project_hint,
+        comment: t.task.comment,
+      });
+    }
+    if (learned.length) await api.rememberTasks(learned).catch(() => {});
     await api.clearLastReport(day).catch(() => {});
     const left = pending.some((x) => !(x.d.id in now)) || pendingLeave.some((l) => !(leaveId(l.date) in now));
     if (!left) adopt(null);
@@ -349,6 +379,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
     profile,
     notice,
     analyze,
+    quick,
     duplicateCount,
     leave,
     totalHours,
@@ -441,7 +472,7 @@ export function ReportResult({
 
       {view.analysis.questions.length > 0 && (
         <div className="ai-questions">
-          <p>Claude cần anh/chị kiểm tra (sửa báo cáo rồi phân tích lại nếu cần):</p>
+          <p>Cần anh/chị kiểm tra (sửa báo cáo rồi chạy lại nếu cần):</p>
           <ul>
             {view.analysis.questions.map((q) => (
               <li key={q}>{q}</li>
@@ -651,7 +682,14 @@ function EntryRow({
               <span className="rentry-id">#{c.subtask}</span> {sub?.subject ?? ""}
             </span>
           )}
-          {fromAi && <span className={`conf conf-${confClass}`}>{conf}%</span>}
+          {fromAi &&
+            (t.parent_reason === REMEMBERED ? (
+              <span className="conf conf-hi" title={t.parent_reason}>
+                Đã nhớ
+              </span>
+            ) : (
+              <span className={`conf conf-${confClass}`}>{conf}%</span>
+            ))}
         </button>
         {view.problems.length > 0 && <p className="rentry-problem">{view.problems.join(" ")}</p>}
       </div>

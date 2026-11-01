@@ -66,6 +66,8 @@ Cần AI: cài [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.
 
 Nếu có mục lỗi, popup ghi rõ lý do. Bấm **Thử lại phần lỗi**, hoặc đóng popup, sửa rồi ghi lại; các mục đã ghi được đánh dấu ✓ và không ghi lần nữa. AI chỉ đọc Redmine để đề xuất; bạn quyết định mục nào được ghi.
 
+**Khớp nhanh (không cần AI):** mỗi lần ghi, app nhớ task cha và task con bạn đã chọn cho từng việc. Lần sau, bấm **Khớp nhanh** để khớp ngay các việc quen; dòng chưa gặp bao giờ được liệt kê để bạn dùng **Phân tích bằng AI**. Xem hoặc xoá ghi nhớ ở **Cài đặt → Ghi logtime**.
+
 ![Kết quả phân tích báo cáo](docs/images/report-result.png)
 
 ### Ghi giờ thủ công
@@ -88,6 +90,10 @@ Nếu bạn gửi báo cáo vào group Google Chat, app có thể lấy lại c�
 
 App chỉ đọc tin nhắn do bạn gửi, không gửi hay sửa gì trên Google Chat.
 
+### Nhắc log giờ
+
+Vào ngày làm việc, lúc 17:30, app báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật nhắc, đóng cửa sổ chỉ ẩn app xuống thanh menu (macOS) hoặc khay hệ thống (Ubuntu); bấm biểu tượng app để mở lại, kiểm tra giờ hôm nay hoặc **Thoát**. Đổi giờ, tắt nhắc hoặc bật **Mở cùng máy** trong **Cài đặt → Nhắc log giờ**.
+
 ### Hoàn tác khi ghi nhầm
 
 Bấm **Hoàn tác lô này** ngay trong popup sau khi ghi, hoặc vào **Lịch sử ghi**. Thao tác này xóa các logtime đã tạo trong lô; **task con vẫn được giữ trên Redmine**.
@@ -96,7 +102,9 @@ Bấm **Hoàn tác lô này** ngay trong popup sau khi ghi, hoặc vào **Lịch
 
 ### Cập nhật lên bản mới
 
-Khi có bản mới, biểu tượng tải xuống ở góc trên app có chấm đỏ.
+Khi có bản mới, biểu tượng tải xuống ở góc trên app có chấm đỏ. Bấm vào đó, rồi **Cập nhật lên …**: app tự tải, cài và khởi động lại.
+
+Nếu nút báo không cập nhật được (ví dụ bản cũ chưa hỗ trợ), cập nhật bằng Terminal:
 
 1. Đóng app.
 2. Mở Terminal, chạy **đúng lệnh cài đặt** (giống lúc cài lần đầu):
@@ -125,7 +133,12 @@ Cài đặt, API key và lịch sử ghi vẫn được giữ trên máy để d
 - **Redmine nội bộ dùng SSL tự ký:** chọn mục tương ứng ở màn kết nối, hoặc **Cài đặt → Kết nối Redmine → Chấp nhận chứng chỉ SSL tự ký** nếu công ty dùng loại chứng chỉ này.
 - **macOS chặn app tải bằng trình duyệt:** thử cài lại bằng lệnh Terminal ở trên.
 - **AI báo lỗi:** kiểm tra đã đăng nhập Claude, rồi vào **Cài đặt → Chạy thử Claude**.
+- **Báo lỗi cho người phát triển:** vào **Cài đặt → Phiên bản → Mở thư mục log** và gửi kèm file log. Log không chứa API key.
+
+API key và đăng nhập Google được lưu trong Keychain (macOS) hoặc kho mật khẩu của máy (Ubuntu); máy không có kho này thì lưu trong file chỉ tài khoản của bạn đọc được. Trên macOS, sau mỗi lần cập nhật, máy có thể hỏi cho app dùng Keychain: chọn **Luôn cho phép**.
 
 ---
 
 Dành cho người đóng góp: [Hướng dẫn phát triển](docs/development.md) · [Quy ước đóng góp](AGENTS.md). Giấy phép: [MIT](LICENSE).
+
+Logo dựa trên [logo Redmine](https://www.redmine.org/projects/redmine/wiki/Logo) © 2009 Martin Herr, đổi màu; logo này theo giấy phép [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/). Redmine Logtime không phải sản phẩm chính thức của Redmine.

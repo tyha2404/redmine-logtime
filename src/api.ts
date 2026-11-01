@@ -17,6 +17,11 @@ export interface Settings {
   default_activity_id: number | null;
   subtask_tracker_id: number | null;
   claude_ignore_user_settings: boolean;
+  /** Notify on workdays at `reminder_time` when hours are missing. */
+  reminder_enabled: boolean;
+  /** "HH:MM" */
+  reminder_time: string;
+  start_at_login: boolean;
 }
 
 export interface LeaveType {
@@ -42,6 +47,8 @@ export interface LeaveParent {
 export interface SettingsView {
   settings: Settings;
   has_api_key: boolean;
+  /** Where the API key and Google sign-in are kept. */
+  secret_storage: "keychain" | "file";
 }
 
 export interface IdName {
@@ -156,6 +163,17 @@ export interface SubtaskDraft {
 export interface WritePlan {
   subtasks: SubtaskDraft[];
   items: PlanItem[];
+}
+
+/** What the user chose for a report line, remembered after a write. */
+export interface LearnedTask {
+  text: string;
+  parent_id: number;
+  parent_subject: string;
+  subtask_id: number | null;
+  subtask_subject: string;
+  project_hint: string;
+  comment: string;
 }
 
 export interface ApiCall {
@@ -357,6 +375,10 @@ export const api = {
   clearLastReport: (day: string | null) => invoke<void>("clear_last_report", { day }),
   analyzeReport: (text: string, day: string | null) => invoke<ReportView>("analyze_report", { text, day }),
   planReport: (view: ReportView, excluded: string[]) => invoke<DayPlan[]>("plan_report", { view, excluded }),
+  quickReport: (text: string, day: string | null) => invoke<ReportView>("quick_report", { text, day }),
+  rememberTasks: (tasks: LearnedTask[]) => invoke<number>("remember_tasks", { tasks }),
+  memoryCount: () => invoke<number>("memory_count"),
+  forgetMemory: () => invoke<void>("forget_memory"),
   gchatStatus: () => invoke<GchatStatus>("gchat_status"),
   gchatConnect: (clientId: string, clientSecret: string) =>
     invoke<GchatStatus>("gchat_connect", { clientId, clientSecret }),
@@ -367,6 +389,11 @@ export const api = {
     invoke<ChatMessage[]>("gchat_messages", { space, from, to }),
   onAiProgress: (cb: (p: AiProgress) => void): Promise<UnlistenFn> =>
     listen<AiProgress>("ai-progress", (e) => cb(e.payload)),
+  /** Downloads and installs the newest signed release, then restarts. */
+  installUpdate: () => invoke<void>("install_update"),
+  onUpdateProgress: (cb: (p: { downloaded: number; total: number | null }) => void): Promise<UnlistenFn> =>
+    listen<{ downloaded: number; total: number | null }>("update-progress", (e) => cb(e.payload)),
+  openLogDir: () => invoke<void>("open_log_dir"),
 };
 
 export function errorText(e: unknown): string {

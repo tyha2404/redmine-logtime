@@ -56,6 +56,7 @@ impl Store {
     fn init(conn: Connection) -> Result<Self> {
         conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
         conn.execute_batch(SCHEMA)?;
+        migrate(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -145,10 +146,23 @@ impl Store {
         Ok(())
     }
 
-    /// Puts a batch's failed ops back to pending so they can run again.
+    /// Records that a failed request may still have reached Redmine (lost
+    /// connection, timeout, 5xx), so a retry must look before creating.
+    pub fn mark_uncertain(&self, op_id: i64) -> Result<()> {
+        self.conn
+            .lock()
+            .unwrap()
+            .execute("UPDATE ops SET uncertain = 1 WHERE id = ?1", params![op_id])?;
+        Ok(())
+    }
+
+    /// Puts a batch's failed ops back so they can run again. Ops whose
+    /// failure was uncertain come back as interrupted (`running`): the next
+    /// run adopts what Redmine already has instead of creating it twice.
     pub fn reset_failed(&self, batch_id: i64) -> Result<usize> {
         Ok(self.conn.lock().unwrap().execute(
-            "UPDATE ops SET status = 'pending', error = NULL WHERE batch_id = ?1 AND status = 'failed'",
+            "UPDATE ops SET status = CASE WHEN uncertain = 1 THEN 'running' ELSE 'pending' END, error = NULL
+             WHERE batch_id = ?1 AND status = 'failed'",
             params![batch_id],
         )?)
     }
@@ -173,6 +187,17 @@ impl Store {
         )?;
         Ok(())
     }
+}
+
+/// Columns added after the first release.
+fn migrate(conn: &Connection) -> Result<()> {
+    let has_uncertain = conn
+        .prepare("SELECT 1 FROM pragma_table_info('ops') WHERE name = 'uncertain'")?
+        .exists([])?;
+    if !has_uncertain {
+        conn.execute_batch("ALTER TABLE ops ADD COLUMN uncertain INTEGER NOT NULL DEFAULT 0")?;
+    }
+    Ok(())
 }
 
 fn load_ops(conn: &Connection, batch_id: i64) -> Result<Vec<Op>> {
@@ -202,4 +227,28 @@ fn load_ops(conn: &Connection, batch_id: i64) -> Result<Vec<Op>> {
         });
     }
     Ok(ops)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn database_from_the_first_release_gains_the_uncertain_column() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE ops (id INTEGER PRIMARY KEY, batch_id INTEGER NOT NULL, seq INTEGER NOT NULL,
+                               payload TEXT NOT NULL, status TEXT NOT NULL, result_id INTEGER, error TEXT);
+             INSERT INTO ops (batch_id, seq, payload, status) VALUES (1, 0, '{}', 'failed');",
+        )
+        .unwrap();
+        let store = Store::init(conn).unwrap();
+        let conn = store.conn.lock().unwrap();
+        let uncertain: i64 = conn
+            .query_row("SELECT uncertain FROM ops", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(uncertain, 0);
+        // Opening again does not try to add it twice.
+        migrate(&conn).unwrap();
+    }
 }

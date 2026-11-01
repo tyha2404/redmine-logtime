@@ -20,3 +20,15 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+impl Error {
+    /// The request may have been applied even though no answer came back:
+    /// the connection dropped, it timed out, or the server failed (5xx).
+    pub fn may_have_reached_redmine(&self) -> bool {
+        match self {
+            Error::Redmine(redmine_client::Error::Network(_)) => true,
+            Error::Redmine(redmine_client::Error::Http { status, .. }) => *status >= 500,
+            _ => false,
+        }
+    }
+}

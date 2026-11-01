@@ -1,6 +1,7 @@
 //! Claude CLI integration: Redmine structure discovery and work-report
 //! analysis through the read-only mcp-redmine server.
 
+pub mod memory;
 pub mod profile;
 pub mod report;
 mod runner;

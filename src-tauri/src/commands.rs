@@ -3,7 +3,8 @@ use logtime_core::Settings;
 use logtime_core::calendar::{self, MonthSummary};
 use redmine_client::{Activity, ClientOptions, RedmineClient, User};
 use serde::Serialize;
-use tauri::State;
+use tauri::{Manager, State};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::secrets::Credentials;
 use crate::state::AppState;
@@ -15,6 +16,8 @@ type CmdResult<T> = Result<T, String>;
 pub struct SettingsView {
     settings: Settings,
     has_api_key: bool,
+    /// Where the API key and Google sign-in are kept.
+    secret_storage: crate::secrets::Storage,
 }
 
 pub(crate) fn client_for(
@@ -44,17 +47,40 @@ pub fn get_settings(state: State<'_, AppState>) -> CmdResult<SettingsView> {
     Ok(SettingsView {
         settings: state.settings(),
         has_api_key: matches!(state.credentials.get_api_key(), Ok(Some(_))),
+        secret_storage: state.credentials.storage(),
     })
 }
 
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
+pub fn save_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> CmdResult<()> {
     if settings.hours_per_day <= 0.0 || settings.hours_per_day > 24.0 {
         return Err("Số giờ mỗi ngày phải lớn hơn 0 và không quá 24.".into());
     }
+    if settings.reminder_enabled && crate::reminder::parse_time(&settings.reminder_time).is_none() {
+        return Err("Giờ nhắc phải có dạng HH:MM, ví dụ 17:30.".into());
+    }
+    let login = settings.start_at_login;
     state
         .save_settings(settings)
-        .map_err(|e| format!("Không lưu được cài đặt: {e}"))
+        .map_err(|e| format!("Không lưu được cài đặt: {e}"))?;
+    let autostart = app.autolaunch();
+    if autostart.is_enabled().unwrap_or(!login) != login {
+        let done = if login { autostart.enable() } else { autostart.disable() };
+        done.map_err(|e| format!("Đã lưu, nhưng chưa đổi được việc mở cùng máy: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Opens the folder holding the app's log files, to attach to a bug report.
+#[tauri::command]
+pub fn open_log_dir(app: tauri::AppHandle) -> CmdResult<()> {
+    let dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    open_in_browser(&dir.to_string_lossy())
 }
 
 /// Stores the key, or removes it when `api_key` is empty.

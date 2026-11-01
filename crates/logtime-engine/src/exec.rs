@@ -1,6 +1,8 @@
 //! Runs a batch against Redmine. Every step is recorded before and after the
 //! request so a retry never creates the same sub-task or entry twice.
 
+use std::collections::HashSet;
+
 use redmine_client::{NewIssue, NewTimeEntry, RedmineClient};
 
 use crate::model::{Batch, Op, OpPayload, OpStatus, PlanItem, SubtaskDraft, Target};
@@ -12,7 +14,9 @@ const EPS: f64 = 1e-6;
 pub type Progress<'a> = &'a mut (dyn FnMut(&Op) + Send);
 
 /// Runs every pending or interrupted op of the batch. Failed ops stay failed
-/// until [`Store::reset_failed`] queues them for another run.
+/// until [`Store::reset_failed`] queues them for another run; an op whose
+/// failure may still have reached Redmine is then treated as interrupted, so
+/// it looks for its sub-task or entry before creating one.
 pub async fn run_batch(
     store: &Store,
     client: &RedmineClient,
@@ -23,6 +27,13 @@ pub async fn run_batch(
 ) -> Result<Batch> {
     let batch = store.batch(batch_id)?;
     ensure_same_server(&batch, current_url)?;
+    // Entries this batch already owns; an interrupted op must not adopt them.
+    let mut taken: HashSet<u32> = batch
+        .ops
+        .iter()
+        .filter(|o| matches!(o.payload, OpPayload::CreateTimeEntry(_)) && o.status == OpStatus::Done)
+        .filter_map(|o| o.result_id)
+        .collect();
 
     for op in batch.ops {
         if !matches!(op.status, OpStatus::Pending | OpStatus::Running) {
@@ -36,13 +47,23 @@ pub async fn run_batch(
                 create_subtask(store, client, batch_id, sub, assignee_id, interrupted).await
             }
             OpPayload::CreateTimeEntry(item) => {
-                create_entry(store, client, item, interrupted).await
+                create_entry(store, client, item, interrupted, &taken).await
             }
         };
 
         let (status, result_id, error) = match outcome {
-            Ok(id) => (OpStatus::Done, Some(id), None),
-            Err(e) => (OpStatus::Failed, None, Some(e.to_string())),
+            Ok(id) => {
+                if matches!(op.payload, OpPayload::CreateTimeEntry(_)) {
+                    taken.insert(id);
+                }
+                (OpStatus::Done, Some(id), None)
+            }
+            Err(e) => {
+                if e.may_have_reached_redmine() {
+                    store.mark_uncertain(op.id)?;
+                }
+                (OpStatus::Failed, None, Some(e.to_string()))
+            }
         };
         store.set_op(op.id, status, result_id, error.as_deref())?;
         on_progress(&Op {
@@ -142,6 +163,7 @@ async fn create_entry(
     client: &RedmineClient,
     item: &PlanItem,
     interrupted: bool,
+    taken: &HashSet<u32>,
 ) -> Result<u32> {
     let issue_id = match &item.target {
         Target::Issue { issue_id, .. } => *issue_id,
@@ -152,7 +174,8 @@ async fn create_entry(
     if interrupted {
         let same_day = client.my_time_entries(item.date, item.date).await?;
         if let Some(found) = same_day.iter().find(|e| {
-            e.issue.as_ref().is_some_and(|i| i.id == issue_id)
+            !taken.contains(&e.id)
+                && e.issue.as_ref().is_some_and(|i| i.id == issue_id)
                 && (e.hours - item.hours).abs() < EPS
                 && e.comments.as_deref().unwrap_or("") == item.comments
         }) {
@@ -354,6 +377,117 @@ mod tests {
             .unwrap();
         assert_eq!(batch.ops[1].status, OpStatus::Done);
         assert_eq!(batch.ops[1].result_id, Some(501));
+    }
+
+    #[tokio::test]
+    async fn retry_after_uncertain_failure_adopts_the_entry_redmine_kept() {
+        let server = MockServer::start().await;
+        let (store, client, id) = setup(&server).await;
+        let batch = store.batch(id).unwrap();
+        store.save_subtask("k1", 77, id).unwrap();
+        store
+            .set_op(batch.ops[0].id, OpStatus::Done, Some(77), None)
+            .unwrap();
+        store
+            .set_op(batch.ops[1].id, OpStatus::Done, Some(501), None)
+            .unwrap();
+
+        // Redmine saves the entry for #50 but the gateway answers 502.
+        Mock::given(method("POST"))
+            .and(path("/time_entries.json"))
+            .respond_with(ResponseTemplate::new(502).set_body_string("Bad Gateway"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let failed = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(failed.ops[2].status, OpStatus::Failed);
+
+        // On retry the day already holds it (next to #77's entry, which this
+        // batch owns), so nothing is posted again.
+        Mock::given(method("GET"))
+            .and(path("/time_entries.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "time_entries": [
+                    {"id": 501, "project": {"id": 3, "name": "ABC"}, "issue": {"id": 77},
+                     "user": {"id": 7, "name": "Me"}, "activity": {"id": 9, "name": "Dev"},
+                     "hours": 5.0, "comments": "Sửa feedback", "spent_on": "2026-10-28"},
+                    {"id": 502, "project": {"id": 3, "name": "ABC"}, "issue": {"id": 50},
+                     "user": {"id": 7, "name": "Me"}, "activity": {"id": 9, "name": "Dev"},
+                     "hours": 3.0, "comments": "Review", "spent_on": "2026-10-28"}
+                ],
+                "total_count": 2
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert_eq!(store.reset_failed(id).unwrap(), 1);
+        let retried = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(retried.ops[2].status, OpStatus::Done);
+        assert_eq!(retried.ops[2].result_id, Some(502));
+    }
+
+    #[tokio::test]
+    async fn interrupted_entry_never_adopts_one_the_batch_already_owns() {
+        let server = MockServer::start().await;
+        let (store, client, id) = setup(&server).await;
+        let batch = store.batch(id).unwrap();
+        store.save_subtask("k1", 77, id).unwrap();
+        store
+            .set_op(batch.ops[0].id, OpStatus::Done, Some(77), None)
+            .unwrap();
+        // Same issue and hours as entry 501, which op 1 already owns.
+        store
+            .set_op(batch.ops[1].id, OpStatus::Done, Some(501), None)
+            .unwrap();
+        store
+            .set_op(batch.ops[2].id, OpStatus::Running, None, None)
+            .unwrap();
+        Mock::given(method("GET"))
+            .and(path("/time_entries.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "time_entries": [{
+                    "id": 501, "project": {"id": 3, "name": "ABC"}, "issue": {"id": 50},
+                    "user": {"id": 7, "name": "Me"}, "activity": {"id": 9, "name": "Dev"},
+                    "hours": 3.0, "comments": "Review", "spent_on": "2026-10-28"
+                }],
+                "total_count": 1
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/time_entries.json"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(entry_json(503, 50, 3.0)))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let batch = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(batch.ops[2].result_id, Some(503));
+    }
+
+    #[test]
+    fn rejected_failures_retry_as_new_and_uncertain_ones_as_interrupted() {
+        let store = Store::open_in_memory().unwrap();
+        let ops = build_ops(&plan()).unwrap();
+        let id = store.create_batch("t", "http://x", &ops).unwrap();
+        let batch = store.batch(id).unwrap();
+        store
+            .set_op(batch.ops[1].id, OpStatus::Failed, None, Some("422"))
+            .unwrap();
+        store
+            .set_op(batch.ops[2].id, OpStatus::Failed, None, Some("timeout"))
+            .unwrap();
+        store.mark_uncertain(batch.ops[2].id).unwrap();
+        assert_eq!(store.reset_failed(id).unwrap(), 2);
+        let ops = store.batch(id).unwrap().ops;
+        assert_eq!(ops[1].status, OpStatus::Pending);
+        assert_eq!(ops[2].status, OpStatus::Running);
     }
 
     #[tokio::test]

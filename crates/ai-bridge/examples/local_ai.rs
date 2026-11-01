@@ -66,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             workdays: &[1, 2, 3, 4, 5],
             profile: Some(&md),
             day: None,
+            known_tasks: None,
         },
     );
     let analysis: ReportAnalysis = runner

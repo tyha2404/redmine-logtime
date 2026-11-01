@@ -1,40 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <!--
-    Redmine Logtime. Four workdays as columns: three filled to the daily
-    quota (the green line), today still filling. The app's light-theme
-    tokens: the link blue (accent #116699) fading to the top-bar navy
-    (mast-bg #3E5B76), the quota line in the calendar's "full" green
-    (full #3A8A3A) on a white keyline so it reads on the blue. macOS grid:
-    824px tile inside the 1024px canvas, with the standard drop shadow.
+    Redmine Logtime app icon: the Redmine logo mark recoloured in the app's
+    accent blue (#116699), darker at the base and lighter at the top as in
+    the original red, on a white tile.
+
+    Based on the Redmine logo, Copyright (C) 2009 Martin Herr, licensed under
+    CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/), from
+    https://github.com/edavis10/redmine_logo. This adaptation is shared under
+    the same licence. Redmine Logtime is not an official Redmine product.
+
+    macOS grid: 824px tile inside the 1024px canvas, with the standard drop
+    shadow. Regenerate the icon files: see docs/development.md.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#116699"/>
-      <stop offset="1" stop-color="#3e5b76"/>
-    </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef3f7"/>
     </linearGradient>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#1d2b38" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#1d2b38" flood-opacity="0.3"/>
     </filter>
   </defs>
 
   <g filter="url(#shadow)">
     <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#tile)"/>
   </g>
-  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#sheen)"/>
-  <rect x="101.5" y="101.5" width="821" height="821" rx="182.5" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="3"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="182.5" fill="none" stroke="#3e5b76" stroke-opacity="0.12" stroke-width="3"/>
 
-  <!-- Days -->
-  <rect x="288" y="356" width="76" height="372" rx="20" fill="#ffffff"/>
-  <rect x="412" y="356" width="76" height="372" rx="20" fill="#ffffff"/>
-  <rect x="536" y="356" width="76" height="372" rx="20" fill="#ffffff"/>
-  <rect x="660" y="356" width="76" height="372" rx="20" fill="#ffffff" fill-opacity="0.18"/>
-  <rect x="660" y="552" width="76" height="176" rx="20" fill="#ffffff"/>
-
-  <!-- Daily quota -->
-  <rect x="248" y="310" width="528" height="36" rx="18" fill="#ffffff"/>
-  <rect x="256" y="318" width="512" height="20" rx="10" fill="#3a8a3a"/>
+  <!-- The Redmine mark (original 77.4 × 52.8 units), scaled 7× and centred -->
+  <g transform="translate(241 220) scale(7)" fill-rule="evenodd">
+    <polygon fill="#0b4f78" points="0,69.55 16.8,69.55 18,55.149 2.399,51.55"/>
+    <polygon fill="#0e5c8b" points="3,49.149 18,52.75 21.601,40.149 9,33.55"/>
+    <polygon fill="#116699" points="10.2,31.149 22.2,37.75 31.8,31.149 22.8,20.949"/>
+    <polygon fill="#0b4f78" points="77.399,69.55 60.601,69.55 59.399,55.149 75,51.55"/>
+    <polygon fill="#0e5c8b" points="74.399,49.149 59.399,52.75 55.8,40.149 68.399,33.55"/>
+    <polygon fill="#116699" points="67.2,31.149 55.2,37.75 45.601,31.149 54.601,20.949"/>
+    <polygon fill="#2a7fb4" points="25.8,19.149 34.8,29.949 43.2,29.949 51,19.149 43.2,16.75 34.589,16.75"/>
+  </g>
 </svg>

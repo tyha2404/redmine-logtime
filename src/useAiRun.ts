@@ -9,8 +9,11 @@ export function useAiRun() {
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /** What is running, for the live line: Claude, or a quick local match. */
+  const [label, setLabel] = useState("Claude đang làm việc");
 
-  const run = useCallback(async <T,>(job: () => Promise<T>): Promise<T | null> => {
+  const run = useCallback(async <T,>(job: () => Promise<T>, what = "Claude đang làm việc"): Promise<T | null> => {
+    setLabel(what);
     setRunning(true);
     setError(null);
     setLog([]);
@@ -28,7 +31,7 @@ export function useAiRun() {
 
   const cancel = useCallback(() => api.aiCancel(), []);
 
-  return { running, log, error, run, cancel };
+  return { running, log, error, label, run, cancel };
 }
 
 export type AiRun = ReturnType<typeof useAiRun>;

@@ -96,5 +96,87 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert_eq!(client.my_time_entries(date, date).await?.len(), before - 1);
     println!("OK: tạo task con, ghi 2.5h, chạy lại không trùng, hoàn tác xoá entry");
+
+    // Redmine saved the entry but the answer was lost (timeout, 502...):
+    // the retry must adopt it, not log the same hours twice.
+    let entry = |id: &str, hours: f64, activity_id: u32| PlanItem {
+        id: id.into(),
+        date,
+        target: Target::Issue {
+            issue_id: parent.id,
+            label: format!("#{}", parent.id),
+        },
+        hours,
+        activity_id: Some(activity_id),
+        comments: format!("e2e-retry-{}", std::process::id()),
+        kind: ItemKind::Work,
+    };
+    let lost = WritePlan {
+        subtasks: vec![],
+        items: vec![entry("r1", 1.25, activity.id)],
+    };
+    let id = store.create_batch("e2e-retry", &url, &plan::build_ops(&lost)?)?;
+    let saved = client
+        .create_time_entry(&redmine_client::NewTimeEntry {
+            issue_id: parent.id,
+            spent_on: date,
+            hours: 1.25,
+            activity_id: Some(activity.id),
+            comments: lost.items[0].comments.clone(),
+        })
+        .await?;
+    let op = store.batch(id)?.ops[0].id;
+    store.set_op(op, OpStatus::Failed, None, Some("Lỗi kết nối: timeout"))?;
+    store.mark_uncertain(op)?;
+    let before = client.my_time_entries(date, date).await?.len();
+    store.reset_failed(id)?;
+    let retried = exec::run_batch(&store, &client, id, &url, me.id, &mut |_| {}).await?;
+    assert_eq!(retried.ops[0].status, OpStatus::Done);
+    assert_eq!(retried.ops[0].result_id, Some(saved.id), "must adopt the saved entry");
+    assert_eq!(client.my_time_entries(date, date).await?.len(), before, "no duplicate");
+    exec::undo_batch(&store, &client, id, &url, &mut |_| {}).await?;
+    println!("OK: thử lại sau lỗi không chắc chắn nhận entry đã có, không ghi trùng");
+
+    // Redmine rejected the request (422): nothing was created, so a retry
+    // creates it normally instead of looking for it.
+    let rejected = WritePlan {
+        subtasks: vec![],
+        items: vec![entry("v1", 1.0, 999_999)],
+    };
+    let id = store.create_batch("e2e-422", &url, &plan::build_ops(&rejected)?)?;
+    let failed = exec::run_batch(&store, &client, id, &url, me.id, &mut |_| {}).await?;
+    let err = failed.ops[0].error.clone().unwrap_or_default();
+    assert_eq!(failed.ops[0].status, OpStatus::Failed);
+    println!("  422: {err}");
+    store.reset_failed(id)?;
+    assert_eq!(store.batch(id)?.ops[0].status, OpStatus::Pending);
+    println!("OK: lỗi Redmine từ chối được thử lại như mục mới");
+
+    // The last check counts what Redmine already holds for the day.
+    let held_entry = client
+        .create_time_entry(&redmine_client::NewTimeEntry {
+            issue_id: parent.id,
+            spent_on: date,
+            hours: 2.0,
+            activity_id: Some(activity.id),
+            comments: "e2e-held".into(),
+        })
+        .await?;
+    let logged: Vec<_> = client
+        .my_time_entries(date, date)
+        .await?
+        .into_iter()
+        .map(|e| (e.spent_on, e.hours))
+        .collect();
+    let held: f64 = logged.iter().map(|(_, h)| h).sum();
+    let over = WritePlan {
+        subtasks: vec![],
+        items: vec![entry("o1", 23.0, activity.id)],
+    };
+    let checked = plan::check_plan(&over, &logged);
+    client.delete_time_entry(held_entry.id).await?;
+    let msg = checked.unwrap_err().to_string();
+    assert!(msg.contains("vượt 24h"), "{msg}");
+    println!("OK: chặn 23h khi Redmine đã có {held}h trong ngày: {msg}");
     Ok(())
 }

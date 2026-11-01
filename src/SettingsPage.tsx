@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import AboutCard from "./AboutCard";
 import GchatSettings from "./GchatSettings";
-import { api, errorText, type Activity, type Settings, type ToolStatus, type Tracker } from "./api";
+import { api, errorText, type Activity, type Settings, type SettingsView, type ToolStatus, type Tracker } from "./api";
 import LeaveSettings from "./LeaveSettings";
+import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
 import type { UpdateState } from "./useUpdate";
 
@@ -70,6 +71,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   /** What is on disk, to tell the user when the form has unsaved changes. */
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [hasKey, setHasKey] = useState(false);
+  const [storage, setStorage] = useState<SettingsView["secret_storage"]>("file");
   const [apiKey, setApiKey] = useState("");
   const [holidayText, setHolidayText] = useState("");
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -92,6 +94,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         setSettings(v.settings);
         setSavedSnapshot(snapshot(v.settings, v.settings.holidays.join("\n"), ""));
         setHasKey(v.has_api_key);
+        setStorage(v.secret_storage);
         setHolidayText(v.settings.holidays.join("\n"));
         if (v.settings.redmine_url && v.has_api_key) loadLists();
       })
@@ -218,7 +221,11 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
           <input
             type="password"
             autoComplete="off"
-            placeholder={hasKey ? "Đã lưu trên máy. Nhập key mới để thay." : "Trong Redmine: Tài khoản của tôi → API access key"}
+            placeholder={
+              hasKey
+                ? `Đã lưu ${storage === "keychain" ? (isMac ? "trong Keychain" : "trong kho mật khẩu của máy") : "trên máy"}. Nhập key mới để thay.`
+                : "Trong Redmine: Tài khoản của tôi → API access key"
+            }
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
@@ -350,6 +357,41 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
       </section>
 
       <section className="card">
+        <h2>Nhắc log giờ</h2>
+        <p className="hint">
+          Vào ngày làm việc, app gửi thông báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật, đóng cửa sổ chỉ ẩn app
+          xuống {isMac ? "thanh menu" : "khay hệ thống"}; chọn Thoát ở biểu tượng app để tắt hẳn.
+        </p>
+        <div className="reminder-row">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={settings.reminder_enabled}
+              onChange={(e) => update("reminder_enabled", e.target.checked)}
+            />
+            Nhắc khi chưa log đủ giờ
+          </label>
+          <label className="field reminder-time">
+            <span>Lúc</span>
+            <input
+              type="time"
+              value={settings.reminder_time}
+              disabled={!settings.reminder_enabled}
+              onChange={(e) => update("reminder_time", e.target.value)}
+            />
+          </label>
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={settings.start_at_login}
+            onChange={(e) => update("start_at_login", e.target.checked)}
+          />
+          Mở cùng máy (chạy ẩn để nhắc giờ)
+        </label>
+      </section>
+
+      <section className="card">
         <h2>Ghi logtime</h2>
         <p className="hint">Dùng khi app tạo task con cho công việc và ghi logtime lên Redmine.</p>
         <div className="field-grid">
@@ -375,6 +417,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
           </select>
         </label>
         </div>
+        <TaskMemory />
       </section>
 
 
@@ -444,5 +487,39 @@ function ActivitySelect(props: {
         ))}
       </select>
     </label>
+  );
+}
+
+/** The tasks remembered from earlier writes, used by “Khớp nhanh” and the AI. */
+function TaskMemory() {
+  const [count, setCount] = useState<number | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    api.memoryCount().then(setCount).catch(() => setCount(null));
+  }, []);
+  if (count === null) return null;
+  return (
+    <p className="hint memory-line">
+      {count > 0
+        ? `App đã nhớ task cha và task con của ${count} việc bạn từng ghi, dùng cho Khớp nhanh và gợi ý cho AI.`
+        : "App sẽ nhớ task cha và task con của mỗi việc bạn ghi từ báo cáo, để lần sau khớp nhanh không cần AI."}{" "}
+      {count > 0 &&
+        (confirm ? (
+          <button
+            className="link danger"
+            onClick={async () => {
+              await api.forgetMemory();
+              setCount(0);
+              setConfirm(false);
+            }}
+          >
+            Xác nhận quên {count} việc
+          </button>
+        ) : (
+          <button className="link" onClick={() => setConfirm(true)}>
+            Quên hết
+          </button>
+        ))}
+    </p>
   );
 }

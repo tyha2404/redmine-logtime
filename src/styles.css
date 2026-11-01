@@ -461,6 +461,12 @@ body {
 .link:hover:not(:disabled) {
   color: var(--link-hover);
 }
+.link.danger {
+  color: var(--missing);
+}
+.memory-line {
+  margin-top: 14px;
+}
 
 .icon {
   display: block;
@@ -2831,4 +2837,39 @@ select::-ms-expand {
 }
 .composer-result.is-compact .rentry-editor .rtask-grid {
   grid-template-columns: 1fr;
+}
+
+/* Settings → Nhắc log giờ: the time sits next to its checkbox. */
+.reminder-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-bottom: 6px;
+}
+.reminder-row .check,
+.reminder-row .field {
+  margin: 0;
+}
+.reminder-time {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.reminder-time span {
+  margin: 0;
+}
+.reminder-time input {
+  width: 120px;
+}
+
+/* About card: one-click update, then where the logs are. */
+.about-install {
+  margin: 10px 0 14px;
+}
+.about-install .hint {
+  margin: 6px 0 0;
+}
+.about-logs {
+  margin-top: 16px;
 }

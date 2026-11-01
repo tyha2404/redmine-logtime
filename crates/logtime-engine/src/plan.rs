@@ -1,6 +1,9 @@
 //! Pure planning helpers: turning a write plan into operations and
 //! previewing the API calls.
 
+use std::collections::BTreeMap;
+
+use chrono::NaiveDate;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -45,6 +48,67 @@ pub fn build_ops(plan: &WritePlan) -> Result<Vec<OpPayload>> {
             .map(|i| OpPayload::CreateTimeEntry(i.clone())),
     );
     Ok(ops)
+}
+
+/// Hours one day can hold, whatever the UI allowed.
+pub const MAX_HOURS_PER_DAY: f64 = 24.0;
+const EPS: f64 = 1e-6;
+
+/// The last check before anything is sent, independent of the UI: every
+/// entry has sane hours and a target, every new sub-task is complete, and no
+/// day ends up above 24h counting what Redmine already holds (`logged`).
+pub fn check_plan(plan: &WritePlan, logged: &[(NaiveDate, f64)]) -> Result<()> {
+    let bad = |msg: String| Err(Error::Invalid(msg));
+    if plan.items.is_empty() {
+        return bad("Chưa chọn logtime nào để ghi.".into());
+    }
+    let mut per_day: BTreeMap<NaiveDate, f64> = BTreeMap::new();
+    for (date, hours) in logged {
+        *per_day.entry(*date).or_default() += hours;
+    }
+    let mut ids = std::collections::HashSet::new();
+    for item in &plan.items {
+        let day = item.date.format("%d/%m/%Y");
+        if !ids.insert(item.id.as_str()) {
+            return bad(format!("Logtime ngày {day} bị lặp trong lô ghi."));
+        }
+        if !(item.hours.is_finite() && item.hours > 0.0 && item.hours <= MAX_HOURS_PER_DAY) {
+            return bad(format!("Logtime ngày {day} có số giờ không hợp lệ ({}).", item.hours));
+        }
+        match &item.target {
+            Target::Issue { issue_id: 0, .. } => {
+                return bad(format!("Logtime ngày {day} chưa có issue."));
+            }
+            Target::Issue { .. } => {}
+            Target::NewSubtask { key } => {
+                let Some(sub) = plan.subtask(key) else {
+                    return bad(format!("Không tìm thấy task con cho logtime ngày {day}."));
+                };
+                if sub.subject.trim().is_empty() {
+                    return bad(format!("Task con của logtime ngày {day} chưa có tên."));
+                }
+                if sub.parent_id == 0 || sub.project_id == 0 || sub.tracker_id == 0 {
+                    return bad(format!(
+                        "Task con “{}” thiếu task cha, project hoặc tracker.",
+                        sub.subject
+                    ));
+                }
+            }
+        }
+        *per_day.entry(item.date).or_default() += item.hours;
+    }
+    for (date, total) in per_day {
+        // Only days this plan touches can be pushed over the limit.
+        if total > MAX_HOURS_PER_DAY + EPS && plan.items.iter().any(|i| i.date == date) {
+            return bad(format!(
+                "Ngày {} sẽ có {}h, vượt {}h. Giảm số giờ rồi ghi lại.",
+                date.format("%d/%m/%Y"),
+                (total * 100.0).round() / 100.0,
+                MAX_HOURS_PER_DAY
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -177,6 +241,49 @@ mod tests {
         let mut orphan = plan();
         orphan.subtasks.clear();
         assert!(build_ops(&orphan).is_err());
+    }
+
+    fn check_err(p: &WritePlan, logged: &[(NaiveDate, f64)]) -> String {
+        check_plan(p, logged).unwrap_err().to_string()
+    }
+
+    #[test]
+    fn check_plan_accepts_a_full_day_with_what_redmine_has() {
+        // 27/10: 8h planned + 16h already logged = exactly 24h.
+        assert!(check_plan(&plan(), &[(d(27), 16.0), (d(29), 30.0)]).is_ok());
+    }
+
+    #[test]
+    fn check_plan_rejects_a_day_above_24h_counting_redmine() {
+        let msg = check_err(&plan(), &[(d(27), 10.0), (d(27), 6.5)]);
+        assert!(msg.contains("27/10/2026") && msg.contains("24.5h"), "{msg}");
+        // Entries of 13h each, none above 24h on its own.
+        let mut p = plan();
+        p.items[1].hours = 13.0;
+        p.items[2].hours = 13.0;
+        assert!(check_err(&p, &[]).contains("vượt 24h"));
+    }
+
+    #[test]
+    fn check_plan_rejects_bad_hours_targets_and_subtasks() {
+        assert!(check_err(&WritePlan::default(), &[]).contains("Chưa chọn"));
+        for hours in [0.0, -1.0, 25.0, f64::NAN, f64::INFINITY] {
+            let mut p = plan();
+            p.items[2].hours = hours;
+            assert!(check_err(&p, &[]).contains("số giờ"), "{hours}");
+        }
+        let mut no_issue = plan();
+        no_issue.items[2].target = Target::Issue { issue_id: 0, label: String::new() };
+        assert!(check_err(&no_issue, &[]).contains("chưa có issue"));
+        let mut blank = plan();
+        blank.subtasks[0].subject = "  ".into();
+        assert!(check_err(&blank, &[]).contains("chưa có tên"));
+        let mut no_tracker = plan();
+        no_tracker.subtasks[0].tracker_id = 0;
+        assert!(check_err(&no_tracker, &[]).contains("tracker"));
+        let mut twice = plan();
+        twice.items[1].id = "2".into();
+        assert!(check_err(&twice, &[]).contains("bị lặp"));
     }
 
     #[test]

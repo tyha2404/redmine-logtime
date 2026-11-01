@@ -19,7 +19,8 @@
         "minWidth": 960,
         "minHeight": 620,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "visible": false
       }
     ],
     "security": {
@@ -44,13 +45,23 @@
     "category": "Productivity",
     "linux": {
       "deb": {
-        "depends": []
+        "depends": [
+          "libayatana-appindicator3-1"
+        ]
       }
     },
     "shortDescription": "Lịch logtime Redmine, nhập báo cáo bằng AI",
     "macOS": {
       "signingIdentity": "-",
       "minimumSystemVersion": "11.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQyQUZDRDc4MkJEMDhCMEMKUldRTWk5QXJlTTJ2MHM5ckpqOWg5TDV0MGNmUU5lZHFqOTQyWFl1ZDlYUlJMalhjOU1BY2F0RnYK",
+      "endpoints": [
+        "https://github.com/tyha2404/redmine-logtime/releases/latest/download/latest.json"
+      ]
     }
   }
 }

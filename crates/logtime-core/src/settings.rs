@@ -22,6 +22,13 @@ pub struct Settings {
     /// Run `claude` without ~/.claude/settings.json (e.g. when it sets an
     /// ANTHROPIC_API_KEY that does not work headless), using the claude.ai login.
     pub claude_ignore_user_settings: bool,
+    /// Notify on workdays at `reminder_time` when today or this week is short.
+    /// While on, closing the window keeps the app in the menu bar / tray.
+    pub reminder_enabled: bool,
+    /// "HH:MM", local time.
+    pub reminder_time: String,
+    /// Start (hidden, in the tray) when the user logs in.
+    pub start_at_login: bool,
 }
 
 impl Default for Settings {
@@ -37,6 +44,9 @@ impl Default for Settings {
             default_activity_id: None,
             subtask_tracker_id: None,
             claude_ignore_user_settings: false,
+            reminder_enabled: true,
+            reminder_time: "17:30".into(),
+            start_at_login: false,
         }
     }
 }

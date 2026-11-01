@@ -35,7 +35,7 @@ Cài các gói hệ thống dùng khi build:
 
 ```bash
 sudo apt update
-sudo apt install -y build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+sudo apt install -y build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
 ```
 
 CI build trên Ubuntu 22.04. Docker chỉ cần khi thử với Redmine local; Claude CLI đã đăng nhập và `uv` chỉ cần cho tính năng AI.
@@ -98,7 +98,8 @@ Thay `YOUR_LOCAL_API_KEY` trong ví dụ bằng key local của bạn. Dữ li�
 REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
   cargo run -p redmine-client --example smoke -- 2026-10-01 2026-10-31
 
-# Tạo task con, ghi giờ, kiểm tra chạy lại không trùng và hoàn tác
+# Tạo task con, ghi giờ, chạy lại không trùng, hoàn tác; thử lại sau lỗi
+# mạng không ghi trùng; lỗi 422; chặn ngày vượt 24h
 REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
   cargo run -p logtime-engine --example local_e2e
 
@@ -112,9 +113,13 @@ Ví dụ `local_e2e` giữ lại task con sau khi hoàn tác logtime. Dừng mô
 
 ### Ghi lên Redmine và AI
 
-Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Hoàn tác chỉ xóa logtime của lô, giữ task con.
+Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Trước khi gửi, `plan::check_plan` kiểm tra lại phía Rust: giờ hợp lệ, có issue, task con đủ thông tin, mỗi ngày không quá 24h tính cả giờ đã có trên Redmine.
+
+Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Lỗi có thể Redmine đã nhận (mất kết nối, timeout, 5xx) được đánh dấu `uncertain`; khi thử lại, app tìm logtime/task con đã có trước khi tạo. Hoàn tác chỉ xóa logtime của lô, giữ task con.
 
 App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine và giờ nghỉ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
+
+Sau mỗi lần ghi từ báo cáo, app lưu “dòng báo cáo → task cha, task con” (`ai-bridge::memory`, khoá `task_memory` trong SQLite). Ghi nhớ được dùng để gợi ý trong prompt, ghi đè đề xuất của Claude cho việc đã quen, và cho **Khớp nhanh** (`quick_report`): đọc ngày trong báo cáo rồi khớp dòng với ghi nhớ, không gọi Claude.
 
 ### Google Chat
 
@@ -137,14 +142,22 @@ Seed Docker hiện dùng một issue nghỉ chung, chưa mô phỏng đầy đ�
 
 ### Cấu hình và thông tin đăng nhập
 
-App lưu `settings.json`, `credentials.json` và `redmine-profile.md` trong thư mục cấu hình:
+App lưu `settings.json` và `redmine-profile.md` trong thư mục cấu hình:
 
 - macOS: `~/Library/Application Support/app.redmine-logtime.desktop/`
 - Ubuntu: `~/.config/app.redmine-logtime.desktop/`
 
-API key và đăng nhập Google Chat nằm trong file JSON, được bảo vệ bằng quyền file `0600`, thư mục cấu hình `0700`. Không đưa file này vào Git hoặc đính kèm khi báo lỗi.
+API key và đăng nhập Google Chat nằm trong keychain của hệ điều hành (mục `app.redmine-logtime.desktop` / `credentials`; Secret Service trên Ubuntu). Máy không có keychain dùng được thì lưu `credentials.json` trong thư mục cấu hình, quyền `0600`, thư mục `0700`; file của bản cũ được chuyển vào keychain ở lần mở đầu. App ký ad-hoc nên sau mỗi bản mới macOS có thể hỏi lại quyền dùng Keychain.
+
+Log nằm ở `~/Library/Logs/app.redmine-logtime.desktop/` (macOS) hoặc `~/.local/share/app.redmine-logtime.desktop/logs/` (Ubuntu), giữ 3 file gần nhất. Không ghi key, token hay nội dung báo cáo vào log.
 
 Lịch sử ghi nằm trong `logtime.db` ở thư mục dữ liệu của app: trên macOS cùng đường dẫn trên, trên Ubuntu mặc định là `~/.local/share/app.redmine-logtime.desktop/`. Gỡ app bằng script vẫn giữ cấu hình và dữ liệu này.
+
+### Icon và logo
+
+Icon trong app lấy từ [Lucide](https://lucide.dev) (`lucide-react`) qua `src/icons.tsx`; thêm icon mới bằng cách khai báo tên trong đó, không tự vẽ SVG.
+
+Logo là hình của [logo Redmine](https://github.com/edavis10/redmine_logo) (© 2009 Martin Herr, CC BY-SA 2.5) đổi sang các sắc xanh của app, trên ô trắng: `src-tauri/icons/source.svg` và `BrandMark` trong `src/icons.tsx`. Bản chỉnh sửa này cũng theo CC BY-SA 2.5 (khác giấy phép MIT của mã nguồn) và phải giữ ghi công. Đổi logo: sửa `source.svg`, xuất PNG 1024px, chạy `npx tauri icon <file.png> -o <thư mục tạm>` rồi chép `32x32.png`, `64x64.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico`, `icon.png` vào `src-tauri/icons/`. Icon thanh menu macOS (`tray-template.png`, 44px, hình đen trên nền trong) dùng cùng hình.
 
 ## Build và cài từ mã nguồn
 
@@ -178,6 +191,16 @@ Lệnh `make release` đồng bộ phiên bản npm, Tauri và Cargo, tạo comm
 - `redmine-logtime_X.Y.Z_amd64.deb`: Ubuntu, build trên 22.04.
 - `Redmine-Logtime_X.Y.Z_macos-universal.tar.gz`: app macOS cho Intel và Apple Silicon.
 - `install.sh`: script cài và cập nhật.
+- `latest.json`: cho nút cập nhật trong app, chỉ có khi đã cấu hình khoá ký bên dưới.
+
+### Khoá ký cho cập nhật trong app
+
+App kiểm tra `latest.json` của bản mới nhất và chỉ cài file có chữ ký khớp với `plugins.updater.pubkey` trong `src-tauri/tauri.conf.json`. Workflow ký file `.deb` và `.tar.gz` bằng secret của repo (**Settings → Secrets and variables → Actions**):
+
+- `TAURI_SIGNING_PRIVATE_KEY`: nội dung file khoá bí mật (tạo bằng `npx tauri signer generate -w ~/.tauri/redmine-logtime.key`).
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: mật khẩu khoá. Khoá không có mật khẩu thì không tạo secret này (GitHub không cho lưu giá trị trống).
+
+Thiếu secret thì workflow bỏ qua bước ký; bản phát hành vẫn cài và cập nhật bằng `install.sh`. Giữ khoá bí mật ngoài repo. Mất khoá thì phải tạo cặp mới, đổi `pubkey`, và người dùng cập nhật một lần bằng lệnh cài.
 
 Có thể đóng gói macOS universal tại máy Mac bằng `make package-macos`; kết quả ở `target/publish/`.
 
