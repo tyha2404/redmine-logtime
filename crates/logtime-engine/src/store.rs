@@ -6,13 +6,11 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::Result;
-use crate::model::{Batch, Draft, Op, OpPayload, OpStatus};
+use crate::model::{Batch, Op, OpPayload, OpStatus};
 
 const SCHEMA: &str = "
-CREATE TABLE IF NOT EXISTS draft (
-    id   INTEGER PRIMARY KEY CHECK (id = 1),
-    json TEXT NOT NULL
-);
+-- The review queue of earlier versions; writes now go straight to Redmine.
+DROP TABLE IF EXISTS draft;
 CREATE TABLE IF NOT EXISTS batches (
     id          INTEGER PRIMARY KEY,
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -41,7 +39,7 @@ CREATE TABLE IF NOT EXISTS subtasks (
 );
 ";
 
-/// Local SQLite store: the review draft, execution batches and audit trail.
+/// Local SQLite store: write batches (the audit trail used by undo and retry).
 pub struct Store {
     conn: Mutex<Connection>,
 }
@@ -61,27 +59,6 @@ impl Store {
         Ok(Self {
             conn: Mutex::new(conn),
         })
-    }
-
-    pub fn load_draft(&self) -> Result<Draft> {
-        let conn = self.conn.lock().unwrap();
-        let json: Option<String> = conn
-            .query_row("SELECT json FROM draft WHERE id = 1", [], |r| r.get(0))
-            .optional()?;
-        Ok(match json {
-            Some(j) => serde_json::from_str(&j)?,
-            None => Draft::default(),
-        })
-    }
-
-    pub fn save_draft(&self, draft: &Draft) -> Result<()> {
-        let json = serde_json::to_string(draft)?;
-        self.conn.lock().unwrap().execute(
-            "INSERT INTO draft (id, json) VALUES (1, ?1)
-             ON CONFLICT(id) DO UPDATE SET json = excluded.json",
-            params![json],
-        )?;
-        Ok(())
     }
 
     /// Small JSON documents (Redmine profile, last report…).
@@ -166,6 +143,14 @@ impl Store {
             params![op_id, status.as_str(), result_id, error],
         )?;
         Ok(())
+    }
+
+    /// Puts a batch's failed ops back to pending so they can run again.
+    pub fn reset_failed(&self, batch_id: i64) -> Result<usize> {
+        Ok(self.conn.lock().unwrap().execute(
+            "UPDATE ops SET status = 'pending', error = NULL WHERE batch_id = ?1 AND status = 'failed'",
+            params![batch_id],
+        )?)
     }
 
     pub fn subtask_issue(&self, key: &str) -> Result<Option<u32>> {

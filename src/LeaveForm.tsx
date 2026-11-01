@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { errorText, type Draft, type LeaveParent, type PlanItem, type Settings, type SubtaskDraft, type TimeEntry } from "./api";
+import { errorText, type LeaveParent, type PlanItem, type Settings, type SubtaskDraft, type TimeEntry } from "./api";
 import { fmtDayShort, fmtHours, parseIso } from "./fmt";
 import {
   buildLeave,
@@ -27,12 +27,12 @@ const SPANS: { span: LeaveSpan; label: string }[] = [
 export default function LeaveForm(props: {
   date: string;
   settings: Settings;
-  draft: Draft;
-  onAdd: (item: PlanItem, subtask: SubtaskDraft) => Promise<void>;
+  /** Hands the leave to the confirmation dialog. */
+  onAdd: (item: PlanItem, subtask: SubtaskDraft) => void;
   onCancel: () => void;
   onOpenSettings: () => void;
 }) {
-  const { date, settings, draft, onAdd, onCancel, onOpenSettings } = props;
+  const { date, settings, onAdd, onCancel, onOpenSettings } = props;
   const types = settings.leave_types;
   const [typeKey, setTypeKey] = useState(types[0]?.key ?? "");
   const [span, setSpan] = useState<LeaveSpan>("full");
@@ -44,10 +44,10 @@ export default function LeaveForm(props: {
   const type = types.find((t) => t.key === typeKey) ?? types[0];
   const year = Number(date.slice(0, 4));
   const { entries } = useLeaveEntries(year);
-  const blocked = useMemo(() => whyNoLeave(settings, date, entries, draft, span), [settings, date, entries, draft, span]);
+  const blocked = useMemo(() => whyNoLeave(settings, date, entries, span), [settings, date, entries, span]);
   const balance = useMemo(
-    () => (entries && type ? leaveYear(settings, year, entries, draft).balances.find((b) => b.type.key === type.key) : undefined),
-    [entries, settings, year, draft, type],
+    () => (entries && type ? leaveYear(settings, year, entries).balances.find((b) => b.type.key === type.key) : undefined),
+    [entries, settings, year, type],
   );
 
   // The subject follows the choices until the user types their own.
@@ -84,9 +84,10 @@ export default function LeaveForm(props: {
     setBusy(true);
     try {
       const { item, subtask } = await buildLeave({ settings, type, date, span, subject });
-      await onAdd(item, subtask);
+      onAdd(item, subtask);
     } catch (e) {
       setProblem(errorText(e));
+    } finally {
       setBusy(false);
     }
   };
@@ -166,7 +167,7 @@ export default function LeaveForm(props: {
 
       <div className="form-actions">
         <button className="btn primary" onClick={add} disabled={busy || !parent || !subject.trim() || blocked !== null}>
-          {busy ? "Đang thêm…" : `Thêm ${fmtHours(leaveHours(settings, span))} nghỉ vào hàng chờ`}
+          {busy ? "Đang chuẩn bị…" : `Ghi ${fmtHours(leaveHours(settings, span))} nghỉ lên Redmine…`}
         </button>
         <button className="btn ghost" onClick={onCancel}>
           Huỷ
@@ -182,13 +183,12 @@ const DAY_NAMES = ["Chủ nhật", "Thứ bảy"];
 /**
  * Why this day cannot take (more) leave, or null when it can: days that are
  * not workdays need none, and a day holds at most one workday of leave,
- * counting what is on Redmine and what is already queued.
+ * counting what is already on Redmine.
  */
 function whyNoLeave(
   settings: Settings,
   date: string,
   entries: TimeEntry[] | null,
-  draft: Draft,
   span: LeaveSpan,
 ): string | null {
   const wd = parseIso(date).getDay();
@@ -199,13 +199,9 @@ function whyNoLeave(
   }
   const leaveProjects = new Set(settings.leave_types.map((t) => t.project_id));
   const logged = (entries ?? []).filter((e) => e.spent_on === date && leaveProjects.has(e.project.id));
-  const queued = draft.items.filter((i) => i.date === date && i.kind === "leave");
-  const taken = logged.reduce((s, e) => s + e.hours, 0) + queued.reduce((s, i) => s + i.hours, 0);
+  const taken = logged.reduce((s, e) => s + e.hours, 0);
   if (taken + leaveHours(settings, span) <= settings.hours_per_day + EPS) return null;
-  const where = [
-    ...logged.map((e) => (e.issue ? `#${e.issue.id}` : e.project.name)),
-    ...(queued.length ? ["trong hàng chờ"] : []),
-  ].join(", ");
+  const where = logged.map((e) => (e.issue ? `#${e.issue.id}` : e.project.name)).join(", ");
   if (taken + EPS >= settings.hours_per_day) return `Ngày này đã nghỉ cả ngày (${where}).`;
   return `Ngày này đã nghỉ ${fmtHours(taken)} (${where}); chỉ xin thêm được ${fmtHours(settings.hours_per_day - taken)}. Chọn buổi sáng hoặc buổi chiều.`;
 }

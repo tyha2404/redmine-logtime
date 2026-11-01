@@ -6,11 +6,14 @@ import type {
   DayPlan,
   DayStatus,
   DaySummary,
-  Draft,
+  Issue,
+  Op,
+  OpPayload,
   Profile,
   ReportView,
   Settings,
   TimeEntry,
+  WritePlan,
 } from "./api";
 
 const TODAY = "2026-10-29";
@@ -62,46 +65,25 @@ const ENTRIES: TimeEntry[] = [
   entry(27, 4, 4, "Sửa feedback công nợ"),
 ];
 
-let draft: Draft = {
-  subtasks: [
-    {
-      key: "sub-1",
-      parent_id: 3,
-      parent_subject: "Báo cáo doanh số theo vùng",
-      project_id: 1,
-      project_name: "Dự án ABC",
-      tracker_id: 4,
-      subject: "[FE] Biểu đồ doanh số theo vùng",
-    },
-    {
-      key: "sub-leave",
-      parent_id: 15973,
-      parent_subject: "Xin nghỉ phép Tháng 10.2026",
-      project_id: 108,
-      project_name: "Annual Leave",
-      tracker_id: 5,
-      subject: "BE - Tên xin nghỉ phép 1/2 ngày 28/10/2026",
-      start_date: "2026-10-28",
-    },
-  ],
-  items: [
-    item("i1", 27, { type: "new_subtask", key: "sub-1" }, 4, "Dựng biểu đồ cột"),
-    item("i2", 28, { type: "issue", issue_id: 5, label: "#5 Review Module Sự kiện" }, 4, "Review Module Sự kiện"),
-    item("i3", 28, { type: "new_subtask", key: "sub-leave" }, 4, "Nghỉ phép năm nửa ngày", "leave"),
-    item("i4", 29, { type: "new_subtask", key: "sub-1" }, 5, "Lọc theo vùng", "work", "Redmine từ chối dữ liệu: Activity cannot be blank"),
-  ],
+const SUB_1 = {
+  key: "sub-1",
+  parent_id: 3,
+  parent_subject: "Báo cáo doanh số theo vùng",
+  project_id: 1,
+  project_name: "Dự án ABC",
+  tracker_id: 4,
+  subject: "[FE] Biểu đồ doanh số theo vùng",
 };
 
 function item(
   id: string,
   day: number,
-  target: Draft["items"][number]["target"],
+  target: WritePlan["items"][number]["target"],
   hours: number,
   comments: string,
   kind: "work" | "leave" = "work",
-  last_error: string | null = null,
 ) {
-  return { id, date: iso(day), target, hours, activity_id: 9, comments, kind, last_error };
+  return { id, date: iso(day), target, hours, activity_id: 9, comments, kind };
 }
 
 function isWorkday(date: string) {
@@ -140,25 +122,6 @@ function monthSummary(year: number, month: number) {
     days.push({ date, status, hours, leave_hours: leave, entries });
   }
   return { year, month, days, total_hours: total, expected_hours: expected, missing_hours: missingHours, missing_days: missingDays };
-}
-
-function review() {
-  const dates = [...new Set(draft.items.map((i) => i.date))].sort();
-  return {
-    hours_per_day: HPD,
-    subtasks: draft.subtasks,
-    days: dates.map((date) => {
-      const items = draft.items.filter((i) => i.date === date);
-      const existing = ENTRIES.filter((e) => e.spent_on === date);
-      const eh = existing.reduce((s, e) => s + e.hours, 0);
-      const ph = items.reduce((s, i) => s + i.hours, 0);
-      const total = eh + ph;
-      const warnings: string[] = [];
-      if (total > HPD) warnings.push(`Vượt ${total - HPD}h so với 8h.`);
-      else if (total < HPD) warnings.push(`Còn thiếu ${HPD - total}h để đủ 8h.`);
-      return { date, is_workday: true, existing_hours: eh, planned_hours: ph, total_hours: total, existing, items, warnings };
-    }),
-  };
 }
 
 const PROFILE: Profile = {
@@ -219,7 +182,7 @@ const task = (
   days: days.map((date) => ({ date, weight: 1 })),
 });
 
-// A one-day report for "today": one line duplicates work already queued.
+// A one-day report for "today": one line duplicates work already logged.
 const REPORT_VIEW: ReportView = {
   analysis: { period_from: TODAY, period_to: TODAY, leave: [], questions: [], tasks: [] },
   tasks: [
@@ -228,7 +191,7 @@ const REPORT_VIEW: ReportView = {
       parent: brief(3, "Báo cáo doanh số theo vùng", "Feature"),
       existing_subtask: null,
       problems: [],
-      duplicates: [{ date: TODAY, reason: "Đã có trong hàng chờ (5h)." }],
+      duplicates: [{ date: TODAY, reason: "Đã log 5h vào #12 trên Redmine." }],
     },
     {
       task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [TODAY]),
@@ -245,11 +208,117 @@ const REPORT_VIEW: ReportView = {
       duplicates: [],
     },
   ],
-  days: [{ date: TODAY, workday: true, existing_hours: 0, queued_hours: 5, leave_hours: 0, capacity: 3 }],
+  days: [{ date: TODAY, workday: true, existing_hours: 0, leave_hours: 0, capacity: 8 }],
   skipped_future: [],
   day: TODAY,
 };
 REPORT_VIEW.analysis.tasks = REPORT_VIEW.tasks.map((t) => t.task);
+
+// A weekly report for the "Ghi logtime" page: several days, a half day off
+// and one task without a parent.
+const WEEK_VIEW: ReportView = {
+  analysis: {
+    period_from: iso(27),
+    period_to: iso(29),
+    leave: [{ date: iso(28), hours: 4, kind: "annual" }],
+    questions: [],
+    tasks: [],
+  },
+  tasks: [
+    {
+      task: task("cong-no", "Sửa feedback công nợ", 1, 0.93, "Khớp Feature #1 “Quản lý công nợ khách hàng”.", 4, [iso(27), iso(28)]),
+      parent: brief(1, "Quản lý công nợ khách hàng", "Feature"),
+      existing_subtask: brief(4, "[FE] Màn hình danh sách công nợ", "Task", 1),
+      problems: [],
+      duplicates: [],
+    },
+    {
+      task: task("bieu-do", "Lọc theo vùng cho biểu đồ doanh số", 3, 0.88, "Khớp Feature #3 “Báo cáo doanh số theo vùng”.", null, [iso(28), iso(29)]),
+      parent: brief(3, "Báo cáo doanh số theo vùng", "Feature"),
+      existing_subtask: null,
+      problems: [],
+      duplicates: [],
+    },
+    {
+      task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [iso(29)]),
+      parent: brief(2, "Module Sự kiện", "Feature"),
+      existing_subtask: brief(5, "Review Module Sự kiện", "Task", 2),
+      problems: [],
+      duplicates: [{ date: iso(27), reason: "Đã log 3h vào #5 trên Redmine." }],
+    },
+    {
+      task: { ...task("hop", "Họp sprint planning", 0, 0, "", null, [iso(29)]), parent_issue_id: null },
+      parent: null,
+      existing_subtask: null,
+      problems: ["Không tìm thấy task cha phù hợp, hãy chọn."],
+      duplicates: [],
+    },
+  ],
+  days: [
+    { date: iso(27), workday: true, existing_hours: 4, leave_hours: 0, capacity: 4 },
+    { date: iso(28), workday: true, existing_hours: 0, leave_hours: 4, capacity: 4 },
+    { date: iso(29), workday: true, existing_hours: 0, leave_hours: 0, capacity: 8 },
+  ],
+  skipped_future: [],
+  day: null,
+};
+WEEK_VIEW.analysis.tasks = WEEK_VIEW.tasks.map((t) => t.task);
+
+const issue = (id: number, subject: string, tracker: [number, string], parent: number | null = null, mine = false): Issue => ({
+  id,
+  project: { id: 1, name: "Dự án ABC" },
+  tracker: { id: tracker[0], name: tracker[1] },
+  status: { id: 1, name: id === 7 ? "Closed" : "New" },
+  subject,
+  parent: parent ? { id: parent } : null,
+  author: { id: 5, name: "BA B" },
+  assigned_to: mine ? { id: 6, name: "Dev A" } : null,
+});
+
+const ISSUES: Issue[] = [
+  issue(1, "Quản lý công nợ khách hàng", [2, "Feature"]),
+  issue(2, "Module Sự kiện", [2, "Feature"]),
+  issue(3, "Báo cáo doanh số theo vùng", [2, "Feature"]),
+  issue(8, "Họp và nghiệp vụ nội bộ tháng 10", [3, "Support"]),
+  issue(9, "Sprint 42 – họp và review", [3, "Support"]),
+  issue(4, "[FE] Màn hình danh sách công nợ", [4, "Task"], 1, true),
+  issue(7, "[BE] API công nợ", [4, "Task"], 1, true),
+  issue(5, "Review Module Sự kiện", [4, "Task"], 2, true),
+];
+
+// Writes: progress events like the real backend; ?writefail=1 makes the
+// last time entry of each write fail once.
+const listeners = new Map<string, Set<EventCallback<unknown>>>();
+const emit = (event: string, payload: unknown) =>
+  listeners.get(event)?.forEach((cb) => cb({ event, id: 0, payload } as Parameters<EventCallback<unknown>>[0]));
+const failOnce = new URLSearchParams(location.search).has("writefail");
+let nextOp = 1000;
+let nextBatch = 10;
+let nextIssue = 20000;
+const created = new Map<string, number>();
+
+async function runOps(batch: Batch, pick: (op: Op) => boolean, fail: (op: Op) => string | null) {
+  for (const op of batch.ops) {
+    if (!pick(op)) continue;
+    await delay(null, 350);
+    const why = fail(op);
+    if (why) {
+      Object.assign(op, { status: "failed", error: why });
+    } else if (op.payload.op === "create_subtask") {
+      const id = created.get(op.payload.key) ?? nextIssue++;
+      created.set(op.payload.key, id);
+      Object.assign(op, { status: "done", result_id: id, error: null });
+    } else {
+      const p = op.payload;
+      const issueId = p.target.type === "issue" ? p.target.issue_id : created.get(p.target.key) ?? 0;
+      const e = entry(Number(p.date.slice(8)), issueId, p.hours, p.comments);
+      ENTRIES.push(e);
+      Object.assign(op, { status: "done", result_id: e.id, error: null });
+    }
+    emit("batch-progress", { batch_id: batch.id, op: { ...op } });
+  }
+  return structuredClone(batch);
+}
 
 function planReport(view: ReportView, excluded: string[]): DayPlan[] {
   return view.days.map((d) => {
@@ -275,7 +344,7 @@ const BATCHES: Batch[] = [
     label: "3 logtime, 22/10–23/10",
     redmine_url: settings.redmine_url,
     ops: [
-      { id: 21, seq: 0, payload: { op: "create_subtask", ...draft.subtasks[0], subject: "[FE] Export Excel công nợ" }, status: "done", result_id: 12, error: null },
+      { id: 21, seq: 0, payload: { op: "create_subtask", ...SUB_1, subject: "[FE] Export Excel công nợ" }, status: "done", result_id: 12, error: null },
       { id: 22, seq: 1, payload: { op: "create_time_entry", ...item("x1", 22, { type: "new_subtask", key: "sub-1" }, 5, "Export Excel") }, status: "done", result_id: 1201, error: null },
       { id: 23, seq: 2, payload: { op: "create_time_entry", ...item("x2", 22, { type: "issue", issue_id: 5, label: "#5 Review Module Sự kiện" }, 3, "Review") }, status: "done", result_id: 1202, error: null },
       { id: 24, seq: 3, payload: { op: "create_time_entry", ...item("x3", 29, { type: "new_subtask", key: "sub-1" }, 5, "Lọc theo vùng") }, status: "failed", result_id: null, error: "Redmine từ chối dữ liệu: Activity cannot be blank" },
@@ -324,15 +393,8 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay(undefined);
     case "month_summary":
       return delay(monthSummary(args.year as number, args.month as number), 250);
-    case "get_draft":
-      return delay(draft);
-    case "save_draft":
-      draft = args.draft as Draft;
-      return delay(undefined);
-    case "review_draft":
-      return delay(review(), 250);
     case "list_batches":
-      return delay(BATCHES);
+      return delay(structuredClone(BATCHES));
     case "list_activities":
       return delay([
         { id: 8, name: "Design", is_default: false, active: true },
@@ -360,7 +422,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         args.day === TODAY ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW } : { text: "", day: args.day ?? null, view: null },
       );
     case "analyze_report":
-      return delay({ ...REPORT_VIEW, day: (args.day as string | null) ?? null }, 1200);
+      return delay(args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW), 1200);
     case "discover_leave":
       return delay({ types: settings.leave_types, name: "BE - Tên" }, 700);
     case "leave_parent": {
@@ -418,8 +480,58 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         author: { id: 5, name: "BA B" },
         assigned_to: null,
       });
-    case "preview_items":
-      return delay([{ method: "POST", path: "/time_entries.json", body: { time_entry: { issue_id: 5, hours: 4 } } }]);
+    case "search_issues": {
+      const q = String(args.query).trim().toLowerCase().replace(/^#/, "");
+      const found = /^\d+$/.test(q) ? ISSUES.filter((i) => String(i.id) === q) : ISSUES.filter((i) => i.subject.toLowerCase().includes(q));
+      return delay(found.filter((i) => i.status.name !== "Closed" || /^\d+$/.test(q)), 350);
+    }
+    case "list_children":
+      return delay(ISSUES.filter((i) => i.parent?.id === args.parentId && i.assigned_to), 300);
+    case "preview_plan": {
+      const plan = args.plan as WritePlan;
+      return delay([
+        ...plan.subtasks.map((s) => ({ method: "POST", path: "/issues.json", body: { issue: { subject: s.subject, parent_issue_id: s.parent_id } } })),
+        ...plan.items.map((i) => ({ method: "POST", path: "/time_entries.json", body: { time_entry: { spent_on: i.date, hours: i.hours, comments: i.comments } } })),
+      ]);
+    }
+    case "write_plan": {
+      const plan = args.plan as WritePlan;
+      const used = plan.subtasks.filter((s) => plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key));
+      const payloads: OpPayload[] = [
+        ...used.map((s) => ({ op: "create_subtask" as const, ...s })),
+        ...[...plan.items].sort((a, b) => a.date.localeCompare(b.date)).map((i) => ({ op: "create_time_entry" as const, ...i })),
+      ];
+      const batch: Batch = {
+        id: nextBatch++,
+        created_at: new Date().toISOString(),
+        label: String(args.label),
+        redmine_url: settings.redmine_url,
+        ops: payloads.map((payload, seq) => ({ id: nextOp++, seq, payload, status: "pending", result_id: null, error: null })),
+      };
+      BATCHES.unshift(batch);
+      const last = batch.ops.at(-1)!.id;
+      return runOps(batch, () => true, (op) => (failOnce && op.id === last ? "Redmine từ chối dữ liệu: Issue is closed" : null));
+    }
+    case "retry_batch": {
+      const batch = BATCHES.find((b) => b.id === args.batchId)!;
+      return runOps(batch, (op) => op.status === "failed", () => null);
+    }
+    case "resume_batch": {
+      const batch = BATCHES.find((b) => b.id === args.batchId)!;
+      return runOps(batch, (op) => op.status === "pending" || op.status === "running", () => null);
+    }
+    case "undo_batch": {
+      const batch = BATCHES.find((b) => b.id === args.batchId)!;
+      for (const op of [...batch.ops].reverse()) {
+        if (op.payload.op !== "create_time_entry" || op.status !== "done") continue;
+        await delay(null, 250);
+        const at = ENTRIES.findIndex((e) => e.id === op.result_id);
+        if (at >= 0) ENTRIES.splice(at, 1);
+        op.status = "undone";
+        emit("batch-progress", { batch_id: batch.id, op: { ...op } });
+      }
+      return structuredClone(batch);
+    }
     case "open_issue":
       window.open(`${settings.redmine_url}/issues/${args.id}`, "_blank", "noopener");
       return delay(undefined);
@@ -461,8 +573,10 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
   }
 }
 
-export async function mockListen(_event: string, _cb: EventCallback<unknown>): Promise<UnlistenFn> {
-  return () => {};
+export async function mockListen(event: string, cb: EventCallback<unknown>): Promise<UnlistenFn> {
+  if (!listeners.has(event)) listeners.set(event, new Set());
+  listeners.get(event)!.add(cb);
+  return () => listeners.get(event)?.delete(cb);
 }
 
 // Pin "today" so screenshots are stable.

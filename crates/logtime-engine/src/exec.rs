@@ -11,8 +11,8 @@ const EPS: f64 = 1e-6;
 
 pub type Progress<'a> = &'a mut (dyn FnMut(&Op) + Send);
 
-/// Runs every pending or interrupted op of the batch. Failed ops are final:
-/// their items go back to the draft to be fixed and sent in a new batch.
+/// Runs every pending or interrupted op of the batch. Failed ops stay failed
+/// until [`Store::reset_failed`] queues them for another run.
 pub async fn run_batch(
     store: &Store,
     client: &RedmineClient,
@@ -174,7 +174,7 @@ async fn create_entry(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Draft, ItemKind};
+    use crate::model::{ItemKind, WritePlan};
     use crate::plan::build_ops;
     use chrono::NaiveDate;
     use redmine_client::ClientOptions;
@@ -182,8 +182,8 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    fn draft() -> Draft {
-        Draft {
+    fn plan() -> WritePlan {
+        WritePlan {
             subtasks: vec![SubtaskDraft {
                 key: "k1".into(),
                 parent_id: 1,
@@ -203,7 +203,6 @@ mod tests {
                     activity_id: Some(9),
                     comments: "Sửa feedback".into(),
                     kind: ItemKind::Work,
-                    last_error: None,
                 },
                 PlanItem {
                     id: "b".into(),
@@ -216,7 +215,6 @@ mod tests {
                     activity_id: Some(9),
                     comments: "Review".into(),
                     kind: ItemKind::Work,
-                    last_error: None,
                 },
             ],
         }
@@ -233,14 +231,13 @@ mod tests {
     async fn setup(server: &MockServer) -> (Store, RedmineClient, i64) {
         let store = Store::open_in_memory().unwrap();
         let client = RedmineClient::new(&server.uri(), "k", ClientOptions::default()).unwrap();
-        let dr = draft();
-        let ops = build_ops(&dr, &["a".into(), "b".into()]).unwrap();
+        let ops = build_ops(&plan()).unwrap();
         let id = store.create_batch("test", &server.uri(), &ops).unwrap();
         (store, client, id)
     }
 
     #[tokio::test]
-    async fn runs_subtask_then_entries_and_keeps_failures_final() {
+    async fn failures_stay_until_reset_then_retry_only_them() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/issues.json"))
@@ -298,19 +295,22 @@ mod tests {
             .unwrap();
         assert_eq!(again, batch);
 
-        let mut back = Draft::default();
-        let all_ids: Vec<i64> = batch.ops.iter().map(|o| o.id).collect();
-        back.restore_failed(&batch, &all_ids);
-        back.restore_failed(&batch, &[]);
-        assert_eq!(back.items.len(), 1);
-        assert_eq!(back.items[0].id, "b");
-        assert!(
-            back.items[0]
-                .last_error
-                .as_deref()
-                .unwrap()
-                .contains("Issue is invalid")
-        );
+        // A retry resets only the failure; the sub-task and first entry are not sent again.
+        Mock::given(method("POST"))
+            .and(path("/time_entries.json"))
+            .and(wiremock::matchers::body_partial_json(
+                json!({"time_entry": {"issue_id": 50}}),
+            ))
+            .respond_with(ResponseTemplate::new(201).set_body_json(entry_json(502, 50, 3.0)))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert_eq!(store.reset_failed(id).unwrap(), 1);
+        let retried = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert!(retried.ops.iter().all(|o| o.status == OpStatus::Done));
+        assert_eq!(retried.ops[2].result_id, Some(502));
         // `.expect(1)` on the issue/first entry mocks verifies no duplicates on drop.
     }
 

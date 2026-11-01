@@ -11,7 +11,6 @@ use ai_bridge::report::{
 use ai_bridge::{ClaudeRunner, Progress, RedmineMcp};
 use chrono::{Local, NaiveDate, Utc};
 use logtime_core::Settings;
-use logtime_engine::model::Target;
 use redmine_client::Issue;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -203,7 +202,7 @@ pub struct TaskView {
     parent: Option<IssueBrief>,
     existing_subtask: Option<IssueBrief>,
     problems: Vec<String>,
-    /// Days dropped because this work is already logged or queued.
+    /// Days dropped because this work is already logged.
     #[serde(default)]
     duplicates: Vec<Duplicate>,
 }
@@ -240,8 +239,8 @@ pub fn get_last_report(
         .unwrap_or_default())
 }
 
-/// Forgets the analysis once its plan is queued, keeping the text, so the
-/// same report is not queued twice when the page opens again.
+/// Forgets the analysis once its plan is written, keeping the text, so the
+/// same report is not written twice when the page opens again.
 #[tauri::command]
 pub fn clear_last_report(state: State<'_, AppState>, day: Option<NaiveDate>) -> CmdResult<()> {
     let key = report_key(day);
@@ -252,7 +251,7 @@ pub fn clear_last_report(state: State<'_, AppState>, day: Option<NaiveDate>) -> 
 
 /// Report text → tasks with verified parent issues and each day's free hours.
 /// With `day`, the text is that one calendar day's report. Work already
-/// logged or queued for a day is dropped from the plan as a duplicate.
+/// logged for a day is dropped from the plan as a duplicate.
 #[tauri::command]
 pub async fn analyze_report(
     app: AppHandle,
@@ -284,7 +283,7 @@ pub async fn analyze_report(
     let today = Local::now().date_naive();
 
     let prompt = report::prompt(
-        &text,
+        &report::tidy_report(&text),
         &ReportContext {
             today,
             hours_per_day: settings.hours_per_day,
@@ -325,9 +324,8 @@ pub async fn analyze_report(
     } else {
         Vec::new()
     };
-    let draft = state.store.load_draft().map_err(err)?;
 
-    let mut known: Vec<KnownWork> = existing
+    let known: Vec<KnownWork> = existing
         .iter()
         .map(|e| KnownWork {
             date: e.spent_on,
@@ -335,32 +333,8 @@ pub async fn analyze_report(
             parent_id: None,
             text: e.comments.clone().unwrap_or_default(),
             hours: e.hours,
-            queued: false,
         })
         .collect();
-    known.extend(draft.items.iter().map(|i| match &i.target {
-        Target::Issue { issue_id, .. } => KnownWork {
-            date: i.date,
-            issue_id: Some(*issue_id),
-            parent_id: None,
-            text: i.comments.clone(),
-            hours: i.hours,
-            queued: true,
-        },
-        Target::NewSubtask { key } => {
-            let sub = draft.subtask(key);
-            KnownWork {
-                date: i.date,
-                issue_id: None,
-                parent_id: sub.map(|s| s.parent_id),
-                text: sub
-                    .map(|s| s.subject.clone())
-                    .unwrap_or_else(|| i.comments.clone()),
-                hours: i.hours,
-                queued: true,
-            }
-        }
-    }));
     let mut duplicates = report::remove_duplicates(&mut analysis, &known);
 
     let mut tasks = Vec::new();
@@ -388,12 +362,6 @@ pub async fn analyze_report(
             .filter(|e| e.spent_on == date)
             .map(|e| e.hours)
             .sum();
-        let queued_hours: f64 = draft
-            .items
-            .iter()
-            .filter(|i| i.date == date)
-            .map(|i| i.hours)
-            .sum();
         let leave_hours: f64 = analysis
             .leave
             .iter()
@@ -405,10 +373,9 @@ pub async fn analyze_report(
             date,
             workday,
             existing_hours,
-            queued_hours,
             leave_hours,
             capacity: if workday {
-                (settings.hours_per_day - existing_hours - queued_hours - leave_hours).max(0.0)
+                (settings.hours_per_day - existing_hours - leave_hours).max(0.0)
             } else {
                 0.0
             },

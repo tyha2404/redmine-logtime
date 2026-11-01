@@ -1,4 +1,4 @@
-import type { Draft, Op, PlanItem } from "./api";
+import type { Op, PlanItem, WritePlan } from "./api";
 
 const WEEKDAY_NAMES = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
 const WEEKDAY_SHORT = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -46,10 +46,10 @@ export function fmtTimestamp(ts: string): string {
 }
 
 /** What an item will be logged against, in words. */
-export function targetLabel(item: PlanItem, draft: Pick<Draft, "subtasks">): string {
+export function targetLabel(item: PlanItem, plan: Pick<WritePlan, "subtasks">): string {
   if (item.target.type === "issue") return item.target.label;
   const key = item.target.key;
-  const sub = draft.subtasks.find((s) => s.key === key);
+  const sub = plan.subtasks.find((s) => s.key === key);
   if (!sub) return "Task con mới";
   return item.kind === "leave" ? sub.subject : `Task con mới: ${sub.subject}`;
 }

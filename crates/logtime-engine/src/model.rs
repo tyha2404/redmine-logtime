@@ -19,7 +19,7 @@ pub enum ItemKind {
     Leave,
 }
 
-/// One time entry waiting for review.
+/// One time entry to write.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlanItem {
     pub id: String,
@@ -31,9 +31,6 @@ pub struct PlanItem {
     pub comments: String,
     #[serde(default)]
     pub kind: ItemKind,
-    /// Why the last attempt to write this item failed, if it did.
-    #[serde(default)]
-    pub last_error: Option<String>,
 }
 
 /// A sub-task to create under a BA-owned parent issue.
@@ -54,64 +51,17 @@ pub struct SubtaskDraft {
     pub start_date: Option<NaiveDate>,
 }
 
-/// Everything waiting for review. Persisted so it survives restarts.
+/// What one write sends to Redmine: the sub-tasks to create and the time
+/// entries, as the user confirmed them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-pub struct Draft {
+pub struct WritePlan {
     pub subtasks: Vec<SubtaskDraft>,
     pub items: Vec<PlanItem>,
 }
 
-impl Draft {
+impl WritePlan {
     pub fn subtask(&self, key: &str) -> Option<&SubtaskDraft> {
         self.subtasks.iter().find(|s| s.key == key)
-    }
-
-    /// Drops the given items, then any sub-task no remaining item refers to.
-    pub fn remove_items(&mut self, ids: &[String]) {
-        self.items.retain(|i| !ids.contains(&i.id));
-        let used: Vec<&str> = self
-            .items
-            .iter()
-            .filter_map(|i| match &i.target {
-                Target::NewSubtask { key } => Some(key.as_str()),
-                Target::Issue { .. } => None,
-            })
-            .collect();
-        self.subtasks.retain(|s| used.contains(&s.key.as_str()));
-    }
-
-    /// Puts the time entries among `op_ids` that failed back for fixing,
-    /// together with the sub-task drafts they still need. Pass only the ops
-    /// processed in the latest run so earlier failures are not restored twice.
-    pub fn restore_failed(&mut self, batch: &Batch, op_ids: &[i64]) {
-        let subtask_op = |key: &str| {
-            batch
-                .ops
-                .iter()
-                .find(|o| matches!(&o.payload, OpPayload::CreateSubtask(s) if s.key == key))
-        };
-        for op in &batch.ops {
-            let OpPayload::CreateTimeEntry(item) = &op.payload else {
-                continue;
-            };
-            if op.status != OpStatus::Failed || !op_ids.contains(&op.id) {
-                continue;
-            }
-            let mut item = item.clone();
-            item.last_error = op.error.clone();
-            if let Target::NewSubtask { key } = &item.target
-                && let Some(sub_op) = subtask_op(key)
-            {
-                if sub_op.status == OpStatus::Failed {
-                    item.last_error = sub_op.error.clone();
-                }
-                if let (OpPayload::CreateSubtask(sub), None) = (&sub_op.payload, self.subtask(key))
-                {
-                    self.subtasks.push(sub.clone());
-                }
-            }
-            self.items.push(item);
-        }
     }
 }
 

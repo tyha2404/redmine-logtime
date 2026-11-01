@@ -4,7 +4,7 @@
 //!   REDMINE_API_KEY=<dev1 key> cargo run -p logtime-engine --example local_e2e
 
 use chrono::NaiveDate;
-use logtime_engine::model::{Draft, ItemKind, OpStatus, PlanItem, SubtaskDraft, Target};
+use logtime_engine::model::{ItemKind, OpStatus, PlanItem, SubtaskDraft, Target, WritePlan};
 use logtime_engine::{Store, exec, plan};
 use redmine_client::{ClientOptions, RedmineClient};
 
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let date = NaiveDate::from_ymd_opt(2026, 10, 22).unwrap();
     let key = format!("e2e-{}", std::process::id());
 
-    let draft = Draft {
+    let write = WritePlan {
         subtasks: vec![SubtaskDraft {
             key: key.clone(),
             parent_id: parent.id,
@@ -57,12 +57,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             activity_id: Some(activity.id),
             comments: "e2e".into(),
             kind: ItemKind::Work,
-            last_error: None,
         }],
     };
 
     let store = Store::open_in_memory()?;
-    let ops = plan::build_ops(&draft, &["i1".into()])?;
+    let ops = plan::build_ops(&write)?;
     let id = store.create_batch("e2e", &url, &ops)?;
     let batch = exec::run_batch(&store, &client, id, &url, me.id, &mut |op| {
         println!("  {:?} -> {:?} {:?}", op.status, op.result_id, op.error)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorText, type ChatMessage, type ChatSpace } from "./api";
 import DateRangePicker from "./DateRangePicker";
+import { useModal } from "./useModal";
 import { isoOf, pad, parseIso, todayIso } from "./fmt";
 
 const WEEKDAYS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
@@ -30,20 +31,34 @@ function sentAt(ts: string): string {
   return `${WEEKDAYS[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** The picked messages as report text; the send time tells the AI which day a message is about. */
-export function chatReport(messages: ChatMessage[]): string {
-  return messages.map((m) => `[Gửi lúc ${sentAt(m.create_time)}]\n${m.text.trim()}`).join("\n\n");
+/** Each picked message as report text; the send time helps the AI date messages that name no day. */
+export function chatBlocks(messages: ChatMessage[]): string[] {
+  return messages.map((m) => `[Gửi lúc ${sentAt(m.create_time)}]\n${m.text.trim()}`);
+}
+
+const squash = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/**
+ * Adds message blocks to the report text, skipping any already in it (the
+ * same range fetched twice). Returns the new text and how many were added.
+ */
+export function appendBlocks(text: string, blocks: string[]): { text: string; added: number } {
+  const have = squash(text);
+  const fresh = blocks.filter((b) => !have.includes(squash(b)));
+  if (fresh.length === 0) return { text, added: 0 };
+  const joined = fresh.join("\n\n");
+  return { text: text.trim() ? `${text.trimEnd()}\n\n${joined}` : joined, added: fresh.length };
 }
 
 interface Props {
-  onInsert: (text: string) => void;
+  onInsert: (blocks: string[]) => void;
   onClose: () => void;
   onOpenSettings: () => void;
 }
 
 /** Picks the user's own report messages from a Google Chat group. */
 export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const modal = useModal(onClose);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [spaces, setSpaces] = useState<ChatSpace[] | null>(null);
   const [space, setSpace] = useState(remembered);
@@ -59,8 +74,6 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal();
     (async () => {
       try {
         const s = await api.gchatStatus();
@@ -110,15 +123,7 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props
   const chosen = messages?.filter((m) => picked.has(m.name)) ?? [];
 
   return (
-    <dialog
-      ref={ref}
-      className="confirm-dialog gchat-dialog"
-      aria-labelledby="gchat-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-    >
+    <dialog {...modal} className="confirm-dialog gchat-dialog" aria-labelledby="gchat-title">
       <h2 id="gchat-title">Lấy báo cáo từ Google Chat</h2>
 
       {connected === false ? (
@@ -192,7 +197,7 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props
             Mở Cài đặt
           </button>
         ) : (
-          <button className="btn primary" disabled={chosen.length === 0} onClick={() => onInsert(chatReport(chosen))}>
+          <button className="btn primary" disabled={chosen.length === 0} onClick={() => onInsert(chatBlocks(chosen))}>
             {chosen.length > 0 ? `Đưa ${chosen.length} tin vào báo cáo` : "Đưa vào báo cáo"}
           </button>
         )}

@@ -1,21 +1,17 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import AiLog from "./AiLog";
 import type { Settings } from "./api";
-import { fmtDayLong, fmtHours } from "./fmt";
-import GchatImport from "./GchatImport";
-import QuotaRail from "./QuotaRail";
-import { summaryLine, TaskRow, useReportFlow } from "./reportFlow";
+import { fmtHours } from "./fmt";
+import GchatImport, { appendBlocks } from "./GchatImport";
+import { ReportResult, useReportFlow } from "./reportFlow";
 import { useToast } from "./toast";
-import type { DraftApi } from "./useDraft";
 
-const EXAMPLE = `Dạ em xin gửi báo cáo công việc tuần này 26/10/2026 ạ
+const EXAMPLE = `Dạ em xin gửi báo cáo công việc tuần này 27/10/2026 ạ
 1. Dự án ABC
 Sửa feedback công nợ
 Review Module Sự kiện
 
-Thứ 2 26/10:
-- Sửa feedback công nợ
-- Review Module Sự kiện`;
+Dán một hoặc nhiều báo cáo ngày, kế hoạch tuần (26/10/2026 - 30/10/2026), hoặc bấm “Lấy từ Google Chat”.`;
 
 export interface ComposerHandle {
   focus: () => void;
@@ -23,93 +19,30 @@ export interface ComposerHandle {
 
 interface Props {
   settings: Settings;
-  draft: DraftApi;
   onOpenSettings: () => void;
+  onOpenHistory: () => void;
 }
 
 /**
- * Step one of "Ghi logtime": a report for one or several days becomes
- * logtimes in the queue below. Claude finds the parent tasks; the user can
- * change them here and again on each queued logtime.
+ * "Ghi logtime": a report for one or several days → Claude finds the parent
+ * tasks → the user picks tasks and fixes parent, sub-task and hours → one
+ * confirmed write to Redmine.
  */
 const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer(
-  { settings, draft, onOpenSettings },
+  { settings, onOpenSettings, onOpenHistory },
   ref,
 ) {
-  const f = useReportFlow(null, settings, draft);
+  const f = useReportFlow(null, settings);
   const { ai, view } = f;
   const toast = useToast();
   const box = useRef<HTMLTextAreaElement>(null);
-
-  // With logtimes already queued, the queue is what needs the screen: the
-  // composer folds to one line until there is a report to work on.
-  const [openChoice, setOpenChoice] = useState<boolean | null>(null);
-  const busyWithReport = !!view || ai.running || f.text.trim() !== "";
-  const open = busyWithReport || (openChoice ?? draft.draft.items.length === 0);
-  const [wantFocus, setWantFocus] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  useEffect(() => {
-    if (!open || !wantFocus) return;
-    setWantFocus(false);
+  const focus = () => {
     box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     box.current?.focus({ preventScroll: true });
-  }, [open, wantFocus]);
-
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      setOpenChoice(true);
-      setWantFocus(true);
-    },
-  }));
-
-  const queue = async () => {
-    const n = await f.queue();
-    if (!n) return;
-    await f.finish();
-    toast(`Đã thêm ${n} logtime vào hàng chờ bên dưới.`);
   };
-
-  const importDialog = importing && (
-    <GchatImport
-      onClose={() => setImporting(false)}
-      onOpenSettings={() => {
-        setImporting(false);
-        onOpenSettings();
-      }}
-      onInsert={(chat) => {
-        f.setText((cur) => (cur.trim() ? `${cur.trimEnd()}\n\n${chat}` : chat));
-        setImporting(false);
-        setOpenChoice(true);
-        setWantFocus(true);
-        toast("Đã đưa tin nhắn vào ô báo cáo. Kiểm tra rồi bấm Phân tích bằng AI.");
-      }}
-    />
-  );
-
-  if (!open) {
-    return (
-      <section className="composer is-folded" aria-labelledby="composer-title">
-        <h2 id="composer-title" className="section-title">
-          Từ báo cáo công việc
-        </h2>
-        <p className="hint">Dán báo cáo hoặc lấy từ Google Chat để Claude chia giờ và thêm vào hàng chờ.</p>
-        <button
-          className="btn"
-          onClick={() => {
-            setOpenChoice(true);
-            setWantFocus(true);
-          }}
-        >
-          Dán báo cáo
-        </button>
-        <button className="btn" onClick={() => setImporting(true)}>
-          Lấy từ Google Chat
-        </button>
-        {importDialog}
-      </section>
-    );
-  }
+  useImperativeHandle(ref, () => ({ focus }));
 
   return (
     <section className="composer" aria-labelledby="composer-title">
@@ -117,22 +50,15 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         <h2 id="composer-title" className="section-title">
           Từ báo cáo công việc
         </h2>
-        {view ? (
+        {view && (
           <button className="link" onClick={f.finish} disabled={ai.running}>
             Bỏ kết quả
           </button>
-        ) : (
-          !busyWithReport &&
-          draft.draft.items.length > 0 && (
-            <button className="link" onClick={() => setOpenChoice(false)}>
-              Thu gọn
-            </button>
-          )
         )}
       </header>
       <p className="hint">
         Dán báo cáo tuần hoặc các báo cáo ngày. Claude đọc Redmine (chỉ đọc) để tìm task cha, rồi app chia giờ cho đủ{" "}
-        {fmtHours(settings.hours_per_day)} mỗi ngày. Việc đã log hoặc đang chờ ghi sẽ được bỏ qua.
+        {fmtHours(settings.hours_per_day)} mỗi ngày. Việc đã log sẽ được bỏ qua.
       </p>
       {!f.profile && (
         <p className="hint warn-line">
@@ -160,75 +86,30 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
           Lấy từ Google Chat
         </button>
       </div>
-      {importDialog}
       <AiLog ai={ai} />
 
-      {view && (
-        <div className="composer-result">
-          <p className="composer-sum">{summaryLine(f)}</p>
+      {view && <ReportResult f={f} settings={settings} onOpenHistory={onOpenHistory} />}
 
-          {view.analysis.questions.length > 0 && (
-            <div className="ai-questions">
-              <p>Claude cần anh/chị làm rõ (sửa báo cáo rồi phân tích lại):</p>
-              <ul>
-                {view.analysis.questions.map((q) => (
-                  <li key={q}>{q}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <ul className="rtasks">
-            {f.tasks.map((t) => (
-              <TaskRow
-                key={t.task.key}
-                view={t}
-                choice={f.choices[t.task.key]}
-                hours={f.hoursOf(t.task.key)}
-                onChoice={(patch) => f.setChoice(t.task.key, patch)}
-                onParent={(raw) => f.changeParent(t.task.key, raw)}
-              />
-            ))}
-          </ul>
-
-          <h3 className="composer-sub">Chia giờ theo ngày</h3>
-          <div className="rplan">
-            {f.plans.map((p) => (
-              <div key={p.date} className="rplan-day">
-                <div className="rplan-head">
-                  <span className="rplan-date">{fmtDayLong(p.date)}</span>
-                  <QuotaRail
-                    existing={p.existing_hours + p.queued_hours + p.leave_hours}
-                    planned={p.allocations.reduce((s, a) => s + a.hours, 0)}
-                    quota={settings.hours_per_day}
-                  />
-                </div>
-                <ul className="rplan-allocs">
-                  {p.leave_hours > 0 && <li className="is-leave">{fmtHours(p.leave_hours)} nghỉ phép</li>}
-                  {p.existing_hours > 0 && <li className="muted">{fmtHours(p.existing_hours)} đã log trước đó</li>}
-                  {p.queued_hours > 0 && <li className="muted">{fmtHours(p.queued_hours)} đang chờ ghi</li>}
-                  {p.allocations.map((a) => (
-                    <li key={a.task}>
-                      <strong>{fmtHours(a.hours)}</strong> {f.tasks.find((t) => t.task.key === a.task)?.task.text}
-                    </li>
-                  ))}
-                </ul>
-                {p.warnings.map((w) => (
-                  <p key={w} className="rwarn-line">
-                    {w}
-                  </p>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          <div className="composer-actions">
-            {(f.blocker || f.notice) && <p className="notice error">{f.notice ?? f.blocker}</p>}
-            <button className="btn primary" disabled={!!f.blocker || ai.running} onClick={queue}>
-              {f.totalHours > 0 ? `Thêm ${fmtHours(f.totalHours)} vào hàng chờ` : "Thêm vào hàng chờ"}
-            </button>
-          </div>
-        </div>
+      {importing && (
+        <GchatImport
+          onClose={() => setImporting(false)}
+          onOpenSettings={() => {
+            setImporting(false);
+            onOpenSettings();
+          }}
+          onInsert={(blocks) => {
+            const { text, added } = appendBlocks(f.text, blocks);
+            f.setText(text);
+            setImporting(false);
+            requestAnimationFrame(focus);
+            const skipped = blocks.length - added;
+            toast(
+              added === 0
+                ? "Các tin này đã có trong ô báo cáo."
+                : `Đã đưa ${added} tin vào ô báo cáo${skipped ? `, bỏ ${skipped} tin đã có` : ""}. Kiểm tra rồi bấm Phân tích bằng AI.`,
+            );
+          }}
+        />
       )}
     </section>
   );

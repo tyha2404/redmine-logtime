@@ -3,7 +3,6 @@ import {
   api,
   errorText,
   newId,
-  type Draft,
   type LeaveParent,
   type LeaveType,
   type PlanItem,
@@ -26,7 +25,7 @@ export function leaveSubject(settings: Settings, type: LeaveType, date: string, 
   return [settings.leave_name.trim(), type.verb, when, `${d}/${m}/${y}`].filter(Boolean).join(" ");
 }
 
-/** Month parents are looked up once per kind and month while queueing. */
+/** Month parents are looked up once per kind and month while preparing a write. */
 export type ParentCache = Map<string, Promise<LeaveParent>>;
 
 export function findParent(type: LeaveType, date: string, cache?: ParentCache): Promise<LeaveParent> {
@@ -40,7 +39,7 @@ export function findParent(type: LeaveType, date: string, cache?: ParentCache): 
 
 /**
  * One day off: a new issue under HR's parent for that month, and the
- * logtime on it. `key` keeps an existing draft sub-task when changing kind.
+ * logtime on it.
  */
 export async function buildLeave(opts: {
   settings: Settings;
@@ -49,12 +48,10 @@ export async function buildLeave(opts: {
   span: LeaveSpan;
   subject?: string;
   cache?: ParentCache;
-  key?: string;
-  itemId?: string;
 }): Promise<{ item: PlanItem; subtask: SubtaskDraft }> {
   const { settings, type, date, span } = opts;
   const parent = await findParent(type, date, opts.cache);
-  const key = opts.key ?? newId();
+  const key = newId();
   const subtask: SubtaskDraft = {
     key,
     parent_id: parent.id,
@@ -66,19 +63,18 @@ export async function buildLeave(opts: {
     start_date: date,
   };
   const item: PlanItem = {
-    id: opts.itemId ?? newId(),
+    id: newId(),
     date,
     target: { type: "new_subtask", key },
     hours: leaveHours(settings, span),
     activity_id: type.activity_id ?? settings.default_activity_id,
     comments: span === "full" ? type.label : `${type.label} nửa ngày`,
     kind: "leave",
-    last_error: null,
   };
   return { item, subtask };
 }
 
-/** The kind of a queued leave, from the project its issue goes into. */
+/** The kind of a leave, from the project its issue goes into. */
 export function leaveTypeOf(settings: Settings, projectId: number | undefined): LeaveType | undefined {
   return settings.leave_types.find((t) => t.project_id === projectId);
 }
@@ -104,53 +100,43 @@ export interface LeaveDay {
   hours: number;
   days: number;
   issueId: number | null;
-  /** Still in the review queue, not on Redmine yet. */
-  queued: boolean;
 }
 
 export interface LeaveBalance {
   type: LeaveType;
   allowance: number | null;
   used: number;
-  queued: number;
-  /** Allowance minus used and queued; null without a limit. */
+  /** Allowance minus used; null without a limit. */
   left: number | null;
 }
 
-/** Logged and queued leave of one year, per date and per kind. */
+/** Leave logged in one year, per date and per kind. */
 export function leaveYear(
   settings: Settings,
   year: number,
   entries: TimeEntry[],
-  draft: Pick<Draft, "items" | "subtasks">,
 ): { days: LeaveDay[]; balances: LeaveBalance[] } {
   const hpd = settings.hours_per_day;
   const byKey = new Map<string, Omit<LeaveDay, "days">>();
-  const put = (date: string, type: LeaveType, hours: number, issueId: number | null, queued: boolean) => {
-    const k = `${date}|${type.project_id}|${queued}`;
-    const prev = byKey.get(k);
-    byKey.set(k, { date, type, hours: (prev?.hours ?? 0) + hours, issueId: prev?.issueId ?? issueId, queued });
-  };
   for (const e of entries) {
     const type = leaveTypeOf(settings, e.project.id);
-    if (type && e.spent_on.startsWith(`${year}-`)) put(e.spent_on, type, e.hours, e.issue?.id ?? null, false);
-  }
-  for (const i of draft.items) {
-    if (i.kind !== "leave" || !i.date.startsWith(`${year}-`)) continue;
-    const projectId =
-      i.target.type === "new_subtask" ? draft.subtasks.find((s) => s.key === (i.target as { key: string }).key)?.project_id : undefined;
-    const type = leaveTypeOf(settings, projectId);
-    if (type) put(i.date, type, i.hours, i.target.type === "issue" ? i.target.issue_id : null, true);
+    if (!type || !e.spent_on.startsWith(`${year}-`)) continue;
+    const k = `${e.spent_on}|${type.project_id}`;
+    const prev = byKey.get(k);
+    byKey.set(k, {
+      date: e.spent_on,
+      type,
+      hours: (prev?.hours ?? 0) + e.hours,
+      issueId: prev?.issueId ?? e.issue?.id ?? null,
+    });
   }
   const days = [...byKey.values()]
     .map((d) => ({ ...d, days: daysOf(d.hours, hpd) }))
     .sort((a, b) => a.date.localeCompare(b.date));
   const balances = settings.leave_types.map((type) => {
-    const mine = days.filter((d) => d.type.project_id === type.project_id);
-    const used = mine.filter((d) => !d.queued).reduce((s, d) => s + d.days, 0);
-    const queued = mine.filter((d) => d.queued).reduce((s, d) => s + d.days, 0);
+    const used = days.filter((d) => d.type.project_id === type.project_id).reduce((s, d) => s + d.days, 0);
     const allowance = allowanceOf(type);
-    return { type, allowance, used, queued, left: allowance === null ? null : allowance - used - queued };
+    return { type, allowance, used, left: allowance === null ? null : allowance - used };
   });
   return { days, balances };
 }

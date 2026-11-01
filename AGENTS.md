@@ -4,12 +4,12 @@
 
 Redmine Logtime combines Tauri 2, React/TypeScript, and a Rust workspace.
 
-- `src/`: React pages, shared components, hooks (`useDraft.ts`, `useAiRun.ts`), API bridge, mock data, and CSS.
+- `src/`: React pages, shared components, hooks (`useAiRun.ts`, `useModal.ts`), API bridge, mock data, and CSS.
 - `src-tauri/`: desktop commands, application state, credentials, and Tauri configuration.
 - `crates/google-chat/`: read-only Google Chat client and OAuth sign-in.
 - `crates/redmine-client/`: Redmine REST client.
 - `crates/logtime-core/`: settings, calendar, leave, and planning logic.
-- `crates/logtime-engine/`: SQLite-backed queue, batch execution, deduplication, and undo.
+- `crates/logtime-engine/`: SQLite-backed write batches, retry, deduplication, and undo.
 - `crates/ai-bridge/`: Claude CLI integration and report analysis.
 - `docker/`: local Redmine and seed data; `scripts/`: installation and releases; `docs/`: development notes and screenshots.
 

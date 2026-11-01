@@ -124,7 +124,7 @@ export interface ToolStatus {
   install_hint: string;
 }
 
-// Review draft and execution (crates/logtime-engine/src/model.rs).
+// Writing to Redmine (crates/logtime-engine/src/model.rs).
 
 export type Target =
   | { type: "issue"; issue_id: number; label: string }
@@ -138,7 +138,6 @@ export interface PlanItem {
   activity_id: number | null;
   comments: string;
   kind: "work" | "leave";
-  last_error: string | null;
 }
 
 export interface SubtaskDraft {
@@ -153,26 +152,10 @@ export interface SubtaskDraft {
   start_date?: string | null;
 }
 
-export interface Draft {
+/** What one write sends: new sub-tasks first, then the time entries. */
+export interface WritePlan {
   subtasks: SubtaskDraft[];
   items: PlanItem[];
-}
-
-export interface DayReview {
-  date: string;
-  is_workday: boolean;
-  existing_hours: number;
-  planned_hours: number;
-  total_hours: number;
-  existing: TimeEntry[];
-  items: PlanItem[];
-  warnings: string[];
-}
-
-export interface ReviewView {
-  days: DayReview[];
-  subtasks: SubtaskDraft[];
-  hours_per_day: number;
 }
 
 export interface ApiCall {
@@ -264,7 +247,7 @@ export interface TaskView {
   parent: IssueBrief | null;
   existing_subtask: IssueBrief | null;
   problems: string[];
-  /** Days dropped because the work is already logged or queued. */
+  /** Days dropped because the work is already logged. */
   duplicates: Duplicate[];
 }
 
@@ -272,7 +255,6 @@ export interface DayCapacity {
   date: string;
   workday: boolean;
   existing_hours: number;
-  queued_hours: number;
   leave_hours: number;
   capacity: number;
 }
@@ -296,7 +278,6 @@ export interface DayPlan {
   date: string;
   capacity: number;
   existing_hours: number;
-  queued_hours: number;
   leave_hours: number;
   allocations: { task: string; date: string; hours: number }[];
   warnings: string[];
@@ -347,17 +328,16 @@ export const api = {
   listActivities: () => invoke<Activity[]>("list_activities"),
   listTrackers: () => invoke<Tracker[]>("list_trackers"),
   lookupIssue: (id: number) => invoke<Issue>("lookup_issue", { id }),
+  searchIssues: (query: string) => invoke<Issue[]>("search_issues", { query }),
+  listChildren: (parentId: number) => invoke<Issue[]>("list_children", { parentId }),
   monthSummary: (year: number, month: number) =>
     invoke<MonthSummary>("month_summary", { year, month }),
   checkTools: () => invoke<ToolStatus[]>("check_tools"),
   openIssue: (id: number) => invoke<void>("open_issue", { id }),
 
-  getDraft: () => invoke<Draft>("get_draft"),
-  saveDraft: (draft: Draft) => invoke<void>("save_draft", { draft }),
-  reviewDraft: () => invoke<ReviewView>("review_draft"),
-  previewItems: (itemIds: string[]) => invoke<ApiCall[]>("preview_items", { itemIds }),
-  executeItems: (itemIds: string[], label: string) =>
-    invoke<Batch>("execute_items", { itemIds, label }),
+  previewPlan: (plan: WritePlan) => invoke<ApiCall[]>("preview_plan", { plan }),
+  writePlan: (plan: WritePlan, label: string) => invoke<Batch>("write_plan", { plan, label }),
+  retryBatch: (batchId: number) => invoke<Batch>("retry_batch", { batchId }),
   resumeBatch: (batchId: number) => invoke<Batch>("resume_batch", { batchId }),
   undoBatch: (batchId: number) => invoke<Batch>("undo_batch", { batchId }),
   listBatches: () => invoke<Batch[]>("list_batches"),

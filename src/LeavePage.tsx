@@ -3,27 +3,25 @@ import type { Settings } from "./api";
 import { fmtDayLong, fmtHours } from "./fmt";
 import { Icon } from "./icons";
 import { fmtDays, leaveYear, shortLabel, useLeaveEntries, type LeaveBalance, type LeaveDay } from "./leave";
-import type { DraftApi } from "./useDraft";
 import IssueLink from "./IssueLink";
 
 /**
  * A year of leave at a glance: for each kind, the allowance as a row of day
- * tanks (taken, waiting in the queue, left), then every day off by month.
+ * tanks (taken, left), then every day off by month.
  */
 export default function LeavePage(props: {
   settings: Settings;
-  draft: DraftApi;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
 }) {
-  const { settings, draft, onOpenCalendar, onOpenSettings } = props;
+  const { settings, onOpenCalendar, onOpenSettings } = props;
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [reloads, setReloads] = useState(0);
   const { entries, error } = useLeaveEntries(year, reloads);
   const data = useMemo(
-    () => (entries ? leaveYear(settings, year, entries, draft.draft) : null),
-    [entries, settings, year, draft.draft],
+    () => (entries ? leaveYear(settings, year, entries) : null),
+    [entries, settings, year],
   );
 
   if (settings.leave_types.length === 0) {
@@ -40,7 +38,7 @@ export default function LeavePage(props: {
     );
   }
 
-  const total = data?.days.filter((d) => !d.queued).reduce((s, d) => s + d.days, 0) ?? 0;
+  const total = data?.days.reduce((s, d) => s + d.days, 0) ?? 0;
 
   return (
     <div className="page-pad leave-page">
@@ -121,7 +119,7 @@ export default function LeavePage(props: {
 }
 
 function BalanceCard({ b }: { b: LeaveBalance }) {
-  const slots = Math.ceil(Math.max(b.allowance ?? 0, b.used + b.queued));
+  const slots = Math.ceil(Math.max(b.allowance ?? 0, b.used));
   const over = b.left !== null && b.left < 0;
   return (
     <section className="card leave-card" data-kind={b.type.key}>
@@ -135,14 +133,10 @@ function BalanceCard({ b }: { b: LeaveBalance }) {
         <div className="ltanks" role="img" aria-label={tankLabel(b)}>
           {Array.from({ length: slots }, (_, i) => {
             const used = clamp01(b.used - i);
-            const queued = clamp01(b.used + b.queued - i) - used;
             const beyond = b.allowance !== null && i >= b.allowance;
             return (
               <span key={i} className={`ltank${beyond ? " is-over" : ""}`}>
                 {used > 0 && <span className="ltank-used" style={{ height: `${used * 100}%` }} />}
-                {queued > 0 && (
-                  <span className="ltank-queued" style={{ bottom: `${used * 100}%`, height: `${queued * 100}%` }} />
-                )}
               </span>
             );
           })}
@@ -156,7 +150,6 @@ function BalanceCard({ b }: { b: LeaveBalance }) {
             : b.left === 0
               ? "Đã dùng hết."
               : `Còn ${fmtDays(b.left)} ngày.`}
-        {b.queued > 0 && <span className="text-pending"> {fmtDays(b.queued)} ngày đang chờ ghi.</span>}
       </p>
     </section>
   );
@@ -164,7 +157,6 @@ function BalanceCard({ b }: { b: LeaveBalance }) {
 
 function tankLabel(b: LeaveBalance): string {
   const parts = [`Đã nghỉ ${fmtDays(b.used)} ngày`];
-  if (b.queued) parts.push(`${fmtDays(b.queued)} ngày chờ ghi`);
   if (b.allowance !== null) parts.push(`trên ${fmtDays(b.allowance)} ngày mỗi năm`);
   return parts.join(", ");
 }
@@ -187,7 +179,7 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
           <h3>Tháng {Number(m.slice(5))}</h3>
           <ul>
             {list.map((d) => (
-              <li key={`${d.date}-${d.type.project_id}-${d.queued}`} className={d.queued ? "is-queued" : ""}>
+              <li key={`${d.date}-${d.type.project_id}`}>
                 <span className="leave-date">{fmtDayLong(d.date)}</span>
                 <span className="leave-kind" data-kind={d.type.key}>
                   {d.type.label}
@@ -196,7 +188,7 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
                   {d.days >= 1 ? "Cả ngày" : "Nửa ngày"}
                   {Math.abs(d.hours - d.days * hoursPerDay) > 1e-6 && <span className="muted"> ({fmtHours(d.hours)})</span>}
                 </span>
-                <span className="leave-ref muted">{d.queued ? "Đang chờ ghi" : d.issueId ? <IssueLink id={d.issueId} /> : ""}</span>
+                <span className="leave-ref muted">{d.issueId ? <IssueLink id={d.issueId} /> : ""}</span>
               </li>
             ))}
           </ul>

@@ -79,9 +79,6 @@ pub struct DayCapacity {
     pub date: NaiveDate,
     pub workday: bool,
     pub existing_hours: f64,
-    /// Hours already waiting in the review queue for this day.
-    #[serde(default)]
-    pub queued_hours: f64,
     pub leave_hours: f64,
     pub capacity: f64,
 }
@@ -91,7 +88,6 @@ pub struct DayPlan {
     pub date: NaiveDate,
     pub capacity: f64,
     pub existing_hours: f64,
-    pub queued_hours: f64,
     pub leave_hours: f64,
     pub allocations: Vec<Allocation>,
     pub warnings: Vec<String>,
@@ -134,7 +130,6 @@ pub fn plan(analysis: &ReportAnalysis, days: &[DayCapacity], excluded: &[String]
                 date: d.date,
                 capacity: d.capacity,
                 existing_hours: d.existing_hours,
-                queued_hours: d.queued_hours,
                 leave_hours: d.leave_hours,
                 allocations: mine,
                 warnings,
@@ -198,6 +193,72 @@ pub fn schema() -> Value {
     })
 }
 
+/// Chat messages pasted as "[Gửi lúc <thứ> DD/MM/YYYY HH:MM]" blocks: drops
+/// messages pasted twice and puts the rest in the order they were sent, so
+/// the model sees each one once and in sequence. Text without such headers,
+/// and any text before the first one, is kept as is.
+pub fn tidy_report(text: &str) -> String {
+    const HEAD: &str = "[Gửi lúc ";
+    let mut preamble = Vec::new();
+    let mut blocks: Vec<(String, Vec<&str>)> = Vec::new();
+    for line in text.lines() {
+        if line.trim_start().starts_with(HEAD) {
+            blocks.push((line.trim().to_string(), Vec::new()));
+        } else if let Some((_, body)) = blocks.last_mut() {
+            body.push(line);
+        } else {
+            preamble.push(line);
+        }
+    }
+    if blocks.is_empty() {
+        return text.trim().to_string();
+    }
+
+    let squash = |body: &[&str]| {
+        body.iter()
+            .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+    };
+    let mut seen = Vec::new();
+    let mut kept: Vec<(Option<chrono::NaiveDateTime>, usize, String)> = Vec::new();
+    for (i, (head, body)) in blocks.iter().enumerate() {
+        let key = (head.clone(), squash(body));
+        if seen.contains(&key) {
+            continue;
+        }
+        seen.push(key);
+        let body = body.join("\n").trim().to_string();
+        kept.push((sent_at(head), i, format!("{head}\n{body}")));
+    }
+    // Unparseable headers keep their place after the dated ones.
+    kept.sort_by_key(|(at, i, _)| (at.is_none(), *at, *i));
+
+    let preamble = preamble.join("\n").trim().to_string();
+    let messages = kept
+        .into_iter()
+        .map(|(_, _, m)| m)
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if preamble.is_empty() {
+        messages
+    } else {
+        format!("{preamble}\n\n{messages}")
+    }
+}
+
+/// "[Gửi lúc Thứ ba 27/10/2026 09:23]" → 2026-10-27 09:23.
+fn sent_at(head: &str) -> Option<chrono::NaiveDateTime> {
+    let words: Vec<&str> = head.trim_end_matches(']').split_whitespace().collect();
+    let date = words
+        .iter()
+        .find_map(|w| NaiveDate::parse_from_str(w, "%d/%m/%Y").ok())?;
+    let time = words
+        .iter()
+        .find_map(|w| chrono::NaiveTime::parse_from_str(w, "%H:%M").ok())?;
+    Some(date.and_time(time))
+}
+
 pub fn prompt(report: &str, ctx: &ReportContext) -> String {
     let profile = ctx.profile.unwrap_or(
         "(Chưa phân tích cấu trúc Redmine. Hãy tự tìm hiểu nhanh qua tracker và người tạo issue.)",
@@ -210,24 +271,61 @@ Today is {today} ({weekday}). Working days (ISO, Monday=1): {workdays:?}. A full
 ## How this Redmine is organised
 {profile}
 
-## Report format
-- A WEEKLY report covers the whole week (e.g. "báo cáo công việc tuần này 26/10/2026" → Monday 26/10 to Friday 30/10).
-- DAILY reports cover one date each (headers like "Thứ 2 26/10", "Ngày 27/10", "T3:").
-- Lines under a project header (e.g. "1. Dự án ABC") belong to that project.
-- Each report line is its own task. The same work appearing on several days is ONE task (same `key`).
-- Reports pasted from Google Chat start each message with "[Gửi lúc <thứ> DD/MM/YYYY HH:MM]". A message with no date of its own covers the day it was sent ("hôm nay" = that day, "hôm qua" = the working day before it). Dates written in a message take precedence over its send date.
+## How to read the report
+The text is usually chat messages from a team group pasted together, but the wording and layout vary between people and over time. Work out what was done on which date from the meaning, not from fixed phrases. The rules below are principles; the example only shows one common habit.
+
+Example of one team's habit (others differ):
+
+[Gửi lúc Thứ ba 27/10/2026 09:23]
+Dạ em xin gửi báo cáo công việc tuần này 27/10/2026 ạ
+1. Davipharm - Salex
+Chuyển kênh bán hàng
+Bổ sung xem chi tiết nhân viên:
+- Thông tin doanh số
+- Thông tin KPI
+
+Here "tuần này" is just habit: the single date makes it the report for 27/10; "1. …" is the project; the line ending with ":" and its "- " lines are one piece of work.
+
+### Dates
+- A date (or range) written for a report or a line is when that work was done, even if the message was sent later: people often report the next morning or catch up days later.
+- A single date means that day; a range means a plan or summary for those dates. Words like "tuần này", "hôm nay" in a heading do not override a written date.
+- Only when no date is written, use relative words against the send time ("[Gửi lúc …]" if present): "hôm nay" = that day, "hôm qua" = the working day before.
+- If dates contradict each other or look like typos, choose the most plausible and ask in `questions`.
+
+### Plans, summaries and daily reports
+- Count each piece of work once per date. When a date has its own day-level report, that report is the record for that date; a weekly plan or summary only fills dates with no day-level report.
+- Work that only appears in a plan, while the covered dates all have their own reports, was probably not done: leave it out of `tasks` and ask in `questions`.
+- Several reports for one date are combined; an explicit correction ("sửa lại", "cập nhật") replaces what it corrects.
+
+### Lines and tasks
+- Headers that name a customer or product group the lines under them: use them for `project_hint`.
+- A line is usually one piece of work, even if it lists several things with commas. Indented or "- " lines under a line ending with ":" are usually its details (put them in `comment`). Use judgement when the layout says otherwise.
+- Fix obvious typos in subtask_subject and comment.
+
+### What is not work
+- Greetings, reminders to the group, questions, chat about other topics, plans for later days, and the same message pasted twice.
+- Text that does not fit the rest (no send time at the very top, a date after today or far from the other messages) is probably left over from an earlier paste: ignore it and ask in `questions`.
+- Requests about attendance or timesheets for other dates are not work: add leave only if the date is in the reported period, otherwise ask in `questions`.
+- Leave wording varies ("nghỉ phép", "PN", "nghỉ ốm", "PDX", "đột xuất", "không lương", "KL", "nghỉ nửa ngày", "xin nghỉ sáng mai"): map it to annual, sick or unpaid and to the date it is for.
+
+## The same task on several days
+- One piece of work is ONE task with one `key`, however many days or messages mention it (e.g. the same line reported on four days is one task with those four dates). List every date it was worked on in `days`.
+- Treat lines as the same work when they differ only in wording, progress or status markers ("tiếp tục", "đang làm", "50%", "xong", "WIP"…), or share an issue number. Leave those markers out of subtask_subject and comment.
+- A range on a line ("26/10 - 28/10", "T2-T4", "cả tuần") means every working date in it.
+- Different work under the same feature stays separate tasks; they may share the parent.
+- An issue number in the report (e.g. #1234): use it as existing_subtask_id when it is the developer's own sub-task, otherwise as the parent.
 
 ## What to produce
-- period_from / period_to: the dates the report covers.
+- period_from / period_to: the first and last work dates you kept (not leftovers, not dates after today).
 - leave: days the report says the developer was off ("nghỉ phép", "nghỉ ốm", "off", "nghỉ nửa ngày" = {half}h). kind: "sick" for unplanned or ill ("đột xuất", "ốm", "bệnh"), "unpaid" for "không lương", otherwise "annual".
-- tasks: one per distinct line of work:
-  - days: the working dates it was done on. A line in a DAILY report → that date only. Dates with no daily report → the WEEKLY lines. Skip leave-only days. `weight` = relative effort on that date (1 = normal; bigger = more of the day). Do not compute hours.
+- tasks: one per distinct piece of work (not per line or per message):
+  - days: every working date it was done on, by the rules above. Skip leave-only days. `weight` = its share of that date: 1 for a normal line, bigger only if the report says it took most of the day. When a line states its time ("2h", "nửa ngày", "cả ngày"), give every line of that date its hours as weight instead, so the date adds up to {hpd}h (e.g. "2h" plus two other lines → 2, 3, 3). Do not compute hours otherwise.
   - parent_issue_id: the BA parent task this work belongs to. Search with GET /issues.json (project_id, tracker_id, status_id=open or *, subject=~keyword, limit=100) and follow the rules above. Prefer open parents in the hinted project. null if nothing fits — never invent ids.
   - parent_confidence 0–1 and parent_reason (Vietnamese, one sentence).
   - existing_subtask_id: if the parent already has a child assigned to the current user (GET /issues.json?parent_id=…&status_id=*) that matches this work, its id; else null.
   - subtask_subject: Vietnamese sub-task title following the naming conventions, from the report line.
   - comment: short Vietnamese time-entry comment.
-- questions: Vietnamese questions for anything ambiguous (unclear dates, unknown project). Empty if none.
+- questions: short Vietnamese questions for anything the user should check: unclear dates, unknown project, planned-but-unreported work, ignored leftovers, attendance requests outside the period. Empty if none.
 
 {day_rule}Keep it under ~40 Redmine requests. The report follows between the markers.
 
@@ -267,18 +365,16 @@ impl ReportAnalysis {
     }
 }
 
-/// Work that already exists for a date: logged on Redmine or waiting in the
-/// review queue.
+/// Work already logged on Redmine for a date.
 #[derive(Debug, Clone, PartialEq)]
 pub struct KnownWork {
     pub date: NaiveDate,
-    /// Issue the hours are (or will be) logged on.
+    /// Issue the hours are logged on.
     pub issue_id: Option<u32>,
-    /// For a queued new sub-task: its parent and title.
+    /// Parent of that issue, when known; matched with the task's title.
     pub parent_id: Option<u32>,
     pub text: String,
     pub hours: f64,
-    pub queued: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -298,7 +394,7 @@ fn norm(s: &str) -> String {
         .join(" ")
 }
 
-/// Drops the days on which a task's work is already logged or queued, so it
+/// Drops the days on which a task's work is already logged, so it
 /// is not reported twice. Returns, per task key, the days that were dropped.
 pub fn remove_duplicates(
     analysis: &mut ReportAnalysis,
@@ -320,11 +416,7 @@ pub fn remove_duplicates(
                 return true;
             };
             let target = w.issue_id.map(|i| format!(" vào #{i}")).unwrap_or_default();
-            let reason = if w.queued {
-                format!("Đã có trong hàng chờ{target} ({}h).", fmt_h(w.hours))
-            } else {
-                format!("Đã log {}h{target} trên Redmine.", fmt_h(w.hours))
-            };
+            let reason = format!("Đã log {}h{target} trên Redmine.", fmt_h(w.hours));
             out.entry(t.key.clone()).or_default().push(Duplicate {
                 date: d.date,
                 reason,
@@ -406,7 +498,6 @@ mod tests {
             date: d(x),
             workday: true,
             existing_hours: existing,
-            queued_hours: 0.0,
             leave_hours: 0.0,
             capacity: 8.0 - existing,
         };
@@ -449,25 +540,18 @@ mod tests {
         }
     }
 
-    fn known(
-        day: u32,
-        issue: Option<u32>,
-        parent: Option<u32>,
-        text: &str,
-        queued: bool,
-    ) -> KnownWork {
+    fn known(day: u32, issue: Option<u32>, parent: Option<u32>, text: &str) -> KnownWork {
         KnownWork {
             date: d(day),
             issue_id: issue,
             parent_id: parent,
             text: text.into(),
             hours: 4.0,
-            queued,
         }
     }
 
     #[test]
-    fn removes_days_already_logged_or_queued() {
+    fn removes_days_already_logged() {
         let mut a = ReportAnalysis {
             period_from: d(26),
             period_to: d(28),
@@ -482,10 +566,10 @@ mod tests {
         let dups = remove_duplicates(
             &mut a,
             &[
-                known(26, Some(4), None, "khác", false), // same sub-task, logged
-                known(28, None, Some(1), "review module sự kiện!", true), // same new sub-task, queued
-                known(28, Some(9), None, "Họp sprint", false),            // same comment, logged
-                known(27, Some(99), None, "việc khác", false),            // unrelated
+                known(26, Some(4), None, "khác"),                   // same sub-task
+                known(28, None, Some(1), "review module sự kiện!"), // same title under the parent
+                known(28, Some(9), None, "Họp sprint"),             // same comment
+                known(27, Some(99), None, "việc khác"),             // unrelated
             ],
         );
         assert_eq!(
@@ -498,7 +582,7 @@ mod tests {
         );
         assert!(a.tasks[2].days.is_empty());
         assert!(dups["a"][0].reason.contains("Đã log 4h vào #4"));
-        assert!(dups["b"][0].reason.contains("hàng chờ"));
+        assert!(dups["b"][0].reason.contains("trên Redmine"));
         assert_eq!(dups.len(), 3);
     }
 
@@ -549,6 +633,20 @@ mod tests {
         assert!(p.contains("Today is 2026-10-28 (Wed)"));
         assert!(p.contains("Task cha là Feature."));
         assert!(p.contains("<report>\n1. Dự án ABC\nSửa feedback công nợ\n</report>"));
+        assert!(p.contains("The same task on several days"));
         assert!(!p.contains("ONE day"));
+    }
+
+    #[test]
+    fn tidy_report_drops_repeated_messages_and_orders_by_send_time() {
+        let raw = "Dạ em xin gửi báo cáo công việc tuần này 02/12/2026 ạ\nImport key\n\n\
+[Gửi lúc Thứ ba 27/10/2026 09:23]\nbáo cáo 27/10/2026\nChuyển kênh bán hàng\n\n\
+[Gửi lúc Thứ hai 26/10/2026 09:35]\nbáo cáo (26/10/2026 - 30/10/2026)\nSửa feedback công nợ\n\n\
+[Gửi lúc Thứ ba 27/10/2026 09:23]\nbáo cáo  27/10/2026\nChuyển kênh bán hàng   \n";
+        let tidy = tidy_report(raw);
+        assert_eq!(tidy.matches("[Gửi lúc").count(), 2, "{tidy}");
+        assert!(tidy.starts_with("Dạ em xin gửi báo cáo công việc tuần này 02/12/2026 ạ\nImport key\n\n[Gửi lúc Thứ hai 26/10"));
+        assert!(tidy.find("26/10/2026 09:35").unwrap() < tidy.find("27/10/2026 09:23").unwrap());
+        assert_eq!(tidy_report("  - Sửa feedback\n"), "- Sửa feedback");
     }
 }

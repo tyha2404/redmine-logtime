@@ -10,7 +10,7 @@ Dành cho người chạy từ mã nguồn, đóng góp hoặc phát hành app. 
 | `src-tauri/` | App Tauri 2, commands, trạng thái và lưu API key |
 | `crates/redmine-client/` | REST client: đọc Redmine, tạo task con, tạo/xóa logtime |
 | `crates/logtime-core/` | Cài đặt, lịch tháng, nghỉ phép và chia giờ |
-| `crates/logtime-engine/` | Hàng chờ, SQLite, ghi theo lô, chống trùng và hoàn tác |
+| `crates/logtime-engine/` | Ghi theo lô (SQLite), thử lại, chống trùng và hoàn tác |
 | `crates/ai-bridge/` | Gọi Claude CLI, phân tích cấu trúc Redmine và báo cáo |
 | `crates/google-chat/` | Đăng nhập Google (OAuth, chỉ đọc) và lấy tin nhắn Google Chat |
 | `docker/` | Redmine local và dữ liệu thử nghiệm |
@@ -110,9 +110,9 @@ Ví dụ `local_e2e` giữ lại task con sau khi hoàn tác logtime. Dừng mô
 
 ## Luồng xử lý và dữ liệu
 
-### Hàng chờ và AI
+### Ghi lên Redmine và AI
 
-Người dùng thêm mục vào hàng chờ, kiểm tra rồi xác nhận ghi. Các thao tác ghi do app thực hiện; hoàn tác chỉ xóa logtime của lô, giữ task con.
+Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Hoàn tác chỉ xóa logtime của lô, giữ task con.
 
 App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc; app chia giờ theo bước 0,5 giờ, tính cả giờ đã ghi và đang chờ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
 
@@ -144,7 +144,7 @@ App lưu `settings.json`, `credentials.json` và `redmine-profile.md` trong thư
 
 API key và đăng nhập Google Chat nằm trong file JSON, được bảo vệ bằng quyền file `0600`, thư mục cấu hình `0700`. Không đưa file này vào Git hoặc đính kèm khi báo lỗi.
 
-Hàng chờ và lịch sử nằm trong `logtime.db` ở thư mục dữ liệu của app: trên macOS cùng đường dẫn trên, trên Ubuntu mặc định là `~/.local/share/app.redmine-logtime.desktop/`. Gỡ app bằng script vẫn giữ cấu hình và dữ liệu này.
+Lịch sử ghi nằm trong `logtime.db` ở thư mục dữ liệu của app: trên macOS cùng đường dẫn trên, trên Ubuntu mặc định là `~/.local/share/app.redmine-logtime.desktop/`. Gỡ app bằng script vẫn giữ cấu hình và dữ liệu này.
 
 ## Build và cài từ mã nguồn
 

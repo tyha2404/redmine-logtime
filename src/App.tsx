@@ -5,11 +5,11 @@ import HistoryPage from "./HistoryPage";
 import LeavePage from "./LeavePage";
 import { Icon, BrandMark, type IconName } from "./icons";
 import { inTauri, isMac } from "./platform";
-import ReviewPage from "./ReviewPage";
+import ReportPage from "./ReportPage";
 import SettingsPage, { type SettingsHandle } from "./SettingsPage";
 import SetupPage from "./SetupPage";
 import { ToastProvider } from "./toast";
-import { useDraft } from "./useDraft";
+import { useModal } from "./useModal";
 import { useUpdate } from "./useUpdate";
 
 type Page = "setup" | "calendar" | "review" | "leave" | "history" | "settings";
@@ -60,7 +60,6 @@ function Shell() {
   const [reportFocus, setReportFocus] = useState(false);
   const [guide, setGuide] = useState<Guide>(guideForWidth);
   const [me, setMe] = useState<string | null>(null);
-  const draft = useDraft();
   const update = useUpdate();
   const settingsPage = useRef<SettingsHandle>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -101,14 +100,12 @@ function Shell() {
 
   const navigate = useCallback(
     (target: Page) => {
-      if (target === "calendar" || target === "review") draft.reload();
       if (target === "calendar" || target === "review" || target === "leave") loadSettings();
-      if (target === "leave") draft.reload();
       setSettingsFocus(null);
       setReportFocus(false);
       setPage(target);
     },
-    [draft.reload, loadSettings],
+    [loadSettings],
   );
 
   // Leaving Settings with unsaved changes asks first instead of dropping them.
@@ -129,9 +126,6 @@ function Shell() {
   useEffect(() => {
     document.documentElement.dataset.titlebar = overlayTitleBar ? "overlay" : "native";
   }, []);
-
-  const pending = draft.draft.items.length;
-  const failed = draft.draft.items.filter((i) => i.last_error).length;
 
   if (page === "setup") {
     return (
@@ -197,11 +191,6 @@ function Shell() {
               >
                 <span className="rail-icon">
                   <Icon name={icon} size={22} />
-                  {target === "review" && pending > 0 && (
-                    <span className={`rail-badge${failed ? " has-failed" : ""}`} aria-label={`${pending} mục chờ ghi`}>
-                      {pending}
-                    </span>
-                  )}
                 </span>
                 <span className="rail-label">{label}</span>
               </button>
@@ -210,7 +199,6 @@ function Shell() {
         ))}
 
         <footer className="guide-foot">
-          {draft.error && <p className="rail-error">{draft.error}</p>}
           {host && (
             <p className="rail-server" title={settings?.redmine_url}>
               Đang dùng <strong>{host}</strong>
@@ -224,9 +212,8 @@ function Shell() {
         {page === "calendar" && settings && (
           <CalendarPage
             settings={settings}
-            draft={draft}
             onOpenSettings={() => go("settings")}
-            onOpenReview={() => go("review")}
+            onOpenHistory={() => go("history")}
             onOpenReport={() => {
               go("review");
               setReportFocus(true);
@@ -234,9 +221,8 @@ function Shell() {
           />
         )}
         {page === "review" && settings && (
-          <ReviewPage
+          <ReportPage
             settings={settings}
-            draft={draft}
             focusReport={reportFocus}
             onOpenHistory={() => go("history")}
             onOpenSettings={() => go("settings")}
@@ -245,12 +231,11 @@ function Shell() {
         {page === "leave" && settings && (
           <LeavePage
             settings={settings}
-            draft={draft}
             onOpenCalendar={() => go("calendar")}
             onOpenSettings={() => go("settings")}
           />
         )}
-        {page === "history" && <HistoryPage onDraftChanged={draft.reload} />}
+        {page === "history" && <HistoryPage />}
         {page === "settings" && (
           <SettingsPage
             ref={settingsPage}
@@ -281,22 +266,10 @@ function Shell() {
 
 /** Asks what to do with unsaved settings before leaving the page. */
 function UnsavedDialog({ onSave, onDiscard, onStay }: { onSave: () => Promise<void>; onDiscard: () => void; onStay: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal();
-  }, []);
+  const modal = useModal(onStay, busy);
   return (
-    <dialog
-      ref={ref}
-      className="confirm-dialog"
-      aria-labelledby="unsaved-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        onStay();
-      }}
-    >
+    <dialog {...modal} className="confirm-dialog" aria-labelledby="unsaved-title">
       <h2 id="unsaved-title">Cài đặt có thay đổi chưa lưu</h2>
       <p>Lưu trước khi chuyển trang, hay bỏ những thay đổi này?</p>
       <div className="confirm-dialog-actions">

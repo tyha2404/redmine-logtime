@@ -1,4 +1,4 @@
-//! Review draft, execution batches and undo, backed by a local SQLite store.
+//! Write plans, execution batches, retry and undo, backed by a local SQLite store.
 
 pub mod exec;
 pub mod model;

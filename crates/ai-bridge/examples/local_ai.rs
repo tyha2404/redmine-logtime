@@ -86,7 +86,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 date,
                 workday: true,
                 existing_hours: 0.0,
-                queued_hours: 0.0,
                 leave_hours: leave,
                 capacity: 8.0 - leave,
             }

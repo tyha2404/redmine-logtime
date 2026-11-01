@@ -145,6 +145,42 @@ impl RedmineClient {
         Ok(env.issues)
     }
 
+    /// The current user's direct sub-tasks of an issue, any status.
+    pub async fn my_children(&self, parent_id: u32) -> Result<Vec<Issue>> {
+        let parent = parent_id.to_string();
+        let env: IssuesPage = self
+            .get(
+                "issues.json",
+                &[
+                    ("parent_id", &parent),
+                    ("assigned_to_id", "me"),
+                    ("status_id", "*"),
+                    ("sort", "updated_on:desc"),
+                    ("limit", "100"),
+                ],
+            )
+            .await?;
+        Ok(env.issues)
+    }
+
+    /// Open issues whose subject contains `text`, recently updated first.
+    pub async fn search_issues(&self, text: &str, limit: u32) -> Result<Vec<Issue>> {
+        let subject = format!("~{}", text.trim());
+        let limit = limit.to_string();
+        let env: IssuesPage = self
+            .get(
+                "issues.json",
+                &[
+                    ("subject", &subject),
+                    ("status_id", "open"),
+                    ("sort", "updated_on:desc"),
+                    ("limit", &limit),
+                ],
+            )
+            .await?;
+        Ok(env.issues)
+    }
+
     /// Issues with no parent in exactly this project (not its sub-projects),
     /// any status, newest first (first 100).
     pub async fn top_level_issues(&self, project_id: u32) -> Result<Vec<Issue>> {
@@ -468,5 +504,37 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(entries.len(), 101);
+    }
+
+    #[tokio::test]
+    async fn search_and_my_children_send_filters() {
+        let server = MockServer::start().await;
+        let issue = |id: u32, subject: &str| {
+            json!({
+                "id": id, "project": {"id": 1, "name": "P"}, "tracker": {"id": 2, "name": "Feature"},
+                "status": {"id": 1, "name": "New"}, "subject": subject, "author": {"id": 5, "name": "BA"}
+            })
+        };
+        Mock::given(path("/issues.json"))
+            .and(query_param("subject", "~công nợ"))
+            .and(query_param("status_id", "open"))
+            .and(query_param("limit", "20"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"issues": [issue(4, "Quản lý công nợ")], "total_count": 1}),
+            ))
+            .mount(&server)
+            .await;
+        Mock::given(path("/issues.json"))
+            .and(query_param("parent_id", "4"))
+            .and(query_param("assigned_to_id", "me"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"issues": [issue(40, "[BE] API công nợ")], "total_count": 1}),
+            ))
+            .mount(&server)
+            .await;
+
+        let c = client(&server, "");
+        assert_eq!(c.search_issues(" công nợ ", 20).await.unwrap()[0].id, 4);
+        assert_eq!(c.my_children(4).await.unwrap()[0].id, 40);
     }
 }

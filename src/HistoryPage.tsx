@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, type Batch } from "./api";
 import { describeOp, fmtTimestamp } from "./fmt";
 
-export default function HistoryPage({ onDraftChanged }: { onDraftChanged: () => void }) {
+export default function HistoryPage() {
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
@@ -32,7 +32,6 @@ export default function HistoryPage({ onDraftChanged }: { onDraftChanged: () => 
     } finally {
       setBusy(null);
       load();
-      onDraftChanged();
     }
   };
 
@@ -85,14 +84,16 @@ export default function HistoryPage({ onDraftChanged }: { onDraftChanged: () => 
                             <span className="muted"> (entry {op.result_id})</span>
                           )}
                           {op.error && <span className="op-error">{op.error}</span>}
-                          {op.status === "failed" && op.payload.op === "create_time_entry" && (
-                            <span className="op-note">Mục này đã được đưa lại vào hàng chờ để sửa rồi ghi lại.</span>
-                          )}
                         </span>
                       </li>
                     ))}
                   </ol>
                   <div className="row">
+                    {count("failed") > 0 && !interrupted && (
+                      <button className="btn primary" disabled={busy !== null} onClick={() => act(b.id, api.retryBatch)}>
+                        {busy === b.id ? "Đang ghi…" : `Thử lại ${count("failed")} mục lỗi`}
+                      </button>
+                    )}
                     {interrupted && (
                       <button className="btn primary" disabled={busy !== null} onClick={() => act(b.id, api.resumeBatch)}>
                         {busy === b.id ? "Đang ghi…" : "Tiếp tục ghi phần còn lại"}

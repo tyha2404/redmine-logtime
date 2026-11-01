@@ -84,17 +84,17 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (lookup.loading) return setPending(true);
-    addToQueue();
+    toWrite();
   };
 
   useEffect(() => {
     if (!pending || lookup.loading) return;
     setPending(false);
-    addToQueue();
+    toWrite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, lookup.loading]);
 
-  const addToQueue = () => {
+  const toWrite = () => {
     const issue = lookup.issue;
     const what = mode === "existing" ? "issue" : "issue cha";
     if (!issue) {
@@ -106,7 +106,7 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
     if (!(hours > 0 && hours <= 24)) return setFormError("Số giờ phải lớn hơn 0 và không quá 24.");
     if (!activityId) return setFormError("Chọn hoạt động.");
 
-    const base = { id: newId(), date, hours, activity_id: activityId, comments: comments.trim(), kind: "work" as const, last_error: null };
+    const base = { id: newId(), date, hours, activity_id: activityId, comments: comments.trim(), kind: "work" as const };
     if (mode === "existing") {
       onAdd([{ ...base, target: { type: "issue", issue_id: issue.id, label: `#${issue.id} ${issue.subject}` } }], []);
       return;
@@ -207,7 +207,7 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
       )}
       <div className="form-actions">
         <button type="submit" className="btn primary" disabled={pending}>
-          {pending ? "Đang tìm issue…" : "Thêm vào hàng chờ"}
+          {pending ? "Đang tìm issue…" : "Ghi lên Redmine…"}
         </button>
         <button type="button" className="btn ghost" onClick={onCancel}>
           Huỷ
