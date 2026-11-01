@@ -85,6 +85,9 @@ export default function HistoryPage({ onDraftChanged }: { onDraftChanged: () => 
                             <span className="muted"> (entry {op.result_id})</span>
                           )}
                           {op.error && <span className="op-error">{op.error}</span>}
+                          {op.status === "failed" && op.payload.op === "create_time_entry" && (
+                            <span className="op-note">Mục này đã được đưa lại vào hàng chờ để sửa rồi ghi lại.</span>
+                          )}
                         </span>
                       </li>
                     ))}

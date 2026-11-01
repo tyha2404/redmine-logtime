@@ -17,6 +17,7 @@ import {
 } from "./api";
 import { describeOp, fmtDayShort, fmtHours, parseIso, weekdayShort } from "./fmt";
 import { Icon } from "./icons";
+import IssueLink, { IssueLabel } from "./IssueLink";
 import { buildLeave, leaveTypeOf } from "./leave";
 import QuotaRail from "./QuotaRail";
 import ReportComposer, { type ComposerHandle } from "./ReportComposer";
@@ -53,6 +54,8 @@ interface Props {
 export default function ReviewPage({ settings, draft, focusReport, onOpenHistory, onOpenSettings }: Props) {
   const [view, setView] = useState<ReviewView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Why writing (or previewing) failed, shown beside the write button. */
+  const [writeError, setWriteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [ack, setAck] = useState(false);
   const [preview, setPreview] = useState<ApiCall[] | null>(null);
@@ -119,10 +122,11 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
     });
 
   const showPreview = async () => {
+    setWriteError(null);
     try {
       setPreview(await api.previewItems(items.map((i) => i.id)));
     } catch (e) {
-      setError(errorText(e));
+      setWriteError(`Không xem trước được: ${errorText(e)}`);
     }
   };
 
@@ -132,6 +136,7 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
     const label = `${ids.length} logtime, ${fmtDayShort(dates[0])}${dates.length > 1 && dates[0] !== dates.at(-1) ? `–${fmtDayShort(dates.at(-1)!)}` : ""}`;
     setPhase({ kind: "running", ops: [] });
     setPreview(null);
+    setWriteError(null);
     const unlisten = await api.onProgress((e) =>
       setPhase((p) => (p.kind === "running" ? { kind: "running", ops: [...p.ops, e.op] } : p)),
     );
@@ -140,7 +145,7 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
       setPhase({ kind: "done", batch });
       setAck(false);
     } catch (e) {
-      setError(errorText(e));
+      setWriteError(`Chưa ghi được: ${errorText(e)}`);
       setPhase({ kind: "idle" });
     } finally {
       unlisten();
@@ -231,7 +236,7 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
                   {s.subject}
                   <span className="muted">
                     {" "}
-                    dưới #{s.parent_id} {s.parent_subject}
+                    dưới <IssueLink id={s.parent_id} /> {s.parent_subject}
                   </span>
                 </li>
               ))}
@@ -271,6 +276,12 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
               </p>
             )}
           </div>
+        )}
+
+        {writeError && (
+          <p className="notice error side-error" role="alert">
+            {writeError}
+          </p>
         )}
 
         {(phase.kind === "running" || phase.kind === "done") && (
@@ -337,7 +348,12 @@ function DayBlock(props: {
         {day.existing.length > 0 && (
           <p className="rday-existing">
             Đã có trên Redmine:{" "}
-            {day.existing.map((e) => `${fmtHours(e.hours)} #${e.issue?.id ?? "?"}`).join(", ")}
+            {day.existing.map((e, k) => (
+              <span key={e.id}>
+                {k > 0 && ", "}
+                {fmtHours(e.hours)} {e.issue ? <IssueLink id={e.issue.id} /> : e.project.name}
+              </span>
+            ))}
           </p>
         )}
 
@@ -456,10 +472,10 @@ function ItemRow(props: {
         <div className="ritem-target">
           <span className="ritem-target-text">
             {subtask && <span className="ritem-new">{item.kind === "leave" ? "Issue nghỉ mới" : "Task con mới"}</span>}
-            {label}
+            <IssueLabel label={label} />
             {subtask && (
               <span className="ritem-parent">
-                dưới #{subtask.parent_id} {subtask.parent_subject}
+                dưới <IssueLink id={subtask.parent_id} /> {subtask.parent_subject}
               </span>
             )}
           </span>

@@ -640,9 +640,11 @@ body {
   position: relative;
   overflow: hidden;
   /* Square-ish when there is room, never shorter than the date and hours
-     need. min-width: 0 stops the ratio from turning that minimum height
-     into a minimum width that would push cells into each other. */
+     need. The width is pinned to the track: left to the ratio, a grid item
+     takes its width from that minimum height (64 / 0.8 = 80px) and pushes
+     into its neighbours on narrow windows. */
   aspect-ratio: 1 / 0.8;
+  width: 100%;
   min-width: 0;
   min-height: 64px;
   border: 1px solid var(--line);
@@ -2320,8 +2322,10 @@ select::-ms-expand {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
-  place-items: center;
-  padding: 48px 32px;
+  /* Anchored near the top, not centred: a message growing the form then
+     pushes only what is below it. */
+  place-items: start center;
+  padding: max(48px, 16vh) 32px 48px;
   overflow: auto;
 }
 .setup {
@@ -2395,6 +2399,9 @@ select::-ms-expand {
 .setup-form small {
   font-size: 12px;
   line-height: 1.45;
+}
+.setup-status {
+  min-height: 1.45em;
 }
 .setup-actions {
   display: flex;
@@ -3119,4 +3126,65 @@ select::-ms-expand {
 }
 .review-head .row {
   flex-wrap: wrap;
+}
+
+/* A question that has to be answered before going on (App's UnsavedDialog). */
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px 22px 18px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+.confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+.confirm-dialog p {
+  margin: 0;
+  color: var(--ink-2);
+}
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* An issue number that opens the issue on Redmine. */
+.issue-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+.issue-link:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+/* The composer folded to one line while the queue below is being reviewed. */
+.composer.is-folded {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 14px 20px;
+}
+.composer.is-folded .hint {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Under a failed write in the history: where that logtime went. */
+.op-note {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12.5px;
 }

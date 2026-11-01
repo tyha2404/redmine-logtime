@@ -4,6 +4,7 @@ import { fmtDayLong, fmtHours } from "./fmt";
 import { Icon } from "./icons";
 import { fmtDays, leaveYear, shortLabel, useLeaveEntries, type LeaveBalance, type LeaveDay } from "./leave";
 import type { DraftApi } from "./useDraft";
+import IssueLink from "./IssueLink";
 
 /**
  * A year of leave at a glance: for each kind, the allowance as a row of day
@@ -195,7 +196,7 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
                   {d.days >= 1 ? "Cả ngày" : "Nửa ngày"}
                   {Math.abs(d.hours - d.days * hoursPerDay) > 1e-6 && <span className="muted"> ({fmtHours(d.hours)})</span>}
                 </span>
-                <span className="leave-ref muted">{d.queued ? "Đang chờ ghi" : d.issueId ? `#${d.issueId}` : ""}</span>
+                <span className="leave-ref muted">{d.queued ? "Đang chờ ghi" : d.issueId ? <IssueLink id={d.issueId} /> : ""}</span>
               </li>
             ))}
           </ul>

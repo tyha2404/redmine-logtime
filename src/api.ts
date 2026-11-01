@@ -331,6 +331,7 @@ export const api = {
   monthSummary: (year: number, month: number) =>
     invoke<MonthSummary>("month_summary", { year, month }),
   checkTools: () => invoke<ToolStatus[]>("check_tools"),
+  openIssue: (id: number) => invoke<void>("open_issue", { id }),
 
   getDraft: () => invoke<Draft>("get_draft"),
   saveDraft: (draft: Draft) => invoke<void>("save_draft", { draft }),

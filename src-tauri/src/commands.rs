@@ -50,7 +50,7 @@ pub fn get_settings(state: State<'_, AppState>) -> CmdResult<SettingsView> {
 #[tauri::command]
 pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
     if settings.hours_per_day <= 0.0 || settings.hours_per_day > 24.0 {
-        return Err("Số giờ mỗi ngày phải trong khoảng 0–24.".into());
+        return Err("Số giờ mỗi ngày phải lớn hơn 0 và không quá 24.".into());
     }
     state
         .save_settings(settings)
@@ -117,4 +117,39 @@ pub async fn check_tools() -> Vec<tools::ToolStatus> {
     tauri::async_runtime::spawn_blocking(tools::check_all)
         .await
         .unwrap_or_default()
+}
+
+/// The page of issue `id` on the configured Redmine. Only an issue number is
+/// accepted, so the app cannot be made to open an arbitrary URL.
+pub(crate) fn issue_url(redmine_url: &str, id: u32) -> CmdResult<String> {
+    let base = redmine_url.trim().trim_end_matches('/');
+    if !(base.starts_with("https://") || base.starts_with("http://")) {
+        return Err("Chưa cấu hình URL Redmine. Vào Cài đặt để nhập.".into());
+    }
+    Ok(format!("{base}/issues/{id}"))
+}
+
+/// Opens an issue on Redmine in the system browser.
+#[tauri::command]
+pub fn open_issue(state: State<'_, AppState>, id: u32) -> CmdResult<()> {
+    let url = issue_url(&state.settings().redmine_url, id)?;
+    let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    std::process::Command::new(opener)
+        .arg(&url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Không mở được trình duyệt: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::issue_url;
+
+    #[test]
+    fn issue_url_is_built_from_settings_only() {
+        assert_eq!(issue_url("https://redmine.x.vn/", 12).unwrap(), "https://redmine.x.vn/issues/12");
+        assert_eq!(issue_url(" http://localhost:3000 ", 7).unwrap(), "http://localhost:3000/issues/7");
+        assert!(issue_url("", 1).is_err());
+        assert!(issue_url("file:///etc", 1).is_err());
+    }
 }

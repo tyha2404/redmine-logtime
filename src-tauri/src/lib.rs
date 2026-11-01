@@ -24,6 +24,7 @@ pub fn run() {
             commands::list_activities,
             commands::month_summary,
             commands::check_tools,
+            commands::open_issue,
             plan_commands::get_draft,
             plan_commands::save_draft,
             plan_commands::lookup_issue,

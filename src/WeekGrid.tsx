@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, newId, type DaySummary, type PlanItem, type ReviewView, type Settings, type SubtaskDraft, type TimeEntry } from "./api";
 import { fmtDayShort, fmtHours, isoOf, parseIso, todayIso, weekdayShort } from "./fmt";
 import { Icon } from "./icons";
+import IssueLink, { IssueLabel } from "./IssueLink";
 import { useToast } from "./toast";
 import type { DraftApi } from "./useDraft";
 
@@ -227,11 +228,11 @@ function Week(props: {
                       <div className="wgrid-label" title={notes.join("\n")}>
                         <span className="wgrid-name">
                           {row.subtask && <span className="ritem-new">{row.kind === "leave" ? "Nghỉ" : "Mới"}</span>}
-                          {row.label}
+                          <IssueLabel label={row.label} />
                         </span>
                         {row.subtask && row.kind === "work" && (
                           <span className="wgrid-sub">
-                            dưới #{row.subtask.parent_id} {row.subtask.parent_subject}
+                            dưới <IssueLink id={row.subtask.parent_id} /> {row.subtask.parent_subject}
                           </span>
                         )}
                         {notes.length > 0 && <span className="wgrid-notes">{notes.join(" · ")}</span>}
@@ -286,7 +287,9 @@ function Week(props: {
                       <div className="wgrid-task-in">
                         <span className="wgrid-dot" aria-hidden />
                         <div className="wgrid-label" title={row.hint}>
-                          <span className="wgrid-name">{row.label}</span>
+                          <span className="wgrid-name">
+                            <IssueLabel label={row.label} />
+                          </span>
                           {row.hint && <span className="wgrid-notes">{row.hint}</span>}
                         </div>
                       </div>

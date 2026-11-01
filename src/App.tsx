@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Settings } from "./api";
 import CalendarPage from "./CalendarPage";
 import HistoryPage from "./HistoryPage";
@@ -6,7 +6,7 @@ import LeavePage from "./LeavePage";
 import { Icon, BrandMark, type IconName } from "./icons";
 import { inTauri, isMac } from "./platform";
 import ReviewPage from "./ReviewPage";
-import SettingsPage from "./SettingsPage";
+import SettingsPage, { type SettingsHandle } from "./SettingsPage";
 import SetupPage from "./SetupPage";
 import { ToastProvider } from "./toast";
 import { useDraft } from "./useDraft";
@@ -62,6 +62,10 @@ function Shell() {
   const [me, setMe] = useState<string | null>(null);
   const draft = useDraft();
   const update = useUpdate();
+  const settingsPage = useRef<SettingsHandle>(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  /** Where the user asked to go while Settings had unsaved changes. */
+  const [leaveTo, setLeaveTo] = useState<Page | null>(null);
 
   useEffect(() => {
     const onResize = () => setGuide(guideForWidth());
@@ -95,7 +99,7 @@ function Shell() {
       .catch(() => setPage("settings"));
   }, []);
 
-  const go = useCallback(
+  const navigate = useCallback(
     (target: Page) => {
       if (target === "calendar" || target === "review") draft.reload();
       if (target === "calendar" || target === "review" || target === "leave") loadSettings();
@@ -106,6 +110,21 @@ function Shell() {
     },
     [draft.reload, loadSettings],
   );
+
+  // Leaving Settings with unsaved changes asks first instead of dropping them.
+  const go = useCallback(
+    (target: Page) => {
+      if (page === "settings" && target !== "settings" && settingsDirty) return setLeaveTo(target);
+      navigate(target);
+    },
+    [page, settingsDirty, navigate],
+  );
+
+  const leave = (target: Page) => {
+    setLeaveTo(null);
+    setSettingsDirty(false);
+    navigate(target);
+  };
 
   useEffect(() => {
     document.documentElement.dataset.titlebar = overlayTitleBar ? "overlay" : "native";
@@ -234,6 +253,8 @@ function Shell() {
         {page === "history" && <HistoryPage onDraftChanged={draft.reload} />}
         {page === "settings" && (
           <SettingsPage
+            ref={settingsPage}
+            onDirtyChange={setSettingsDirty}
             update={update}
             focus={settingsFocus}
             onSaved={() => {
@@ -243,7 +264,60 @@ function Shell() {
           />
         )}
       </main>
+
+      {leaveTo && (
+        <UnsavedDialog
+          onSave={async () => {
+            if (await settingsPage.current?.save()) leave(leaveTo);
+            else setLeaveTo(null);
+          }}
+          onDiscard={() => leave(leaveTo)}
+          onStay={() => setLeaveTo(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Asks what to do with unsaved settings before leaving the page. */
+function UnsavedDialog({ onSave, onDiscard, onStay }: { onSave: () => Promise<void>; onDiscard: () => void; onStay: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="confirm-dialog"
+      aria-labelledby="unsaved-title"
+      onCancel={(e) => {
+        e.preventDefault();
+        onStay();
+      }}
+    >
+      <h2 id="unsaved-title">Cài đặt có thay đổi chưa lưu</h2>
+      <p>Lưu trước khi chuyển trang, hay bỏ những thay đổi này?</p>
+      <div className="confirm-dialog-actions">
+        <button className="btn ghost" onClick={onStay} disabled={busy}>
+          Ở lại
+        </button>
+        <button className="btn" onClick={onDiscard} disabled={busy}>
+          Bỏ thay đổi
+        </button>
+        <button
+          className="btn primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await onSave();
+          }}
+        >
+          {busy ? "Đang lưu…" : "Lưu rồi chuyển"}
+        </button>
+      </div>
+    </dialog>
   );
 }
 

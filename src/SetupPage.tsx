@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, errorText, type Settings } from "./api";
 
 type State = { kind: "idle" } | { kind: "checking" } | { kind: "error"; text: string } | { kind: "done"; name: string };
@@ -15,6 +15,8 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
   const [hasKey, setHasKey] = useState(false);
   const [selfSigned, setSelfSigned] = useState(false);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const urlBox = useRef<HTMLInputElement>(null);
+  const keyBox = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.getSettings().then((v) => {
@@ -36,8 +38,14 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
     e.preventDefault();
     if (!settings) return;
     const redmineUrl = normalizeUrl(url);
-    if (!redmineUrl) return setState({ kind: "error", text: "Nhập địa chỉ Redmine, ví dụ https://redmine.congty.vn" });
-    if (!key.trim() && !hasKey) return setState({ kind: "error", text: "Nhập API key của bạn." });
+    if (!redmineUrl) {
+      urlBox.current?.focus();
+      return setState({ kind: "error", text: "Nhập địa chỉ Redmine, ví dụ https://redmine.congty.vn" });
+    }
+    if (!key.trim() && !hasKey) {
+      keyBox.current?.focus();
+      return setState({ kind: "error", text: "Nhập API key của bạn." });
+    }
     setState({ kind: "checking" });
     try {
       const user = await api.testConnection(redmineUrl, key.trim() || null, selfSigned);
@@ -68,6 +76,7 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
         <label className="field">
           <span>Địa chỉ Redmine</span>
           <input
+            ref={urlBox}
             type="url"
             inputMode="url"
             placeholder="https://redmine.congty.vn"
@@ -81,6 +90,7 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
         <label className="field">
           <span>API key</span>
           <input
+            ref={keyBox}
             type="password"
             autoComplete="off"
             placeholder={hasKey ? "Đã lưu trên máy. Nhập key mới để thay." : "40 ký tự chữ và số"}
@@ -98,12 +108,13 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
           Redmine nội bộ dùng chứng chỉ SSL tự ký
         </label>
 
-        {state.kind === "error" && <p className="notice error">{state.text}</p>}
-        {state.kind === "done" && (
-          <p className="notice ok" role="status">
-            Đã kết nối. Chào {state.name}, đang mở lịch tháng.
-          </p>
-        )}
+        {/* Always there, so a message does not shove the form around. */}
+        <p
+          className={`setup-status notice${state.kind === "error" ? " error" : state.kind === "done" ? " ok" : ""}`}
+          role={state.kind === "error" ? "alert" : "status"}
+        >
+          {state.kind === "error" ? state.text : state.kind === "done" ? `Đã kết nối. Chào ${state.name}, đang mở lịch tháng.` : ""}
+        </p>
 
         <div className="setup-actions">
           <button type="submit" className="btn primary" disabled={busy || !settings}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import AboutCard from "./AboutCard";
 import { api, errorText, type Activity, type Settings, type ToolStatus, type Tracker } from "./api";
 import LeaveSettings from "./LeaveSettings";
@@ -28,10 +28,17 @@ function parseHolidays(text: string): { dates: string[]; bad: string | null } {
     if (m) iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
     m = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (m) iso = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-    if (!iso || Number.isNaN(Date.parse(iso))) return { dates, bad: line };
+    if (!iso || !isRealDate(iso)) return { dates, bad: line };
     dates.push(iso);
   }
   return { dates: [...new Set(dates)].sort(), bad: null };
+}
+
+/** True for a day that exists: 2026-02-28 yes, 2026-02-31 no (Date.parse rolls it over). */
+function isRealDate(iso: string): boolean {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 }
 
 /** Comparable form of everything the save button writes. */
@@ -39,14 +46,25 @@ function snapshot(s: Settings, holidayText: string, apiKey: string): string {
   return JSON.stringify({ ...s, holidays: holidayText.trim(), apiKey: apiKey.trim() });
 }
 
+/** Lets the app save before it leaves a page with unsaved changes. */
+export interface SettingsHandle {
+  /** Saves the form; false when it could not (the reason is shown on the page). */
+  save: () => Promise<boolean>;
+}
+
 interface Props {
   onSaved: () => void;
+  /** Called whenever the form starts or stops differing from what is saved. */
+  onDirtyChange?: (dirty: boolean) => void;
   update: UpdateState;
   /** Scroll to a section once loaded, e.g. "about" from the rail's update notice. */
   focus?: "about" | null;
 }
 
-export default function SettingsPage({ onSaved, update: updateState, focus }: Props) {
+const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
+  { onSaved, onDirtyChange, update: updateState, focus },
+  ref,
+) {
   const [settings, setSettings] = useState<Settings | null>(null);
   /** What is on disk, to tell the user when the form has unsaved changes. */
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -81,6 +99,16 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
   }, []);
 
   const loaded = settings !== null;
+  const current = settings === null ? "" : snapshot(settings, holidayText, apiKey);
+  const dirty = settings !== null && current !== savedSnapshot;
+  // A save error is about the values it tried; editing them retires it.
+  useEffect(() => setSaveNotice((n) => (n?.kind === "error" ? null : n)), [current]);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  const saveRef = useRef<() => Promise<boolean>>(async () => true);
+  useImperativeHandle(ref, () => ({ save: () => saveRef.current() }), []);
+
   useEffect(() => {
     if (loaded && focus) document.getElementById(focus)?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [loaded, focus]);
@@ -116,11 +144,20 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
     }
   };
 
-  const save = async () => {
+  const save = async (): Promise<boolean> => {
     const { dates, bad } = parseHolidays(holidayText);
     if (bad) {
-      setSaveNotice({ kind: "error", text: `Ngày lễ "${bad}" không đúng định dạng. Dùng 2026-09-02 hoặc 02/09/2026.` });
-      return;
+      setSaveNotice({ kind: "error", text: `Ngày lễ "${bad}" không đúng hoặc không có thật. Dùng 2026-09-02 hoặc 02/09/2026.` });
+      return false;
+    }
+    const hpd = settings.hours_per_day;
+    if (!(Number.isFinite(hpd) && hpd > 0 && hpd <= 24)) {
+      setSaveNotice({ kind: "error", text: "Số giờ mỗi ngày phải lớn hơn 0 và không quá 24." });
+      return false;
+    }
+    if (settings.workdays.length === 0) {
+      setSaveNotice({ kind: "error", text: "Chọn ít nhất một ngày làm việc trong tuần." });
+      return false;
     }
     setBusy(true);
     setSaveNotice(null);
@@ -137,12 +174,15 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
       setHolidayText(dates.join("\n"));
       setSaveNotice({ kind: "ok", text: "Đã lưu cài đặt." });
       loadLists();
+      return true;
     } catch (e) {
       setSaveNotice({ kind: "error", text: errorText(e) });
+      return false;
     } finally {
       setBusy(false);
     }
   };
+  saveRef.current = save;
 
   const removeKey = async () => {
     await api.saveApiKey("");
@@ -151,7 +191,9 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
   };
 
   const activeActivities = activities.filter((a) => a.active);
-  const dirty = snapshot(settings, holidayText, apiKey) !== savedSnapshot;
+  const leaveActivityIds = new Set(settings.leave_types.flatMap((t) => (t.activity_id ? [t.activity_id] : [])));
+  /** Work never defaults to a leave activity. */
+  const workActivities = activeActivities.filter((a) => !leaveActivityIds.has(a.id) || a.id === settings.default_activity_id);
 
   return (
     <div className="settings page-pad">
@@ -313,7 +355,7 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
         <ActivitySelect
           label="Hoạt động mặc định khi log công việc"
           value={settings.default_activity_id}
-          options={activeActivities}
+          options={workActivities}
           onChange={(v) => update("default_activity_id", v)}
         />
         <label className="field">
@@ -355,8 +397,11 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
       </div>
 
       <div className={`save-bar${dirty ? " is-dirty" : ""}`}>
-        {saveNotice && !dirty ? (
-          <p className={`notice ${saveNotice.kind}`}>{saveNotice.text}</p>
+        {/* A failed save keeps the changes unsaved, so its reason must show anyway. */}
+        {saveNotice && (saveNotice.kind === "error" || !dirty) ? (
+          <p className={`notice ${saveNotice.kind}`} role={saveNotice.kind === "error" ? "alert" : "status"}>
+            {saveNotice.text}
+          </p>
         ) : (
           dirty && <p className="save-dirty">Có thay đổi chưa lưu</p>
         )}
@@ -369,7 +414,9 @@ export default function SettingsPage({ onSaved, update: updateState, focus }: Pr
       </div>
     </div>
   );
-}
+});
+
+export default SettingsPage;
 
 function ActivitySelect(props: {
   label: string;

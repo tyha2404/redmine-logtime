@@ -5,6 +5,7 @@ import LeaveForm from "./LeaveForm";
 import { api, errorText, type DayStatus, type DaySummary, type MonthSummary, type PlanItem, type Settings } from "./api";
 import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, targetLabel, todayIso } from "./fmt";
 import { Icon } from "./icons";
+import IssueLink from "./IssueLink";
 import QuotaRail from "./QuotaRail";
 import { summaryLine, TaskRow, useReportFlow } from "./reportFlow";
 import { useToast } from "./toast";
@@ -111,7 +112,7 @@ export default function CalendarPage({ settings, draft, onOpenSettings, onOpenRe
     <div className="calendar-page">
       <section className="calendar-col">
         <header className="month-head">
-          <h1 className="month-title">
+          <h1 className="month-title" aria-label={`Tháng ${ym.month} năm ${ym.year}`}>
             Tháng {ym.month}
             <span className="month-year">{ym.year}</span>
           </h1>
@@ -502,7 +503,11 @@ function DayPanel(props: {
                 <span className="entry-hours">{fmtHours(e.hours)}</span>
                 <div className="entry-body">
                   <div className="entry-title">
-                    {e.issue ? <span className="issue-ref">#{e.issue.id}</span> : null}
+                    {e.issue ? (
+                      <span className="issue-ref">
+                        <IssueLink id={e.issue.id} />
+                      </span>
+                    ) : null}
                     {e.project.name}
                   </div>
                   <div className="entry-meta">{e.activity.name}</div>

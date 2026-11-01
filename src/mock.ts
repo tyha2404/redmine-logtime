@@ -408,6 +408,9 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       });
     case "preview_items":
       return delay([{ method: "POST", path: "/time_entries.json", body: { time_entry: { issue_id: 5, hours: 4 } } }]);
+    case "open_issue":
+      window.open(`${settings.redmine_url}/issues/${args.id}`, "_blank", "noopener");
+      return delay(undefined);
     case "ai_test":
       return delay("Sẵn sàng phân tích báo cáo.", 800);
     default:

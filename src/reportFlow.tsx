@@ -226,12 +226,18 @@ export function summaryLine(f: ReportFlow): string {
     : v.analysis.period_from === v.analysis.period_to
       ? `Báo cáo ngày ${fmtDayShort(v.analysis.period_from)}: `
       : `Báo cáo từ ${fmtDayShort(v.analysis.period_from)} đến ${fmtDayShort(v.analysis.period_to)}: `;
-  const parts = [`${scope}${f.tasks.length} việc, ${fmtHours(f.totalHours)} sẽ được log`];
+  // Only what will be logged: skipped duplicates and unticked tasks are not "việc".
+  const logged = f.tasks.filter((t) => f.choices[t.task.key]?.include).length;
+  const parts = [
+    logged > 0
+      ? `${scope}${logged} việc (${fmtHours(f.totalHours)}) sẽ được log`
+      : `${scope}không có việc nào cần log thêm`,
+  ];
   if (f.leave.length) parts.push(`${f.leave.length} ngày nghỉ phép`);
   if (f.duplicateCount) parts.push(`${f.duplicateCount} việc trùng đã bỏ qua`);
   let s = parts.join(", ") + ".";
   if (v.skipped_future.length) s += ` Bỏ qua ${v.skipped_future.map(fmtDayShort).join(", ")} vì chưa tới.`;
-  return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function TaskRow(props: {

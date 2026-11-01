@@ -57,24 +57,53 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
   const [issueRaw, setIssueRaw] = useState("");
   const [subject, setSubject] = useState("");
   const [trackerId, setTrackerId] = useState<number | null>(settings.subtask_tracker_id);
-  const [hours, setHours] = useState(remainingHours > 0 ? remainingHours : 1);
+  // Text, so an empty or half-typed value stays as typed until submit.
+  const [hoursRaw, setHoursRaw] = useState(String(remainingHours > 0 ? remainingHours : 1));
   const [activityId, setActivityId] = useState<number | null>(settings.default_activity_id);
   const [comments, setComments] = useState("");
   const [activities, setActivities] = useState<Activity[]>([]);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  /** Submitted while the issue was still being looked up: finish once it is. */
+  const [pending, setPending] = useState(false);
   const lookup = useIssueLookup(issueRaw);
 
+  // An old complaint goes as soon as the user changes anything.
+  useEffect(() => setFormError(null), [mode, issueRaw, subject, trackerId, hoursRaw, activityId]);
+
   useEffect(() => {
-    api.listActivities().then((a) => setActivities(a.filter((x) => x.active))).catch(() => {});
+    // Leave has its own form; its activities would log work as a day off.
+    const leave = new Set(settings.leave_types.flatMap((t) => (t.activity_id ? [t.activity_id] : [])));
+    api
+      .listActivities()
+      .then((a) => setActivities(a.filter((x) => x.active && !leave.has(x.id))))
+      .catch(() => {});
     api.listTrackers().then(setTrackers).catch(() => {});
   }, []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (lookup.loading) return setPending(true);
+    addToQueue();
+  };
+
+  useEffect(() => {
+    if (!pending || lookup.loading) return;
+    setPending(false);
+    addToQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, lookup.loading]);
+
+  const addToQueue = () => {
     const issue = lookup.issue;
-    if (!issue) return setFormError(mode === "existing" ? "Nhập một issue hợp lệ." : "Nhập issue cha hợp lệ.");
-    if (!(hours > 0 && hours <= 24)) return setFormError("Số giờ phải từ 0 đến 24.");
+    const what = mode === "existing" ? "issue" : "issue cha";
+    if (!issue) {
+      if (lookup.error) return setFormError(`Không tìm thấy ${what}: ${lookup.error}`);
+      return setFormError(issueRaw.trim() ? `Số ${what} không hợp lệ, ví dụ #1234.` : `Nhập số ${what}, ví dụ #1234.`);
+    }
+    const hours = parseHours(hoursRaw);
+    if (hours === null) return setFormError("Nhập số giờ, ví dụ 2 hoặc 1.5.");
+    if (!(hours > 0 && hours <= 24)) return setFormError("Số giờ phải lớn hơn 0 và không quá 24.");
     if (!activityId) return setFormError("Chọn hoạt động.");
 
     const base = { id: newId(), date, hours, activity_id: activityId, comments: comments.trim(), kind: "work" as const, last_error: null };
@@ -97,7 +126,7 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
   };
 
   return (
-    <form className="add-form" onSubmit={submit}>
+    <form className="add-form" onSubmit={submit} noValidate>
       <div className="segmented" role="radiogroup" aria-label="Ghi vào đâu">
         <button type="button" role="radio" aria-checked={mode === "existing"} onClick={() => setMode("existing")}>
           Issue có sẵn
@@ -142,7 +171,15 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
       <div className="field-row">
         <label className="field">
           <span>Số giờ</span>
-          <input type="number" min={0.25} max={24} step={0.25} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0.25}
+            max={24}
+            step={0.25}
+            value={hoursRaw}
+            onChange={(e) => setHoursRaw(e.target.value)}
+          />
           {remainingHours > 0 && <small className="muted">còn trống {fmtHours(remainingHours)}</small>}
         </label>
         <label className="field grow">
@@ -163,10 +200,14 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
         <input value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Việc đã làm" />
       </label>
 
-      {formError && <p className="notice error">{formError}</p>}
+      {formError && (
+        <p className="notice error" role="alert">
+          {formError}
+        </p>
+      )}
       <div className="form-actions">
-        <button type="submit" className="btn primary">
-          Thêm vào hàng chờ
+        <button type="submit" className="btn primary" disabled={pending}>
+          {pending ? "Đang tìm issue…" : "Thêm vào hàng chờ"}
         </button>
         <button type="button" className="btn ghost" onClick={onCancel}>
           Huỷ
@@ -189,4 +230,12 @@ function IssueHint({ issue, error, loading }: ReturnType<typeof useIssueLookup>)
       </span>
     </small>
   );
+}
+
+/** "1,5" or "1.5" → 1.5; null when empty or not a number. */
+function parseHours(raw: string): number | null {
+  const text = raw.trim().replace(",", ".");
+  if (!text) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
 }

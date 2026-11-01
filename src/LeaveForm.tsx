@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { errorText, type Draft, type LeaveParent, type PlanItem, type Settings, type SubtaskDraft } from "./api";
-import { fmtHours } from "./fmt";
+import { errorText, type Draft, type LeaveParent, type PlanItem, type Settings, type SubtaskDraft, type TimeEntry } from "./api";
+import { fmtDayShort, fmtHours, parseIso } from "./fmt";
 import {
   buildLeave,
   daysOf,
@@ -44,6 +44,7 @@ export default function LeaveForm(props: {
   const type = types.find((t) => t.key === typeKey) ?? types[0];
   const year = Number(date.slice(0, 4));
   const { entries } = useLeaveEntries(year);
+  const blocked = useMemo(() => whyNoLeave(settings, date, entries, draft, span), [settings, date, entries, draft, span]);
   const balance = useMemo(
     () => (entries && type ? leaveYear(settings, year, entries, draft).balances.find((b) => b.type.key === type.key) : undefined),
     [entries, settings, year, draft, type],
@@ -157,8 +158,14 @@ export default function LeaveForm(props: {
         )}
       </p>
 
+      {blocked && (
+        <p className="notice error" role="alert">
+          {blocked}
+        </p>
+      )}
+
       <div className="form-actions">
-        <button className="btn primary" onClick={add} disabled={busy || !parent || !subject.trim()}>
+        <button className="btn primary" onClick={add} disabled={busy || !parent || !subject.trim() || blocked !== null}>
           {busy ? "Đang thêm…" : `Thêm ${fmtHours(leaveHours(settings, span))} nghỉ vào hàng chờ`}
         </button>
         <button className="btn ghost" onClick={onCancel}>
@@ -167,4 +174,38 @@ export default function LeaveForm(props: {
       </div>
     </div>
   );
+}
+
+const EPS = 1e-6;
+const DAY_NAMES = ["Chủ nhật", "Thứ bảy"];
+
+/**
+ * Why this day cannot take (more) leave, or null when it can: days that are
+ * not workdays need none, and a day holds at most one workday of leave,
+ * counting what is on Redmine and what is already queued.
+ */
+function whyNoLeave(
+  settings: Settings,
+  date: string,
+  entries: TimeEntry[] | null,
+  draft: Draft,
+  span: LeaveSpan,
+): string | null {
+  const wd = parseIso(date).getDay();
+  if (settings.holidays.includes(date)) return `${fmtDayShort(date)} là ngày lễ, không cần xin nghỉ.`;
+  if (!settings.workdays.includes(((wd + 6) % 7) + 1)) {
+    const name = wd === 0 ? DAY_NAMES[0] : wd === 6 ? DAY_NAMES[1] : `Ngày ${fmtDayShort(date)}`;
+    return `${name} không phải ngày làm việc, không cần xin nghỉ.`;
+  }
+  const leaveProjects = new Set(settings.leave_types.map((t) => t.project_id));
+  const logged = (entries ?? []).filter((e) => e.spent_on === date && leaveProjects.has(e.project.id));
+  const queued = draft.items.filter((i) => i.date === date && i.kind === "leave");
+  const taken = logged.reduce((s, e) => s + e.hours, 0) + queued.reduce((s, i) => s + i.hours, 0);
+  if (taken + leaveHours(settings, span) <= settings.hours_per_day + EPS) return null;
+  const where = [
+    ...logged.map((e) => (e.issue ? `#${e.issue.id}` : e.project.name)),
+    ...(queued.length ? ["trong hàng chờ"] : []),
+  ].join(", ");
+  if (taken + EPS >= settings.hours_per_day) return `Ngày này đã nghỉ cả ngày (${where}).`;
+  return `Ngày này đã nghỉ ${fmtHours(taken)} (${where}); chỉ xin thêm được ${fmtHours(settings.hours_per_day - taken)}. Chọn buổi sáng hoặc buổi chiều.`;
 }

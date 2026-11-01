@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import AiLog from "./AiLog";
 import type { Settings } from "./api";
 import { fmtDayLong, fmtHours } from "./fmt";
@@ -40,10 +40,24 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
   const toast = useToast();
   const box = useRef<HTMLTextAreaElement>(null);
 
+  // With logtimes already queued, the queue is what needs the screen: the
+  // composer folds to one line until there is a report to work on.
+  const [openChoice, setOpenChoice] = useState<boolean | null>(null);
+  const busyWithReport = !!view || ai.running || f.text.trim() !== "";
+  const open = busyWithReport || (openChoice ?? draft.draft.items.length === 0);
+  const [wantFocus, setWantFocus] = useState(false);
+
+  useEffect(() => {
+    if (!open || !wantFocus) return;
+    setWantFocus(false);
+    box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    box.current?.focus({ preventScroll: true });
+  }, [open, wantFocus]);
+
   useImperativeHandle(ref, () => ({
     focus: () => {
-      box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-      box.current?.focus({ preventScroll: true });
+      setOpenChoice(true);
+      setWantFocus(true);
     },
   }));
 
@@ -54,16 +68,43 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
     toast(`Đã thêm ${n} logtime vào hàng chờ bên dưới.`);
   };
 
+  if (!open) {
+    return (
+      <section className="composer is-folded" aria-labelledby="composer-title">
+        <h2 id="composer-title" className="section-title">
+          Từ báo cáo công việc
+        </h2>
+        <p className="hint">Dán báo cáo để Claude chia giờ và thêm vào hàng chờ.</p>
+        <button
+          className="btn"
+          onClick={() => {
+            setOpenChoice(true);
+            setWantFocus(true);
+          }}
+        >
+          Dán báo cáo
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="composer" aria-labelledby="composer-title">
       <header className="composer-head">
         <h2 id="composer-title" className="section-title">
           Từ báo cáo công việc
         </h2>
-        {view && (
+        {view ? (
           <button className="link" onClick={f.finish} disabled={ai.running}>
             Bỏ kết quả
           </button>
+        ) : (
+          !busyWithReport &&
+          draft.draft.items.length > 0 && (
+            <button className="link" onClick={() => setOpenChoice(false)}>
+              Thu gọn
+            </button>
+          )
         )}
       </header>
       <p className="hint">
