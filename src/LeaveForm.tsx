@@ -136,7 +136,7 @@ export default function LeaveForm(props: {
       </label>
       {!settings.leave_name.trim() && (
         <p className="hint">
-          Đặt tên của bạn (ví dụ “BE - Tỷ”) trong{" "}
+          Đặt tên của bạn (ví dụ “BE - Tên”) trong{" "}
           <button className="link" onClick={onOpenSettings}>
             Cài đặt
           </button>{" "}

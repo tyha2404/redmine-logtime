@@ -189,7 +189,7 @@ mod tests {
                 parent_id: 1,
                 parent_subject: "Công nợ".into(),
                 project_id: 3,
-                project_name: "Salex".into(),
+                project_name: "ABC".into(),
                 tracker_id: 4,
                 subject: "Sửa feedback công nợ".into(),
                 start_date: None,
@@ -224,7 +224,7 @@ mod tests {
 
     fn entry_json(id: u32, issue: u32, hours: f64) -> serde_json::Value {
         json!({"time_entry": {
-            "id": id, "project": {"id": 3, "name": "Salex"}, "issue": {"id": issue},
+            "id": id, "project": {"id": 3, "name": "ABC"}, "issue": {"id": issue},
             "user": {"id": 7, "name": "Me"}, "activity": {"id": 9, "name": "Dev"},
             "hours": hours, "comments": "", "spent_on": "2026-10-28"
         }})
@@ -245,7 +245,7 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/issues.json"))
             .respond_with(ResponseTemplate::new(201).set_body_json(json!({"issue": {
-                "id": 77, "project": {"id": 3, "name": "Salex"}, "tracker": {"id": 4, "name": "Task"},
+                "id": 77, "project": {"id": 3, "name": "ABC"}, "tracker": {"id": 4, "name": "Task"},
                 "status": {"id": 1, "name": "New"}, "subject": "Sửa feedback công nợ",
                 "author": {"id": 7, "name": "Me"}
             }})))
@@ -335,7 +335,7 @@ mod tests {
             .and(path("/time_entries.json"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "time_entries": [{
-                    "id": 501, "project": {"id": 3, "name": "Salex"}, "issue": {"id": 77},
+                    "id": 501, "project": {"id": 3, "name": "ABC"}, "issue": {"id": 77},
                     "user": {"id": 7, "name": "Me"}, "activity": {"id": 9, "name": "Dev"},
                     "hours": 5.0, "comments": "Sửa feedback", "spent_on": "2026-10-28"
                 }],

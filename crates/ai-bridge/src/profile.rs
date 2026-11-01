@@ -153,21 +153,21 @@ mod tests {
                 ..Default::default()
             },
             leave_issue_id: Some(6),
-            user_notes: "Dự án Salex dùng prefix [SX].".into(),
+            user_notes: "Dự án ABC dùng prefix [ABC].".into(),
             ..Default::default()
         };
         let md = to_instructions(&p);
         assert!(md.contains("Feature (id [2])"));
         // Leave is handled by the app, not by the profile.
         assert!(!md.contains("#6"));
-        assert!(md.contains("prefix [SX]"));
+        assert!(md.contains("prefix [ABC]"));
     }
 
     #[test]
     fn model_output_deserializes_without_user_fields() {
         let raw = json!({
             "parent_rule": {"tracker_ids": [2], "tracker_names": ["Feature"], "author_ids": [5],
-                            "author_names": ["Lan"], "role_names": ["Manager"], "description": "x"},
+                            "author_names": ["BA"], "role_names": ["Manager"], "description": "x"},
             "subtask_tracker_id": 4, "leave_issue_id": null, "projects": [], "naming": "", "summary": "s"
         });
         let p: Profile = serde_json::from_value(raw).unwrap();

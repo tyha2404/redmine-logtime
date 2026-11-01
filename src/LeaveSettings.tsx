@@ -22,7 +22,7 @@ export default function LeaveSettings(props: {
     setNotice(null);
     try {
       const found = await api.discoverLeave();
-      // Old subjects mix decomposed accents and "BE -Tỷ"-style spacing.
+      // Old subjects mix decomposed accents and "BE -Tên"-style spacing.
       const name = found.name?.normalize("NFC").replace(/\s*-\s*/, " - ") ?? null;
       onChange({
         leave_types: found.types,
@@ -96,7 +96,7 @@ export default function LeaveSettings(props: {
       <label className="field">
         <span>Tên của bạn trong tiêu đề issue nghỉ</span>
         <input
-          placeholder="BE - Tỷ"
+          placeholder="BE - Tên"
           value={settings.leave_name}
           onChange={(e) => onChange({ leave_name: e.target.value })}
         />

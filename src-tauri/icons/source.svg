@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <!--
     Redmine Logtime. Four workdays as columns: three filled to the daily
-    quota (the green line), today still filling. Redmine's colours: the
-    header blue fading to the top-bar navy, the flash-notice green. macOS grid: 824px tile
-    inside the 1024px canvas, with the standard drop shadow.
+    quota (the green line), today still filling. The app's light-theme
+    tokens: the link blue (accent #116699) fading to the top-bar navy
+    (mast-bg #3E5B76), the quota line in the calendar's "full" green
+    (full #3A8A3A) on a white keyline so it reads on the blue. macOS grid:
+    824px tile inside the 1024px canvas, with the standard drop shadow.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#628db6"/>
+      <stop offset="0" stop-color="#116699"/>
       <stop offset="1" stop-color="#3e5b76"/>
     </linearGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
@@ -33,5 +35,6 @@
   <rect x="660" y="552" width="76" height="176" rx="20" fill="#ffffff"/>
 
   <!-- Daily quota -->
-  <rect x="256" y="318" width="512" height="20" rx="10" fill="#a8e2a4"/>
+  <rect x="248" y="310" width="528" height="36" rx="18" fill="#ffffff"/>
+  <rect x="256" y="318" width="512" height="20" rx="10" fill="#3a8a3a"/>
 </svg>

@@ -19,7 +19,7 @@ export function leaveHours(settings: Settings, span: LeaveSpan): number {
   return span === "full" ? settings.hours_per_day : settings.hours_per_day / 2;
 }
 
-/** "BE - Tỷ xin nghỉ phép ngày 29/10/2026", the way colleagues name theirs. */
+/** "BE - Tên xin nghỉ phép ngày 29/10/2026", the way colleagues name theirs. */
 export function leaveSubject(settings: Settings, type: LeaveType, date: string, span: LeaveSpan): string {
   const [y, m, d] = date.split("-");
   const when = { full: "ngày", morning: "sáng ngày", afternoon: "chiều ngày", half: "1/2 ngày" }[span];

@@ -73,10 +73,10 @@ URL Redmine và API key nhập trong màn **Cài đặt**. API key được lưu
 
 ## Nghỉ phép
 
-Theo cách HR đang làm: dưới ESTUARY → GNA mỗi loại nghỉ có một project (Annual Leave, Sick Leave, Unpaid Leave); đầu mỗi tháng HR tạo task cha trong từng project ("Xin nghỉ phép Tháng 10.2026", "… Đột Xuất …", "… KL …"). Mỗi ngày nghỉ là một issue con dưới task cha của tháng đó, log giờ vào issue con.
+Theo cách HR đang làm: dưới project của HR, mỗi loại nghỉ có một project (Annual Leave, Sick Leave, Unpaid Leave); đầu mỗi tháng HR tạo task cha trong từng project ("Xin nghỉ phép Tháng 10.2026", "… Đột Xuất …", "… KL …"). Mỗi ngày nghỉ là một issue con dưới task cha của tháng đó, log giờ vào issue con.
 
-- **Cài đặt → Nghỉ phép → Tìm trên Redmine**: app tìm các project có tên "Leave"/"Nghỉ", activity cùng tên, và tên bạn hay dùng trong tiêu đề (ví dụ "BE - Tỷ") từ các issue nghỉ cũ.
-- **Lịch → chọn ngày → Xin nghỉ ngày này**: chọn loại (phép năm, đột xuất, không lương) và cả ngày/buổi sáng/buổi chiều. App tìm task cha của tháng, đặt tên issue kiểu "BE - Tỷ xin nghỉ phép ngày 29/10/2026" (sửa được), ngày bắt đầu = ngày kết thúc = ngày nghỉ, rồi đưa vào hàng chờ. Ngày nghỉ trong báo cáo cũng đi theo cách này; loại nghỉ đổi được ngay trong hàng chờ.
+- **Cài đặt → Nghỉ phép → Tìm trên Redmine**: app tìm các project có tên "Leave"/"Nghỉ", activity cùng tên, và tên bạn hay dùng trong tiêu đề (ví dụ "BE - Tên") từ các issue nghỉ cũ.
+- **Lịch → chọn ngày → Xin nghỉ ngày này**: chọn loại (phép năm, đột xuất, không lương) và cả ngày/buổi sáng/buổi chiều. App tìm task cha của tháng, đặt tên issue kiểu "BE - Tên xin nghỉ phép ngày 29/10/2026" (sửa được), ngày bắt đầu = ngày kết thúc = ngày nghỉ, rồi đưa vào hàng chờ. Ngày nghỉ trong báo cáo cũng đi theo cách này; loại nghỉ đổi được ngay trong hàng chờ.
 - Lịch tính giờ log trong các project nghỉ là ngày nghỉ. Nếu HR chưa tạo task cha cho tháng, app báo và chưa cho thêm.
 
 ## Tính năng AI
@@ -85,7 +85,11 @@ Cần [Claude CLI](https://claude.ai/install.sh) đã đăng nhập và `uv` (đ
 
 1. **Cài đặt → Cấu trúc Redmine → Phân tích**: Claude tìm cách nhận biết task cha do BA tạo và tracker task con. Có thể thêm ghi chú riêng để Claude ưu tiên.
 2. **Ghi logtime**, phần trên: dán báo cáo tuần + báo cáo ngày. Claude tìm task cha/task con có sẵn; app chia giờ (bội số 0.5h) cho đủ giờ còn trống mỗi ngày. Sửa task cha/tên task con nếu cần rồi đưa vào hàng chờ.
-3. **Ghi logtime**, phần dưới: hàng chờ theo từng ngày. Sửa giờ, ghi chú, hoặc bấm **Đổi task** để đổi task cha, tên task con, hay log thẳng vào một issue có sẵn; rồi ghi lên Redmine. Có thể hoàn tác trong **Lịch sử ghi**.
+3. **Ghi logtime**, phần dưới: hàng chờ, chưa có gì lên Redmine cho tới khi bấm ghi. Hai cách xem:
+   - **Bảng tuần** (mặc định): mỗi dòng một task, mỗi cột một ngày; bên dưới là logtime đã có trên Redmine (màu xám) và dòng tổng ngày tô màu đủ/thiếu/vượt giờ, kể cả ngày không có gì trong hàng chờ. Bấm vào ô để sửa giờ, gõ 0 để bỏ, bấm ô trống để thêm giờ cho task đó vào ngày đó. Ô có góc đỏ là mục lần trước ghi lỗi.
+   - **Danh sách**: theo từng ngày, sửa ghi chú hoặc bấm **Đổi task** để đổi task cha, tên task con, hay log thẳng vào một issue có sẵn.
+
+   Bỏ tick những mục chưa muốn ghi, bấm **Xem request sẽ gửi** để xem trước, rồi ghi lên Redmine. Có thể hoàn tác trong **Lịch sử ghi**.
 
 Nếu `~/.claude/settings.json` đặt `ANTHROPIC_API_KEY` mà key đó không dùng được ở chế độ `claude -p`, bật tuỳ chọn “Không dùng ~/.claude/settings.json khi gọi Claude” để dùng tài khoản claude.ai đã đăng nhập.
 

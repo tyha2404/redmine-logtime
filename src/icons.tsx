@@ -94,7 +94,7 @@ export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: numb
 
 /**
  * The app icon (src-tauri/icons/source.svg) without its shadow margin, in
- * Redmine's header blue and top-bar navy:
+ * the light theme's accent blue and top-bar navy:
  * workdays filled to the daily quota line, today still filling.
  */
 export function BrandMark({ size = 24 }: { size?: number }) {
@@ -102,19 +102,20 @@ export function BrandMark({ size = 24 }: { size?: number }) {
     <svg className="brand-mark" width={size} height={size} viewBox="100 100 824 824" aria-hidden focusable="false">
       <defs>
         <linearGradient id="brand-tile" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#628db6" />
+          <stop offset="0" stopColor="#116699" />
           <stop offset="1" stopColor="#3e5b76" />
         </linearGradient>
       </defs>
       <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#brand-tile)" />
       {/* A light rim keeps the tile apart from the navy rail it sits on. */}
-      <rect x="116" y="116" width="792" height="792" rx="170" fill="none" stroke="#fff" strokeOpacity="0.35" strokeWidth="32" />
+      <rect x="116" y="116" width="792" height="792" rx="170" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="32" />
       <rect x="288" y="356" width="76" height="372" rx="20" fill="#fff" />
       <rect x="412" y="356" width="76" height="372" rx="20" fill="#fff" />
       <rect x="536" y="356" width="76" height="372" rx="20" fill="#fff" />
       <rect x="660" y="356" width="76" height="372" rx="20" fill="#fff" fillOpacity="0.18" />
       <rect x="660" y="552" width="76" height="176" rx="20" fill="#fff" />
-      <rect x="256" y="318" width="512" height="20" rx="10" fill="#a8e2a4" />
+      <rect x="248" y="310" width="528" height="36" rx="18" fill="#fff" />
+      <rect x="256" y="318" width="512" height="20" rx="10" fill="#3a8a3a" />
     </svg>
   );
 }

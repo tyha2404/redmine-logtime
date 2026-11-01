@@ -12,7 +12,7 @@ export interface Settings {
   holidays: string[];
   /** Kinds of leave; HR opens a parent issue per month in each one's project. */
   leave_types: LeaveType[];
-  /** Start of a leave issue's subject, e.g. "BE - Tỷ". */
+  /** Start of a leave issue's subject, e.g. "BE - Tên". */
   leave_name: string;
   default_activity_id: number | null;
   subtask_tracker_id: number | null;

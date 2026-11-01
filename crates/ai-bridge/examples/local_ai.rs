@@ -12,7 +12,7 @@ use ai_bridge::{ClaudeRunner, RedmineMcp};
 use chrono::NaiveDate;
 
 const REPORT: &str = "Dạ em xin gửi báo cáo công việc tuần này 26/10/2026 ạ
-1. Davipharm - Salex
+1. Dự án ABC
 Sửa feedback công nợ
 Review Module Sự kiện
 

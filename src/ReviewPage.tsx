@@ -22,6 +22,18 @@ import QuotaRail from "./QuotaRail";
 import ReportComposer, { type ComposerHandle } from "./ReportComposer";
 import { useToast } from "./toast";
 import type { DraftApi } from "./useDraft";
+import WeekGrid from "./WeekGrid";
+
+type Layout = "grid" | "list";
+const LAYOUT_KEY = "review-layout";
+
+function savedLayout(): Layout {
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
 
 type Phase = { kind: "idle" } | { kind: "confirm" } | { kind: "running"; ops: Op[] } | { kind: "done"; batch: Batch };
 
@@ -47,6 +59,15 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [profileTracker, setProfileTracker] = useState<number | null>(null);
   const composer = useRef<ComposerHandle>(null);
+  const [layout, setLayoutState] = useState<Layout>(savedLayout);
+  const setLayout = (l: Layout) => {
+    setLayoutState(l);
+    try {
+      localStorage.setItem(LAYOUT_KEY, l);
+    } catch {
+      // Only a convenience; the default layout is fine.
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -140,6 +161,14 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
           </h2>
           {view && view.days.length > 0 && (
             <div className="row">
+              <div className="segmented layout-switch" role="radiogroup" aria-label="Cách xem hàng chờ">
+                <button role="radio" aria-checked={layout === "grid"} onClick={() => setLayout("grid")}>
+                  Bảng tuần
+                </button>
+                <button role="radio" aria-checked={layout === "list"} onClick={() => setLayout("list")}>
+                  Danh sách
+                </button>
+              </div>
               <button className="btn ghost small" onClick={() => toggle(allIds, true)}>
                 Chọn tất cả
               </button>
@@ -159,6 +188,15 @@ export default function ReviewPage({ settings, draft, focusReport, onOpenHistory
               Chưa có gì chờ ghi. Dán báo cáo ở trên, hoặc vào Lịch tháng, chọn một ngày rồi thêm logtime hay nghỉ phép.
             </p>
           </div>
+        ) : view && layout === "grid" ? (
+          <WeekGrid
+            view={view}
+            draft={draft}
+            settings={settings}
+            selected={selected}
+            onToggle={toggle}
+            disabled={running}
+          />
         ) : (
           view?.days.map((day) => (
             <DayBlock

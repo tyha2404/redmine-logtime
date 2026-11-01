@@ -27,7 +27,7 @@ let settings: Settings = {
     { key: "sick", label: "Nghỉ đột xuất", project_id: 109, project_name: "Sick Leave", activity_id: 22, verb: "xin nghỉ đột xuất", days_per_year: 4 },
     { key: "unpaid", label: "Nghỉ không lương", project_id: 110, project_name: "Unpaid Leave", activity_id: 23, verb: "xin nghỉ không lương", days_per_year: null },
   ],
-  leave_name: "BE - Minh",
+  leave_name: "BE - Tên",
   default_activity_id: 9,
   subtask_tracker_id: 4,
   claude_ignore_user_settings: true,
@@ -35,11 +35,11 @@ let settings: Settings = {
 
 const iso = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
 let nextEntry = 1000;
-const entry = (day: number, issue: number, hours: number, comments: string, project = "Davipharm - Salex"): TimeEntry => ({
+const entry = (day: number, issue: number, hours: number, comments: string, project = "Dự án ABC"): TimeEntry => ({
   id: nextEntry++,
   project: { id: project === "Annual Leave" ? 108 : 1, name: project },
   issue: { id: issue },
-  user: { id: 6, name: "Minh Trần" },
+  user: { id: 6, name: "Dev A" },
   activity: { id: 9, name: "Development" },
   hours,
   comments,
@@ -69,7 +69,7 @@ let draft: Draft = {
       parent_id: 3,
       parent_subject: "Báo cáo doanh số theo vùng",
       project_id: 1,
-      project_name: "Davipharm - Salex",
+      project_name: "Dự án ABC",
       tracker_id: 4,
       subject: "[FE] Biểu đồ doanh số theo vùng",
     },
@@ -80,7 +80,7 @@ let draft: Draft = {
       project_id: 108,
       project_name: "Annual Leave",
       tracker_id: 5,
-      subject: "BE - Minh xin nghỉ phép 1/2 ngày 28/10/2026",
+      subject: "BE - Tên xin nghỉ phép 1/2 ngày 28/10/2026",
       start_date: "2026-10-28",
     },
   ],
@@ -166,20 +166,20 @@ const PROFILE: Profile = {
     tracker_ids: [2],
     tracker_names: ["Feature"],
     author_ids: [5],
-    author_names: ["Lan Nguyễn"],
+    author_names: ["BA B"],
     role_names: ["Manager"],
     description:
-      "Task cha là issue tracker Feature (không có parent) do Lan Nguyễn tạo; developer tạo sub-task tracker Task dưới Feature đó.",
+      "Task cha là issue tracker Feature (không có parent) do BA B tạo; developer tạo sub-task tracker Task dưới Feature đó.",
   },
   subtask_tracker_id: 4,
   leave_issue_id: 6,
   projects: [
-    { id: 1, name: "Davipharm - Salex", identifier: "davipharm-salex" },
+    { id: 1, name: "Dự án ABC", identifier: "du-an-abc" },
     { id: 2, name: "Nội bộ", identifier: "noi-bo" },
   ],
   naming: "Sub-task đặt tên tiếng Việt, đôi khi có tiền tố tầng như [FE].",
   summary:
-    "Developer là Minh Trần (id 6, role Developer), làm việc trong 2 dự án: Davipharm - Salex và Nội bộ. Task cha là các issue tracker Feature không có parent, đều do Lan Nguyễn (id 5) tạo: #1 “Quản lý công nợ khách hàng”, #2 “Module Sự kiện”, #3 “Báo cáo doanh số theo vùng”. Developer tự tạo sub-task tracker Task, gán cho chính mình và log time trên sub-task. Để tìm task cha cho một dòng báo cáo, so khớp nội dung với subject của Feature; nếu đã có sub-task của developer dưới Feature đó thì dùng lại. Nghỉ phép: issue con dưới task cha của HR mỗi tháng trong ESTUARY → GNA.",
+    "Developer là Dev A (id 6, role Developer), làm việc trong 2 dự án: Dự án ABC và Nội bộ. Task cha là các issue tracker Feature không có parent, đều do BA B (id 5) tạo: #1 “Quản lý công nợ khách hàng”, #2 “Module Sự kiện”, #3 “Báo cáo doanh số theo vùng”. Developer tự tạo sub-task tracker Task, gán cho chính mình và log time trên sub-task. Để tìm task cha cho một dòng báo cáo, so khớp nội dung với subject của Feature; nếu đã có sub-task của developer dưới Feature đó thì dùng lại. Nghỉ phép: issue con dưới task cha HR tạo mỗi tháng.",
   user_notes: "",
   generated_at: "2026-10-28T16:40:00Z",
 };
@@ -192,7 +192,7 @@ const brief = (id: number, subject: string, tracker: string, parent: number | nu
   id,
   subject,
   project_id: 1,
-  project_name: "Davipharm - Salex",
+  project_name: "Dự án ABC",
   tracker,
   status: "New",
   parent_id: parent,
@@ -209,7 +209,7 @@ const task = (
 ) => ({
   key,
   text,
-  project_hint: "Davipharm - Salex",
+  project_hint: "Dự án ABC",
   parent_issue_id: parent,
   parent_confidence: confidence,
   parent_reason: reason,
@@ -287,7 +287,7 @@ const BATCHES: Batch[] = [
     label: "1 logtime, 21/10",
     redmine_url: settings.redmine_url,
     ops: [
-      { id: 11, seq: 0, payload: { op: "create_time_entry", ...item("y1", 21, { type: "issue", issue_id: 16930, label: "#16930 BE - Minh xin nghỉ phép ngày 21/10/2026" }, 8, "Nghỉ phép năm", "leave") }, status: "undone", result_id: 1100, error: null },
+      { id: 11, seq: 0, payload: { op: "create_time_entry", ...item("y1", 21, { type: "issue", issue_id: 16930, label: "#16930 BE - Tên xin nghỉ phép ngày 21/10/2026" }, 8, "Nghỉ phép năm", "leave") }, status: "undone", result_id: 1100, error: null },
     ],
   },
 ];
@@ -306,7 +306,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       fresh = false;
       return delay(undefined);
     case "test_connection":
-      return delay({ id: 6, login: "minh.tran", firstname: "Minh", lastname: "Trần" }, 900);
+      return delay({ id: 6, login: "dev.a", firstname: "Dev", lastname: "A" }, 900);
     case "save_settings":
       settings = args.settings as Settings;
       return delay(undefined);
@@ -350,7 +350,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "analyze_report":
       return delay({ ...REPORT_VIEW, day: (args.day as string | null) ?? null }, 1200);
     case "discover_leave":
-      return delay({ types: settings.leave_types, name: "BE - Minh" }, 700);
+      return delay({ types: settings.leave_types, name: "BE - Tên" }, 700);
     case "leave_parent": {
       const [y, m] = String(args.date).split("-");
       const t = settings.leave_types.find((x) => x.project_id === args.projectId);
@@ -369,7 +369,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         id: nextEntry++,
         project: { id: projectId, name: project },
         issue: { id: issue },
-        user: { id: 6, name: "Minh Trần" },
+        user: { id: 6, name: "Dev A" },
         activity: { id: 21, name: project },
         hours,
         comments: "",
@@ -398,12 +398,12 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "lookup_issue":
       return delay({
         id: args.id,
-        project: { id: 1, name: "Davipharm - Salex" },
+        project: { id: 1, name: "Dự án ABC" },
         tracker: { id: 2, name: "Feature" },
         status: { id: 1, name: "New" },
         subject: "Quản lý công nợ khách hàng",
         parent: null,
-        author: { id: 5, name: "Lan Nguyễn" },
+        author: { id: 5, name: "BA B" },
         assigned_to: null,
       });
     case "preview_items":

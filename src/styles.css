@@ -971,14 +971,17 @@ body {
  * on the card's floor, so every card is filled edge to edge.
  */
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
 }
+/* Wrapping flex rather than a grid, so a short last row still spans the page. */
 .settings-grid > .card {
   display: flex;
   flex-direction: column;
+  flex: 1 1 min(100%, 460px);
+  min-width: 0;
   margin: 0;
 }
 .card-foot {
@@ -2648,7 +2651,6 @@ select::-ms-expand {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  max-width: 760px;
 }
 .leave-month h3 {
   margin: 0 0 4px;
@@ -2667,7 +2669,7 @@ select::-ms-expand {
 .leave-month li {
   display: grid;
   /* Fixed tracks so the columns line up from one month to the next. */
-  grid-template-columns: 150px 160px minmax(0, 1fr) 104px;
+  grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) minmax(0, 2fr) 104px;
   align-items: center;
   gap: 12px;
   padding: 9px 14px;
@@ -2744,3 +2746,377 @@ select::-ms-expand {
   }
 }
 
+
+/* Queue as a weekly timesheet (WeekGrid): a row per task, a column per day,
+   the day totals at the bottom coloured like the calendar's statuses. */
+.layout-switch {
+  margin: 0 8px 0 0;
+}
+.layout-switch button {
+  flex: none;
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+.wgrid-weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 14px;
+}
+.wgrid {
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+.wgrid-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 14px 16px 10px;
+}
+.wgrid-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.wgrid-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.wgrid-sum strong {
+  color: var(--pending);
+}
+.wgrid-flag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.wgrid-flag.is-short {
+  background: color-mix(in srgb, var(--partial) 16%, transparent);
+  color: var(--partial);
+}
+.wgrid-flag.is-over {
+  background: color-mix(in srgb, var(--missing) 14%, transparent);
+  color: var(--missing);
+}
+.wgrid-flag.is-ok {
+  background: color-mix(in srgb, var(--full) 14%, transparent);
+  color: var(--full);
+}
+
+.wgrid-scroll {
+  overflow-x: auto;
+}
+.wgrid-table {
+  width: 100%;
+  min-width: calc(220px + var(--cols) * 56px + 60px);
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+.wgrid-table th,
+.wgrid-table td {
+  border-top: 1px solid var(--line);
+  padding: 0;
+  font-weight: inherit;
+}
+.wgrid-table thead th {
+  border-top: 0;
+}
+.wgrid-table th.wgrid-task {
+  width: 36%;
+  padding: 8px 8px 8px 16px;
+  text-align: left;
+}
+.wgrid-table thead th.wgrid-task {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: bottom;
+}
+.wgrid-table .wgrid-day {
+  padding: 4px 0 8px;
+  text-align: center;
+  border-bottom: 3px solid transparent;
+}
+.wgrid-table .wgrid-total {
+  width: 60px;
+  padding-right: 14px;
+  text-align: right;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-left: 1px solid var(--line);
+}
+.wgrid-table thead .wgrid-total {
+  font-weight: 500;
+  vertical-align: bottom;
+  padding-bottom: 8px;
+}
+.wgrid-wd {
+  display: block;
+  color: var(--ink-2);
+  font-size: 11.5px;
+}
+.wgrid-dn {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.wgrid-day.is-short {
+  border-bottom-color: var(--partial);
+}
+.wgrid-day.is-short .wgrid-dn {
+  color: var(--partial);
+}
+.wgrid-day.is-over {
+  border-bottom-color: var(--missing);
+}
+.wgrid-day.is-over .wgrid-dn {
+  color: var(--missing);
+}
+.wgrid-day.is-ok {
+  border-bottom-color: var(--full);
+}
+.wgrid-day.is-off .wgrid-dn,
+.wgrid-day.is-future .wgrid-dn {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.wgrid-day.is-today .wgrid-wd {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.wgrid-task-in {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.wgrid-task-in > input {
+  margin-top: 3px;
+}
+.wgrid-label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.wgrid-name {
+  font-weight: 500;
+  line-height: 1.35;
+}
+.wgrid-name .ritem-new {
+  margin-right: 6px;
+}
+.wgrid-sub,
+.wgrid-notes {
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wgrid-x {
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+}
+.wgrid-row:hover .wgrid-x,
+.wgrid-x:focus-visible {
+  opacity: 1;
+}
+.wgrid-row.is-leave .wgrid-name {
+  color: var(--leave);
+}
+.wgrid-row.is-leave .ritem-new {
+  background: color-mix(in srgb, var(--leave) 14%, transparent);
+  color: var(--leave);
+}
+.wgrid-row.is-off .wgrid-label {
+  opacity: 0.45;
+}
+
+/* A cell: tinted when something will be written, faint "+" to add. */
+.wgrid-cell {
+  position: relative;
+  height: 44px;
+  text-align: center;
+}
+.wgrid-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--pending);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wgrid-btn:disabled {
+  cursor: default;
+}
+.wgrid-btn sup {
+  margin-left: 1px;
+  font-size: 9px;
+  font-weight: 600;
+}
+.wgrid-cell.has-items .wgrid-btn {
+  background: color-mix(in srgb, var(--pending) 11%, transparent);
+}
+.wgrid-row.is-leave .wgrid-btn {
+  color: var(--leave);
+}
+.wgrid-row.is-leave .wgrid-cell.has-items .wgrid-btn {
+  background: color-mix(in srgb, var(--leave) 13%, transparent);
+}
+.wgrid-btn:not(:disabled):hover {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.wgrid-cell:not(.has-items) .wgrid-btn:not(:disabled):hover::after {
+  content: "+";
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.wgrid-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.wgrid-cell.is-off .wgrid-btn {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+.wgrid-cell.has-error::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 0 9px 9px 0;
+  border-color: transparent var(--missing) transparent transparent;
+  pointer-events: none;
+}
+.wgrid-cell.is-editing input {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.wgrid-existing .wgrid-group {
+  padding: 10px 16px 4px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.wgrid-existing tr:not(:first-child) th,
+.wgrid-existing tr:not(:first-child) td {
+  border-top-style: dashed;
+  background: var(--surface-2);
+}
+.wgrid-existing tr:nth-child(2) th,
+.wgrid-existing tr:nth-child(2) td {
+  border-top: 0;
+}
+.wgrid-existing .wgrid-name {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.wgrid-dot {
+  width: 9px;
+  height: 9px;
+  margin: 5px 3px 0 3px;
+  border-radius: 2px;
+  background: var(--full);
+  flex-shrink: 0;
+}
+.wgrid-cell.is-existing {
+  height: 38px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+
+.wgrid-table tfoot th,
+.wgrid-table tfoot td {
+  border-top: 2px solid var(--line);
+  padding-top: 8px;
+  padding-bottom: 10px;
+}
+.wgrid-table tfoot th.wgrid-task {
+  font-size: 13px;
+  font-weight: 600;
+}
+.wgrid-daytotal {
+  text-align: center;
+  line-height: 1.15;
+}
+.wgrid-dt {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+.wgrid-dmark {
+  display: block;
+  min-height: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.wgrid-daytotal.is-ok {
+  color: var(--full);
+}
+.wgrid-daytotal.is-short {
+  color: var(--partial);
+  background: color-mix(in srgb, var(--partial) 10%, transparent);
+}
+.wgrid-daytotal.is-over {
+  color: var(--missing);
+  background: color-mix(in srgb, var(--missing) 9%, transparent);
+}
+.wgrid-daytotal.is-off,
+.wgrid-daytotal.is-future {
+  color: var(--ink-2);
+}
+
+.wgrid-notes-list {
+  margin: 0;
+  padding: 10px 16px 12px 34px;
+  border-top: 1px solid var(--line);
+  color: var(--partial);
+  font-size: 12.5px;
+}
+.wgrid-notes-list li + li {
+  margin-top: 3px;
+}
+.wgrid-notes-list .is-error {
+  color: var(--missing);
+}
+.review-head {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.review-head .row {
+  flex-wrap: wrap;
+}

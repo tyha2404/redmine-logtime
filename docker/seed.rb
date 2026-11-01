@@ -14,13 +14,13 @@ def make_user(login, first, last)
   end
 end
 
-ba  = make_user('ba1', 'Lan', 'Nguyễn')
-dev = make_user('dev1', 'Minh', 'Trần')
+ba  = make_user('ba1', 'BA', 'B')
+dev = make_user('dev1', 'Dev', 'A')
 
 # Lets developers undo their own entries (default Developer role cannot).
 Role.find_by(name: 'Developer')&.add_permission!(:edit_own_time_entries)
 
-if Project.exists?(identifier: 'davipharm-salex')
+if Project.exists?(identifier: 'du-an-abc')
   puts "Already seeded. dev1 API key: #{dev.api_key}"
   exit
 end
@@ -42,7 +42,7 @@ def make_project(name, identifier, members)
   end
 end
 
-salex = make_project('Davipharm - Salex', 'davipharm-salex', [[ba, 'Manager'], [dev, 'Developer']])
+salex = make_project('Dự án ABC', 'du-an-abc', [[ba, 'Manager'], [dev, 'Developer']])
 internal = make_project('Nội bộ', 'noi-bo', [[dev, 'Developer']])
 
 def make_issue(project, tracker, subject, author, assignee: nil, parent: nil)

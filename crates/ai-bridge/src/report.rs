@@ -213,7 +213,7 @@ Today is {today} ({weekday}). Working days (ISO, Monday=1): {workdays:?}. A full
 ## Report format
 - A WEEKLY report covers the whole week (e.g. "báo cáo công việc tuần này 26/10/2026" → Monday 26/10 to Friday 30/10).
 - DAILY reports cover one date each (headers like "Thứ 2 26/10", "Ngày 27/10", "T3:").
-- Lines under a project header (e.g. "1. Davipharm - Salex") belong to that project.
+- Lines under a project header (e.g. "1. Dự án ABC") belong to that project.
 - Each report line is its own task. The same work appearing on several days is ONE task (same `key`).
 
 ## What to produce
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn prompt_embeds_report_and_profile() {
         let p = prompt(
-            "1. Davipharm - Salex\nSửa feedback công nợ",
+            "1. Dự án ABC\nSửa feedback công nợ",
             &ReportContext {
                 today: d(28),
                 hours_per_day: 8.0,
@@ -547,7 +547,7 @@ mod tests {
         );
         assert!(p.contains("Today is 2026-10-28 (Wed)"));
         assert!(p.contains("Task cha là Feature."));
-        assert!(p.contains("<report>\n1. Davipharm - Salex\nSửa feedback công nợ\n</report>"));
+        assert!(p.contains("<report>\n1. Dự án ABC\nSửa feedback công nợ\n</report>"));
         assert!(!p.contains("ONE day"));
     }
 }

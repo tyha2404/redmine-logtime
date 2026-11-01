@@ -40,7 +40,7 @@ function guideForWidth(): Guide {
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "?";
-  // Vietnamese names end with the given name: "Hà Thiện Tỷ" → "T".
+  // Vietnamese names end with the given name: "Họ Đệm Tên" → "T".
   const last = words[words.length - 1];
   return (words.length > 1 ? words[0][0] + last[0] : last.slice(0, 2)).toUpperCase();
 }

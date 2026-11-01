@@ -14,7 +14,7 @@ pub struct Settings {
     /// Kinds of leave. Each lives in its own project, where HR opens a parent
     /// issue every month; a day off is a new sub-task of that month's parent.
     pub leave_types: Vec<LeaveType>,
-    /// How you appear at the start of a leave issue's subject, e.g. "BE - Tỷ".
+    /// How you appear at the start of a leave issue's subject, e.g. "BE - Tên".
     pub leave_name: String,
     pub default_activity_id: Option<u32>,
     /// Tracker used when creating sub-tasks under a BA's parent issue.

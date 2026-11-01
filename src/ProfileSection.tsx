@@ -121,7 +121,7 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ví dụ: Task cha luôn là tracker Feature do chị Lan tạo; dự án Salex đặt tên task con có tiền tố [SX]."
+            placeholder="Ví dụ: Task cha luôn là tracker Feature do BA tạo; dự án ABC đặt tên task con có tiền tố [ABC]."
           />
         </label>
         <div className="card-foot">

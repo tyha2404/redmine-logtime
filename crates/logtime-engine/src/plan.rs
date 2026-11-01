@@ -228,7 +228,7 @@ mod tests {
             parent_id: 1,
             parent_subject: "Công nợ".into(),
             project_id: 3,
-            project_name: "Salex".into(),
+            project_name: "ABC".into(),
             tracker_id: 4,
             subject: format!("Task {key}"),
             start_date: None,
@@ -240,7 +240,7 @@ mod tests {
             id: 900 + day,
             project: IdName {
                 id: 3,
-                name: "Salex".into(),
+                name: "ABC".into(),
             },
             issue: Some(IdRef { id: issue }),
             user: IdName {

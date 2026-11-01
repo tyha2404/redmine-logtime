@@ -1,6 +1,6 @@
 //! Leave as HR runs it: one project per kind of leave, a parent issue per
 //! month in each ("Xin nghỉ phép Tháng 10.2026"), and one sub-task per day
-//! off ("BE - Tỷ xin nghỉ phép ngày 29/10/2026").
+//! off ("BE - Tên xin nghỉ phép ngày 29/10/2026").
 
 /// What a project holds, from its name: (key, label, verb for the subject).
 /// `None` when the name does not look like a leave project.
@@ -52,7 +52,7 @@ pub fn mentions_month(subject: &str, year: i32, month: u32) -> bool {
 }
 
 /// The part of a leave issue's subject before the leave itself, which is how
-/// the person names themselves: "BE - Tỷ off đột xuất ngày 19/10" → "BE - Tỷ".
+/// the person names themselves: "BE - Tên off đột xuất ngày 19/10" → "BE - Tên".
 pub fn name_from_subject(subject: &str) -> Option<String> {
     let chars: Vec<char> = subject.chars().collect();
     // Lowercase char by char so positions stay aligned with `chars`.
@@ -92,33 +92,33 @@ mod tests {
         assert!(!mentions_month("Xin nghỉ phép Tháng 11.2026", 2026, 1));
         assert!(!mentions_month("Xin nghỉ phép Tháng 10.2025", 2026, 10));
         assert!(!mentions_month("Xin nghỉ phép Tháng 10.20261", 2026, 10));
-        assert!(!mentions_month("Estuary Townhall Q3", 2026, 10));
+        assert!(!mentions_month("Townhall Q3 công ty", 2026, 10));
     }
 
     #[test]
     fn learns_the_name_prefix() {
         let n = |s| name_from_subject(s);
         assert_eq!(
-            n("BE - Tỷ off đột xuất ngày 19/10").as_deref(),
-            Some("BE - Tỷ")
+            n("BE - Tên off đột xuất ngày 19/10").as_deref(),
+            Some("BE - Tên")
         );
         assert_eq!(
-            n("CS - Thảo Quyên xin nghỉ phép ngày 01 - 02/10").as_deref(),
-            Some("CS - Thảo Quyên")
+            n("CS - Tên Đệm xin nghỉ phép ngày 01 - 02/10").as_deref(),
+            Some("CS - Tên Đệm")
         );
         assert_eq!(
-            n("DevOps: Hồ Tấn Lộc xin nghỉ phép không lương").as_deref(),
-            Some("DevOps: Hồ Tấn Lộc")
+            n("DevOps: Họ Đệm Tên xin nghỉ phép không lương").as_deref(),
+            Some("DevOps: Họ Đệm Tên")
         );
         assert_eq!(
-            n("PS-Minh Hạnh-Nghỉ phép ngày 29/10/2026").as_deref(),
-            Some("PS-Minh Hạnh")
+            n("PS-Đệm Tên-Nghỉ phép ngày 29/10/2026").as_deref(),
+            Some("PS-Đệm Tên")
         );
         assert_eq!(
-            n("TL - Minh Nhật nghỉ phép 05-06/10").as_deref(),
-            Some("TL - Minh Nhật")
+            n("TL - Đệm Tên nghỉ phép 05-06/10").as_deref(),
+            Some("TL - Đệm Tên")
         );
-        assert_eq!(n("Estuary Townhall Q3"), None);
+        assert_eq!(n("Townhall Q3 công ty"), None);
     }
 
     #[test]
