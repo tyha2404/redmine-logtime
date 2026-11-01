@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { CardsSkeleton, RowsSkeleton, Skel } from "./Skeleton";
+import { CardsSkeleton, RowsSkeleton } from "./Skeleton";
 import type { Settings } from "./api";
 import { fmtDayLong, fmtHours } from "./fmt";
 import { Icon } from "./icons";
-import { fmtDays, leaveYear, shortLabel, useLeaveEntries, type LeaveBalance, type LeaveDay } from "./leave";
-import IssueLink from "./IssueLink";
+import PageHeader, { RefreshButton } from "./PageHeader";
+import { fmtDays, leaveYear, useLeaveEntries, type LeaveBalance, type LeaveDay } from "./leave";
 
 /**
  * A year of leave at a glance: for each kind, the allowance as a row of day
@@ -12,10 +12,9 @@ import IssueLink from "./IssueLink";
  */
 export default function LeavePage(props: {
   settings: Settings;
-  onOpenCalendar: () => void;
   onOpenSettings: () => void;
 }) {
-  const { settings, onOpenCalendar, onOpenSettings } = props;
+  const { settings, onOpenSettings } = props;
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [reloads, setReloads] = useState(0);
@@ -28,7 +27,7 @@ export default function LeavePage(props: {
   if (settings.leave_types.length === 0) {
     return (
       <div className="page-pad">
-        <h1 className="page-title">Ngày nghỉ</h1>
+        <PageHeader title="Ngày nghỉ" />
         <div className="empty">
           <p>Chưa cài loại nghỉ. Vào Cài đặt, mục Nghỉ phép, bấm “Tìm trên Redmine”.</p>
           <button className="btn primary" onClick={onOpenSettings}>
@@ -39,72 +38,44 @@ export default function LeavePage(props: {
     );
   }
 
-  const total = data?.days.reduce((s, d) => s + d.days, 0) ?? 0;
-
   return (
     <div className="page-pad leave-page">
-      <header className="leave-head">
-        <h1 className="page-title">Ngày nghỉ</h1>
-        <div className="month-nav">
-          <div className="nav-group" role="group" aria-label="Chọn năm">
-            <button className="nav-btn icon-only" onClick={() => setYear(year - 1)} aria-label="Năm trước" title="Năm trước">
-              <Icon name="chevronLeft" />
-            </button>
-            <span className="nav-btn leave-year" aria-live="polite">
-              {year}
-            </span>
-            <button
-              className="nav-btn icon-only"
-              onClick={() => setYear(year + 1)}
-              disabled={year >= thisYear + 1}
-              aria-label="Năm sau"
-              title="Năm sau"
-            >
-              <Icon name="chevronRight" />
-            </button>
-          </div>
-          <button
-            className={`nav-btn icon-only refresh${loading ? " is-loading" : ""}`}
-            onClick={() => setReloads((n) => n + 1)}
-            disabled={loading}
-            aria-label={loading ? "Đang tải lại từ Redmine" : "Tải lại từ Redmine"}
-            title="Tải lại từ Redmine"
-          >
-            <Icon name="refresh" />
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="Ngày nghỉ"
+        description="Số ngày đã nghỉ và quỹ phép còn lại trong năm. Muốn xin nghỉ, chọn ngày trên Lịch tháng."
+        actions={
+          <>
+            <div className="nav-group" role="group" aria-label="Chọn năm">
+              <button className="nav-btn icon-only" onClick={() => setYear(year - 1)} aria-label="Năm trước" title="Năm trước">
+                <Icon name="chevronLeft" />
+              </button>
+              <span className="nav-btn leave-year" aria-live="polite">
+                {year}
+              </span>
+              <button
+                className="nav-btn icon-only"
+                onClick={() => setYear(year + 1)}
+                disabled={year >= thisYear + 1}
+                aria-label="Năm sau"
+                title="Năm sau"
+              >
+                <Icon name="chevronRight" />
+              </button>
+            </div>
+            <RefreshButton loading={loading} onClick={() => setReloads((n) => n + 1)} />
+          </>
+        }
+      />
 
       {error ? (
         <p className="notice error">{error}</p>
       ) : !data ? (
         <>
-          <Skel w="58%" h={16} style={{ margin: "14px 0 22px" }} />
           <CardsSkeleton cards={3} className="is-leave" />
           <RowsSkeleton rows={4} />
         </>
       ) : (
         <>
-          <p className="month-summary">
-            {total > 0 ? (
-              <>
-                Năm {year} bạn đã nghỉ <strong>{fmtDays(total)} ngày</strong>
-                {data.balances.filter((b) => b.used > 0).length > 1 &&
-                  `: ${data.balances
-                    .filter((b) => b.used > 0)
-                    .map((b) => `${fmtDays(b.used)} ngày ${shortLabel(b.type.label).toLowerCase()}`)
-                    .join(", ")}`}
-                .
-              </>
-            ) : (
-              `Năm ${year} chưa có ngày nghỉ nào trên Redmine.`
-            )}{" "}
-            Xin nghỉ: chọn ngày trên{" "}
-            <button className="link" onClick={onOpenCalendar}>
-              Lịch tháng
-            </button>
-            .
-          </p>
 
           <div className="leave-balances">
             {data.balances.map((b) => (
@@ -194,7 +165,7 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
                   {d.days >= 1 ? "Cả ngày" : "Nửa ngày"}
                   {Math.abs(d.hours - d.days * hoursPerDay) > 1e-6 && <span className="muted"> ({fmtHours(d.hours)})</span>}
                 </span>
-                <span className="leave-ref muted">{d.issueId ? <IssueLink id={d.issueId} /> : ""}</span>
+                <span className="leave-ref muted">{d.issueId ? `#${d.issueId}` : ""}</span>
               </li>
             ))}
           </ul>

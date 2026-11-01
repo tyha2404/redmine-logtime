@@ -39,7 +39,7 @@ export default function AboutCard({ update }: { update: UpdateState }) {
 
   return (
     <section className="card about" id="about">
-      <h2>Phiên bản</h2>
+      <h3>Phiên bản</h3>
       <p className="about-version">
         Bản đang dùng <strong>{APP_VERSION}</strong>
       </p>

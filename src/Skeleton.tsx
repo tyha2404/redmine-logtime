@@ -20,11 +20,26 @@ export function SkelLines({ lines = 3, widths = ["92%", "76%", "84%", "60%"] }: 
   );
 }
 
-/** A month grid: seven day columns and the week total, five weeks. */
-export function CalendarSkeleton() {
+const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+/** A month grid like the real one: weekday heads, the week column, `weeks` rows. */
+export function CalendarSkeleton({ weeks = 5 }: { weeks?: number }) {
   return (
-    <div className="grid is-skeleton" aria-busy="true" aria-label="Đang tải lịch tháng">
-      {Array.from({ length: 5 * 8 }, (_, i) =>
+    <div
+      className="grid is-skeleton"
+      aria-busy="true"
+      aria-label="Đang tải lịch tháng"
+      style={{ "--weeks": weeks } as CSSProperties}
+    >
+      {WEEKDAYS.map((w) => (
+        <div key={w} className="grid-head" aria-hidden>
+          {w}
+        </div>
+      ))}
+      <div className="grid-head week-head" aria-hidden>
+        Tuần
+      </div>
+      {Array.from({ length: weeks * 8 }, (_, i) =>
         i % 8 === 7 ? (
           <span key={i} className="week-skel" aria-hidden>
             <Skel w={34} h={14} />
@@ -90,12 +105,33 @@ export function PanelSkeleton() {
 
 /** The app before its settings are read: the calendar page's layout. */
 export function PageSkeleton() {
+  const now = new Date();
+  const leading = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
+  const weeks = Math.ceil((leading + new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()) / 7);
   return (
     <div className="calendar-page" aria-busy="true" aria-label="Đang tải">
+      <div className="page-head">
+        <div className="page-head-text">
+          <Skel w={150} h={31} />
+          <Skel w={340} h={14} style={{ marginTop: 8 }} />
+        </div>
+        <div className="page-actions">
+          <Skel w={340} h={36} r={10} />
+        </div>
+      </div>
       <section className="calendar-col">
-        <Skel w={260} h={40} style={{ marginBottom: 16 }} />
-        <Skel w="62%" h={16} style={{ marginBottom: 26 }} />
-        <CalendarSkeleton />
+        <header className="month-head">
+          <div className="month-stats">
+            <Skel w="auto" h={60} r={0} />
+            <Skel w="auto" h={60} r={0} />
+            <Skel w="auto" h={60} r={0} />
+            <Skel w="auto" h={60} r={0} />
+          </div>
+        </header>
+        <CalendarSkeleton weeks={weeks} />
+        <div className="legend legend-skel">
+          <Skel w={420} h={14} />
+        </div>
       </section>
       <PanelSkeleton />
     </div>

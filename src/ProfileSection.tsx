@@ -72,7 +72,7 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
   return (
     <>
       <section className="card">
-        <h2>Cấu trúc Redmine</h2>
+        <h3>Cấu trúc Redmine</h3>
         <p className="hint">
           Claude đọc Redmine (chỉ đọc) để biết task cha do BA tạo trông thế nào và tracker của task con.
         </p>
@@ -114,7 +114,7 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
       </section>
 
       <section className="card">
-        <h2>Ghi chú cho Claude</h2>
+        <h3>Ghi chú cho Claude</h3>
         <p className="hint">Claude ưu tiên ghi chú này hơn kết quả tự phân tích khi tìm task cha cho báo cáo.</p>
         <label className="field grow-field">
           <span>Ghi chú</span>

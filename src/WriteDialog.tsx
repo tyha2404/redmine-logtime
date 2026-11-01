@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { api, errorText, type ApiCall, type Batch, type Op, type WritePlan } from "./api";
 import { describeOp, fmtDayLong, fmtDayShort, fmtHours, targetLabel } from "./fmt";
-import IssueLink from "./IssueLink";
 import { useModal } from "./useModal";
 
 type Phase =
@@ -112,7 +111,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                       <strong>{s.subject}</strong>
                       <span className="muted">
                         {" "}
-                        dưới <IssueLink id={s.parent_id} /> {s.parent_subject}
+                        dưới #{s.parent_id} {s.parent_subject}
                       </span>
                     </li>
                   ))}

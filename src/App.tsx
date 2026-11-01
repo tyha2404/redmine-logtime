@@ -17,7 +17,7 @@ type Page = "setup" | "calendar" | "review" | "leave" | "history" | "settings";
 
 type NavItem = { page: Exclude<Page, "setup">; label: string; icon: IconName };
 
-/** The guide in sections, like YouTube's: the work, then the app itself. */
+/** Daily work first, application preferences second. */
 const NAV: NavItem[][] = [
   [
     { page: "calendar", label: "Lịch tháng", icon: "calendar" },
@@ -33,9 +33,9 @@ const overlayTitleBar = inTauri && isMac;
 
 type Guide = "full" | "mini";
 
-/** Full guide on wide windows, mini below YouTube's breakpoint. */
+/** Preserve workspace for the calendar and its day panel on narrow windows. */
 function guideForWidth(): Guide {
-  return window.innerWidth > 1312 ? "full" : "mini";
+  return window.innerWidth >= 1280 ? "full" : "mini";
 }
 
 function initials(name: string): string {
@@ -66,6 +66,8 @@ function Shell() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   /** Where the user asked to go while Settings had unsaved changes. */
   const [leaveTo, setLeaveTo] = useState<Page | null>(null);
+  /** Pages slide in when the user switches, not when the first one replaces the loading skeleton. */
+  const [pageAnim, setPageAnim] = useState(false);
 
   useEffect(() => {
     const onResize = () => setGuide(guideForWidth());
@@ -104,6 +106,7 @@ function Shell() {
       if (target === "calendar" || target === "review" || target === "leave") loadSettings();
       setSettingsFocus(null);
       setReportFocus(false);
+      setPageAnim(true);
       setPage(target);
     },
     [loadSettings],
@@ -153,6 +156,7 @@ function Shell() {
             <BrandMark size={26} />
             <span className="brand-name">Logtime</span>
           </div>
+          {host && <span className="mast-context" data-tauri-drag-region>{host}</span>}
         </div>
         <div className="mast-end">
           {update.available && (
@@ -168,14 +172,11 @@ function Shell() {
               <Icon name="download" size={22} />
             </button>
           )}
-          <button
-            className="avatar"
-            title={me ? `${me} trên ${host}` : host}
-            aria-label={me ? `${me}, mở cài đặt` : "Mở cài đặt"}
-            onClick={() => go("settings")}
-          >
-            {me ? initials(me) : <Icon name="settings" size={16} />}
-          </button>
+          {me && (
+            <span className="avatar" title={`${me} trên ${host}`} aria-label={me}>
+              {initials(me)}
+            </span>
+          )}
         </div>
       </header>
 
@@ -200,16 +201,11 @@ function Shell() {
         ))}
 
         <footer className="guide-foot">
-          {host && (
-            <p className="rail-server" title={settings?.redmine_url}>
-              Đang dùng <strong>{host}</strong>
-            </p>
-          )}
           <p className="guide-version">Logtime {__APP_VERSION__}</p>
         </footer>
       </nav>
 
-      <main className="main">
+      <main className="main" data-page-anim={pageAnim ? "" : undefined}>
         {(page === null || !settings) && page !== "history" && page !== "settings" && <PageSkeleton />}
         {page === "calendar" && settings && (
           <CalendarPage
@@ -220,6 +216,7 @@ function Shell() {
               go("review");
               setReportFocus(true);
             }}
+            onOpenLeave={() => go("leave")}
           />
         )}
         {page === "review" && settings && (
@@ -233,7 +230,6 @@ function Shell() {
         {page === "leave" && settings && (
           <LeavePage
             settings={settings}
-            onOpenCalendar={() => go("calendar")}
             onOpenSettings={() => go("settings")}
           />
         )}

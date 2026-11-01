@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -19,6 +20,7 @@ import {
 
 /** The app's icons, all from Lucide (lucide.dev), by the role they play here. */
 const ICONS = {
+  chevronDown: ChevronDown,
   chevronLeft: ChevronLeft,
   chevronRight: ChevronRight,
   refresh: RefreshCw,

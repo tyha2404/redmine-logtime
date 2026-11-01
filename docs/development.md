@@ -130,13 +130,13 @@ Mỗi công ty tự tạo OAuth client; app không kèm client chung. Admin Goog
 1. Tạo project trên Google Cloud Console, bật **Google Chat API**.
 2. Trong trang cấu hình Google Chat API, điền tên app, ảnh đại diện và mô tả (Google yêu cầu kể cả khi chỉ đọc). Không cần bật tính năng tương tác.
 3. **OAuth consent screen**: chọn loại **Internal** để không cần Google xét duyệt quyền đọc tin nhắn.
-4. **Credentials → Create credentials → OAuth client ID**, loại **Desktop app**. Gửi Client ID và Client secret cho nhân viên nhập vào **Cài đặt → Google Chat**.
+4. **Credentials → Create credentials → OAuth client ID**, loại **Desktop app**. Gửi Client ID và Client secret cho nhân viên nhập vào **Cài đặt → Tài khoản → Google Chat**.
 
 Thử giao diện không cần Google: `make mock`, thêm `&gchat=0` vào URL để xem trạng thái chưa kết nối.
 
 ### Nghỉ phép
 
-Mỗi loại nghỉ tương ứng một project; mỗi tháng có task cha do HR tạo. App tạo issue con cho từng ngày nghỉ và ghi giờ vào đó. **Cài đặt → Nghỉ phép → Tìm trên Redmine** giúp tìm project, hoạt động và tên người dùng; cần **Lưu cài đặt** sau khi kiểm tra kết quả.
+Mỗi loại nghỉ tương ứng một project; mỗi tháng có task cha do HR tạo. App tạo issue con cho từng ngày nghỉ và ghi giờ vào đó. **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** giúp tìm project, hoạt động và tên người dùng; cần **Lưu cài đặt** sau khi kiểm tra kết quả.
 
 Seed Docker hiện dùng một issue nghỉ chung, chưa mô phỏng đầy đủ các project nghỉ và task cha theo tháng. Muốn thử toàn bộ luồng nghỉ phép, chuẩn bị thêm cấu trúc này trên Redmine local.
 

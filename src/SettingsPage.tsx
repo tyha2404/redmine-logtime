@@ -6,6 +6,7 @@ import { api, errorText, type Activity, type Settings, type SettingsView, type T
 import LeaveSettings from "./LeaveSettings";
 import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
+import PageHeader from "./PageHeader";
 import type { UpdateState } from "./useUpdate";
 
 const WEEKDAYS: [number, string][] = [
@@ -17,6 +18,14 @@ const WEEKDAYS: [number, string][] = [
   [6, "T7"],
   [7, "CN"],
 ];
+
+const SETTINGS_TABS = [
+  { id: "connection", label: "Tài khoản" },
+  { id: "work", label: "Lịch & nghỉ phép" },
+  { id: "integrations", label: "Ghi giờ & AI" },
+  { id: "application", label: "Ứng dụng" },
+] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
@@ -69,6 +78,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   { onSaved, onDirtyChange, update: updateState, focus },
   ref,
 ) {
+  const [tab, setTab] = useState<SettingsTab>(focus === "about" ? "application" : "connection");
   const [settings, setSettings] = useState<Settings | null>(null);
   /** What is on disk, to tell the user when the form has unsaved changes. */
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -122,7 +132,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   useImperativeHandle(ref, () => ({ save: () => saveRef.current() }), []);
 
   useEffect(() => {
-    if (loaded && focus) document.getElementById(focus)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (loaded && focus === "about") setTab("application");
   }, [loaded, focus]);
 
   if (!settings)
@@ -165,15 +175,18 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   const save = async (): Promise<boolean> => {
     const { dates, bad } = parseHolidays(holidayText);
     if (bad) {
+      setTab("work");
       setSaveNotice({ kind: "error", text: `Ngày lễ "${bad}" không đúng hoặc không có thật. Dùng 2026-09-02 hoặc 02/09/2026.` });
       return false;
     }
     const hpd = settings.hours_per_day;
     if (!(Number.isFinite(hpd) && hpd > 0 && hpd <= 24)) {
+      setTab("work");
       setSaveNotice({ kind: "error", text: "Số giờ mỗi ngày phải lớn hơn 0 và không quá 24." });
       return false;
     }
     if (settings.workdays.length === 0) {
+      setTab("work");
       setSaveNotice({ kind: "error", text: "Chọn ít nhất một ngày làm việc trong tuần." });
       return false;
     }
@@ -216,246 +229,330 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
 
   return (
     <div className="settings page-pad">
-      <h1 className="page-title">Cài đặt</h1>
+      <PageHeader title="Cài đặt" description="Kết nối tài khoản và điều chỉnh app theo cách làm việc của bạn." />
 
-      <div className="settings-grid">
-
-      <section className="card">
-        <h2>Kết nối Redmine</h2>
-        <label className="field">
-          <span>Địa chỉ Redmine</span>
-          <input
-            type="url"
-            placeholder="https://redmine.congty.vn"
-            value={settings.redmine_url}
-            onChange={(e) => update("redmine_url", e.target.value)}
-          />
-        </label>
-        <label className="field">
-          <span>API key</span>
-          <input
-            type="password"
-            autoComplete="off"
-            placeholder={
-              hasKey
-                ? `Đã lưu ${storage === "keychain" ? (isMac ? "trong Keychain" : "trong kho mật khẩu của máy") : "trên máy"}. Nhập key mới để thay.`
-                : "Trong Redmine: Tài khoản của tôi → API access key"
-            }
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-        </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={settings.accept_invalid_certs}
-            onChange={(e) => update("accept_invalid_certs", e.target.checked)}
-          />
-          Chấp nhận chứng chỉ SSL tự ký (chỉ dùng cho Redmine nội bộ)
-        </label>
-        <div className="card-foot">
-          {connNotice && <p className={`notice ${connNotice.kind}`}>{connNotice.text}</p>}
-          <div className="row">
-            <button className="btn" onClick={testConnection} disabled={busy || !settings.redmine_url}>
-              Kiểm tra kết nối
-            </button>
-            {hasKey && (
-              <button className="btn ghost danger" onClick={removeKey} disabled={busy}>
-                Xoá API key
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>Claude</h2>
-        <p className="hint">Phân tích báo cáo cần Claude CLI (đã đăng nhập) và uv để chạy MCP Redmine.</p>
-        {!tools ? (
-          <p className="muted">Đang kiểm tra…</p>
-        ) : (
-          <ul className="tools">
-            {tools.map((t) => (
-              <li key={t.name}>
-                <code>{t.name}</code>
-                {t.version ? (
-                  <span className="text-ok">{t.version}</span>
-                ) : (
-                  <span>
-                    <span className="text-missing">Chưa cài.</span> Cài bằng <code>{t.install_hint}</code>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={settings.claude_ignore_user_settings}
-            onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
-          />
-          <span>
-            Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự
-            bật khi cấu hình Claude của bạn bị từ chối API key.
-          </span>
-        </label>
-        <div className="card-foot">
-          {aiCheck && aiCheck !== "running" && <p className={`notice ${aiCheck.kind}`}>{aiCheck.text}</p>}
-          <div className="row">
+      <div className="settings-nav" role="tablist" aria-label="Các nhóm cài đặt">
+        {SETTINGS_TABS.map(({ id, label }, index) => (
           <button
-            className="btn"
-            disabled={aiCheck === "running"}
-            onClick={async () => {
-              setAiCheck("running");
-              try {
-                const reply = await api.aiTest();
-                const saved = await api.getSettings();
-                setSettings((cur) =>
-                  cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
-                );
-                // The backend may have flipped this flag on disk; that is not an unsaved edit.
-                setSavedSnapshot((prev) =>
-                  JSON.stringify({ ...JSON.parse(prev), claude_ignore_user_settings: saved.settings.claude_ignore_user_settings }),
-                );
-                setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
-              } catch (e) {
-                setAiCheck({ kind: "error", text: errorText(e) });
-              }
+            key={id}
+            id={`settings-tab-${id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={`settings-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              let next: number;
+              if (event.key === "ArrowRight") next = (index + 1) % SETTINGS_TABS.length;
+              else if (event.key === "ArrowLeft") next = (index + SETTINGS_TABS.length - 1) % SETTINGS_TABS.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = SETTINGS_TABS.length - 1;
+              else return;
+              event.preventDefault();
+              const target = SETTINGS_TABS[next].id;
+              setTab(target);
+              document.getElementById(`settings-tab-${target}`)?.focus();
             }}
           >
-            {aiCheck === "running" ? "Đang gọi Claude…" : "Chạy thử Claude"}
+            {label}
           </button>
-          </div>
+        ))}
+      </div>
+
+      <section
+        className="settings-group"
+        id="settings-connection"
+        role="tabpanel"
+        aria-labelledby="settings-tab-connection"
+        hidden={tab !== "connection"}
+        tabIndex={0}
+      >
+        <header className="settings-group-head">
+          <h2 className="sr-only" id="settings-connection-title">Tài khoản</h2>
+          <p>Kết nối Redmine để ghi giờ và Google Chat để lấy báo cáo.</p>
+        </header>
+        <div className="settings-grid">
+          <section className="card">
+            <h3>Kết nối Redmine</h3>
+            <label className="field">
+              <span>Địa chỉ Redmine</span>
+              <input
+                type="url"
+                placeholder="https://redmine.congty.vn"
+                value={settings.redmine_url}
+                onChange={(e) => update("redmine_url", e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>API key</span>
+              <input
+                type="password"
+                autoComplete="off"
+                placeholder={
+                  hasKey
+                    ? `Đã lưu ${storage === "keychain" ? (isMac ? "trong Keychain" : "trong kho mật khẩu của máy") : "trên máy"}. Nhập key mới để thay.`
+                    : "Trong Redmine: Tài khoản của tôi → API access key"
+                }
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.accept_invalid_certs}
+                onChange={(e) => update("accept_invalid_certs", e.target.checked)}
+              />
+              Chấp nhận chứng chỉ SSL tự ký (chỉ dùng cho Redmine nội bộ)
+            </label>
+            <div className="card-foot">
+              {connNotice && <p className={`notice ${connNotice.kind}`}>{connNotice.text}</p>}
+              <div className="row">
+                <button className="btn" onClick={testConnection} disabled={busy || !settings.redmine_url}>
+                  Kiểm tra kết nối
+                </button>
+                {hasKey && (
+                  <button className="btn ghost danger" onClick={removeKey} disabled={busy}>
+                    Xoá API key
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <GchatSettings />
         </div>
       </section>
 
-      <section className="card">
-        <h2>Ngày làm việc</h2>
-        <div className="field-pair">
-        <label className="field hours-field">
-          <span>Số giờ mỗi ngày</span>
-          <input
-            type="number"
-            min={1}
-            max={24}
-            step={0.5}
-            value={settings.hours_per_day}
-            onChange={(e) => update("hours_per_day", Number(e.target.value))}
+      <section
+        className="settings-group"
+        id="settings-work"
+        role="tabpanel"
+        aria-labelledby="settings-tab-work"
+        hidden={tab !== "work"}
+        tabIndex={0}
+      >
+        <header className="settings-group-head">
+          <h2 className="sr-only" id="settings-work-title">Lịch & nghỉ phép</h2>
+          <p>Thiết lập định mức giờ, lịch làm việc và các loại nghỉ của bạn.</p>
+        </header>
+        <div className="settings-grid">
+          <section className="card">
+            <h3>Lịch làm việc</h3>
+            <div className="field-pair work-schedule">
+              <label className="field hours-field">
+                <span>Số giờ mỗi ngày</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  step={0.5}
+                  value={settings.hours_per_day}
+                  onChange={(e) => update("hours_per_day", Number(e.target.value))}
+                />
+              </label>
+              <div className="field workdays-field" role="group" aria-labelledby="workdays-label">
+                <span id="workdays-label">Các ngày làm việc trong tuần</span>
+                <div className="toggles">
+                  {WEEKDAYS.map(([d, label]) => (
+                    <label key={d} className="toggle">
+                      <input
+                        type="checkbox"
+                        checked={settings.workdays.includes(d)}
+                        onChange={() => toggleWorkday(d)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <label className="field grow-field">
+              <span>Ngày lễ, mỗi dòng một ngày (2026-09-02 hoặc 02/09/2026)</span>
+              <textarea
+                rows={4}
+                placeholder={"2026-09-02\n01/01/2027"}
+                value={holidayText}
+                onChange={(e) => setHolidayText(e.target.value)}
+              />
+            </label>
+          </section>
+
+          <LeaveSettings
+            settings={settings}
+            activities={activeActivities}
+            onChange={(patch) => setSettings({ ...settings, ...patch })}
           />
-        </label>
-        <fieldset className="field">
-          <legend>Các ngày làm việc trong tuần</legend>
-          <div className="toggles">
-            {WEEKDAYS.map(([d, label]) => (
-              <label key={d} className="toggle">
+        </div>
+      </section>
+
+      <section
+        className="settings-group"
+        id="settings-integrations"
+        role="tabpanel"
+        aria-labelledby="settings-tab-integrations"
+        hidden={tab !== "integrations"}
+        tabIndex={0}
+      >
+        <header className="settings-group-head">
+          <h2 className="sr-only" id="settings-integrations-title">Ghi giờ & AI</h2>
+          <p>Chọn cách ghi giờ mặc định và hướng dẫn AI tìm đúng công việc.</p>
+        </header>
+        <div className="settings-grid">
+          <section className="card">
+            <h3>Ghi giờ mặc định</h3>
+            <p className="hint">Dùng khi app tạo task con cho công việc và ghi logtime lên Redmine.</p>
+            <div className="field-grid">
+              <ActivitySelect
+                label="Hoạt động mặc định khi log công việc"
+                value={settings.default_activity_id}
+                options={workActivities}
+                onChange={(v) => update("default_activity_id", v)}
+              />
+              <label className="field">
+                <span>Tracker khi tạo task con</span>
+                <select
+                  value={settings.subtask_tracker_id ?? ""}
+                  onChange={(e) => update("subtask_tracker_id", e.target.value ? Number(e.target.value) : null)}
+                  disabled={trackers.length === 0}
+                >
+                  <option value="">{trackers.length ? "Chọn tracker" : "Kết nối Redmine để tải danh sách"}</option>
+                  {trackers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <TaskMemory />
+          </section>
+
+          <section className="card">
+            <h3>Claude</h3>
+            <p className="hint">Phân tích báo cáo cần Claude CLI (đã đăng nhập) và uv để chạy MCP Redmine.</p>
+            {!tools ? (
+              <p className="muted">Đang kiểm tra…</p>
+            ) : (
+              <ul className="tools">
+                {tools.map((t) => (
+                  <li key={t.name}>
+                    <code>{t.name}</code>
+                    {t.version ? (
+                      <span className="text-ok">{t.version}</span>
+                    ) : (
+                      <span>
+                        <span className="text-missing">Chưa cài.</span> Cài bằng <code>{t.install_hint}</code>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.claude_ignore_user_settings}
+                onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
+              />
+              <span>
+                Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự
+                bật khi cấu hình Claude của bạn bị từ chối API key.
+              </span>
+            </label>
+            <div className="card-foot">
+              {aiCheck && aiCheck !== "running" && <p className={`notice ${aiCheck.kind}`}>{aiCheck.text}</p>}
+              <div className="row">
+                <button
+                  className="btn"
+                  disabled={aiCheck === "running"}
+                  onClick={async () => {
+                    setAiCheck("running");
+                    try {
+                      const reply = await api.aiTest();
+                      const saved = await api.getSettings();
+                      setSettings((cur) =>
+                        cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
+                      );
+                      // The backend may have flipped this flag on disk; that is not an unsaved edit.
+                      setSavedSnapshot((prev) =>
+                        JSON.stringify({ ...JSON.parse(prev), claude_ignore_user_settings: saved.settings.claude_ignore_user_settings }),
+                      );
+                      setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
+                    } catch (e) {
+                      setAiCheck({ kind: "error", text: errorText(e) });
+                    }
+                  }}
+                >
+                  {aiCheck === "running" ? "Đang gọi Claude…" : "Chạy thử Claude"}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <ProfileSection
+            settings={settings}
+            trackers={trackers}
+            onApply={(patch) => {
+              setSettings({ ...settings, ...patch });
+              setSaveNotice({ kind: "ok", text: "Đã điền gợi ý. Bấm “Lưu cài đặt” để giữ." });
+            }}
+          />
+        </div>
+      </section>
+
+      <section
+        className="settings-group"
+        id="settings-application"
+        role="tabpanel"
+        aria-labelledby="settings-tab-application"
+        hidden={tab !== "application"}
+        tabIndex={0}
+      >
+        <header className="settings-group-head">
+          <h2 className="sr-only" id="settings-application-title">Ứng dụng</h2>
+          <p>Điều chỉnh nhắc giờ, khởi động cùng máy và cập nhật ứng dụng.</p>
+        </header>
+        <div className="settings-grid">
+          <section className="card">
+            <h3>Nhắc log giờ</h3>
+            <p className="hint">
+              Vào ngày làm việc, app gửi thông báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật, đóng cửa sổ chỉ ẩn app
+              xuống {isMac ? "thanh menu" : "khay hệ thống"}; chọn Thoát ở biểu tượng app để tắt hẳn.
+            </p>
+            <div className="reminder-row">
+              <label className="check">
                 <input
                   type="checkbox"
-                  checked={settings.workdays.includes(d)}
-                  onChange={() => toggleWorkday(d)}
+                  checked={settings.reminder_enabled}
+                  onChange={(e) => update("reminder_enabled", e.target.checked)}
                 />
-                <span>{label}</span>
+                Nhắc khi chưa log đủ giờ
               </label>
-            ))}
-          </div>
-        </fieldset>
+              <label className="field reminder-time">
+                <span>Lúc</span>
+                <input
+                  type="time"
+                  value={settings.reminder_time}
+                  disabled={!settings.reminder_enabled}
+                  onChange={(e) => update("reminder_time", e.target.value)}
+                />
+              </label>
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.start_at_login}
+                onChange={(e) => update("start_at_login", e.target.checked)}
+              />
+              Mở cùng máy (chạy ẩn để nhắc giờ)
+            </label>
+          </section>
+
+          <AboutCard update={updateState} />
         </div>
-        <label className="field grow-field">
-          <span>Ngày lễ, mỗi dòng một ngày (2026-09-02 hoặc 02/09/2026)</span>
-          <textarea
-            rows={4}
-            placeholder={"2026-09-02\n01/01/2027"}
-            value={holidayText}
-            onChange={(e) => setHolidayText(e.target.value)}
-          />
-        </label>
       </section>
-
-      <section className="card">
-        <h2>Nhắc log giờ</h2>
-        <p className="hint">
-          Vào ngày làm việc, app gửi thông báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật, đóng cửa sổ chỉ ẩn app
-          xuống {isMac ? "thanh menu" : "khay hệ thống"}; chọn Thoát ở biểu tượng app để tắt hẳn.
-        </p>
-        <div className="reminder-row">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={settings.reminder_enabled}
-              onChange={(e) => update("reminder_enabled", e.target.checked)}
-            />
-            Nhắc khi chưa log đủ giờ
-          </label>
-          <label className="field reminder-time">
-            <span>Lúc</span>
-            <input
-              type="time"
-              value={settings.reminder_time}
-              disabled={!settings.reminder_enabled}
-              onChange={(e) => update("reminder_time", e.target.value)}
-            />
-          </label>
-        </div>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={settings.start_at_login}
-            onChange={(e) => update("start_at_login", e.target.checked)}
-          />
-          Mở cùng máy (chạy ẩn để nhắc giờ)
-        </label>
-      </section>
-
-      <section className="card">
-        <h2>Ghi logtime</h2>
-        <p className="hint">Dùng khi app tạo task con cho công việc và ghi logtime lên Redmine.</p>
-        <div className="field-grid">
-        <ActivitySelect
-          label="Hoạt động mặc định khi log công việc"
-          value={settings.default_activity_id}
-          options={workActivities}
-          onChange={(v) => update("default_activity_id", v)}
-        />
-        <label className="field">
-          <span>Tracker khi tạo task con</span>
-          <select
-            value={settings.subtask_tracker_id ?? ""}
-            onChange={(e) => update("subtask_tracker_id", e.target.value ? Number(e.target.value) : null)}
-            disabled={trackers.length === 0}
-          >
-            <option value="">{trackers.length ? "Chọn tracker" : "Kết nối Redmine để tải danh sách"}</option>
-            {trackers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        </div>
-        <TaskMemory />
-      </section>
-
-
-      <GchatSettings />
-
-      <LeaveSettings
-        settings={settings}
-        activities={activeActivities}
-        onChange={(patch) => setSettings({ ...settings, ...patch })}
-      />
-
-      <ProfileSection
-        settings={settings}
-        trackers={trackers}
-        onApply={(patch) => {
-          setSettings({ ...settings, ...patch });
-          setSaveNotice({ kind: "ok", text: "Đã điền gợi ý. Bấm “Lưu cài đặt” để giữ." });
-        }}
-      />
-
-      <AboutCard update={updateState} />
-
-      </div>
 
       {/* Only while there is something to save, or the outcome of a save. */}
       {(dirty || saveNotice) && (

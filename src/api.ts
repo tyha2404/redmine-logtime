@@ -351,7 +351,6 @@ export const api = {
   monthSummary: (year: number, month: number) =>
     invoke<MonthSummary>("month_summary", { year, month }),
   checkTools: () => invoke<ToolStatus[]>("check_tools"),
-  openIssue: (id: number) => invoke<void>("open_issue", { id }),
 
   previewPlan: (plan: WritePlan) => invoke<ApiCall[]>("preview_plan", { plan }),
   writePlan: (plan: WritePlan, label: string) => invoke<Batch>("write_plan", { plan, label }),

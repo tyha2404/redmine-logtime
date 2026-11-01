@@ -1,15 +1,40 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import AddEntryForm from "./AddEntryForm";
 import AiLog from "./AiLog";
 import { CalendarSkeleton, PanelSkeleton, Skel } from "./Skeleton";
 import LeaveForm from "./LeaveForm";
-import { api, errorText, type Batch, type DayStatus, type DaySummary, type MonthSummary, type Settings, type WritePlan } from "./api";
-import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, todayIso } from "./fmt";
+import {
+  api,
+  errorText,
+  type Batch,
+  type DayStatus,
+  type DaySummary,
+  type MonthSummary,
+  type Settings,
+  type WritePlan,
+} from "./api";
+import {
+  fmtDayLong,
+  fmtDayShort,
+  fmtHours,
+  isoOf,
+  parseIso,
+  todayIso,
+} from "./fmt";
 import { Icon } from "./icons";
-import IssueLink from "./IssueLink";
+import PageHeader, { RefreshButton } from "./PageHeader";
 import QuotaRail from "./QuotaRail";
 import { ReportResult, useReportFlow } from "./reportFlow";
+import { fmtDays } from "./leave";
 import { useToast } from "./toast";
+import { exitDelay } from "./useModal";
 import WriteDialog from "./WriteDialog";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -33,11 +58,21 @@ interface Props {
   onOpenHistory: () => void;
   /** Opens the report page (one or several days). */
   onOpenReport: () => void;
+  onOpenLeave: () => void;
 }
 
-export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, onOpenReport }: Props) {
+export default function CalendarPage({
+  settings,
+  onOpenSettings,
+  onOpenHistory,
+  onOpenReport,
+  onOpenLeave,
+}: Props) {
   const now = new Date();
-  const [ym, setYm] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const [ym, setYm] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  });
   const [summary, setSummary] = useState<MonthSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,7 +111,9 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
   // Arrow keys move the selection like a desktop calendar; crossing the
   // month edge flips the month.
   const onGridKey = (e: React.KeyboardEvent) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[
+      e.key
+    ];
     if (!step) return;
     e.preventDefault();
     const d = parseIso(selected);
@@ -86,53 +123,72 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
     if (d.getMonth() + 1 !== ym.month || d.getFullYear() !== ym.year) {
       setYm({ year: d.getFullYear(), month: d.getMonth() + 1 });
     }
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus());
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus(),
+    );
   };
 
   // Monday-first grid: blank cells before the 1st, then the month in weeks.
-  const leading = useMemo(() => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7, [ym]);
+  const leading = useMemo(
+    () => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7,
+    [ym],
+  );
   /** The loaded month, once it is the one on screen (not the previous one). */
-  const shown = summary && summary.year === ym.year && summary.month === ym.month ? summary : null;
+  const shown =
+    summary && summary.year === ym.year && summary.month === ym.month
+      ? summary
+      : null;
   const weeks = useMemo(() => {
     if (!summary) return [];
-    const cells: (DaySummary | null)[] = [...Array(leading).fill(null), ...summary.days];
+    const cells: (DaySummary | null)[] = [
+      ...Array(leading).fill(null),
+      ...summary.days,
+    ];
     while (cells.length % 7) cells.push(null);
-    return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+    return Array.from({ length: cells.length / 7 }, (_, i) =>
+      cells.slice(i * 7, i * 7 + 7),
+    );
   }, [summary, leading]);
   const selectedDay = summary?.days.find((d) => d.date === selected) ?? null;
+  /** Rows the month needs, known before its data arrives (keeps the skeleton the same size). */
+  const weekCount = Math.ceil(
+    (leading + new Date(ym.year, ym.month, 0).getDate()) / 7,
+  );
   const today = todayIso();
-  const isCurrentMonth = ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
+  const isCurrentMonth =
+    ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
 
   return (
     <div className="calendar-page">
-      <section className="calendar-col">
-        <header className="month-head">
-          <h1 className="month-title" aria-label={`Tháng ${ym.month} năm ${ym.year}`}>
-            Tháng {ym.month}
-            <span className="month-year">{ym.year}</span>
-          </h1>
-          <div className="month-nav">
+      <PageHeader
+        title="Lịch tháng"
+        description="Giờ đã log trên Redmine theo từng ngày."
+        actions={
+          <>
             <div className="nav-group" role="group" aria-label="Chọn tháng">
               <button className="nav-btn icon-only" onClick={() => shift(-1)} aria-label="Tháng trước" title="Tháng trước">
                 <Icon name="chevronLeft" />
               </button>
-              <button className="nav-btn" onClick={goToday} disabled={isCurrentMonth && selected === today}>
-                Hôm nay
-              </button>
+              <MonthPicker ym={ym} onPick={(y, m) => setYm({ year: y, month: m })} />
               <button className="nav-btn icon-only" onClick={() => shift(1)} aria-label="Tháng sau" title="Tháng sau">
                 <Icon name="chevronRight" />
               </button>
             </div>
-            <button
-              className={`nav-btn icon-only refresh${loading ? " is-loading" : ""}`}
-              onClick={load}
-              disabled={loading}
-              aria-label={loading ? "Đang tải lại từ Redmine" : "Tải lại từ Redmine"}
-              title="Tải lại từ Redmine"
-            >
-              <Icon name="refresh" />
+            <button className="nav-btn nav-solo" onClick={goToday} disabled={isCurrentMonth && selected === today}>
+              Hôm nay
             </button>
-          </div>
+            <RefreshButton loading={loading} onClick={load} />
+          </>
+        }
+      />
+      <section className="calendar-col">
+        <header className="month-head">
+          <MonthStats
+            s={shown}
+            hpd={hpd}
+            onJumpMissing={(d) => setSelected(d)}
+            onOpenLeave={onOpenLeave}
+          />
         </header>
 
         {error ? (
@@ -144,38 +200,35 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
           </div>
         ) : (
           <>
-            <p className="month-summary">
-              {shown ? <MonthLine s={shown} onOpenReport={onOpenReport} /> : <Skel w="62%" h={16} />}
-            </p>
-
             {!shown ? (
-              <CalendarSkeleton />
+              <CalendarSkeleton weeks={weekCount} />
             ) : (
-            <div
-              className="grid"
-              role="grid"
-              aria-busy={loading}
-              onKeyDown={onGridKey}
-            >
-              {WEEKDAYS.map((w) => (
-                <div key={w} className="grid-head" role="columnheader">
-                  {w}
+              <div
+                className="grid"
+                role="grid"
+                aria-busy={loading}
+                onKeyDown={onGridKey}
+                style={{ "--weeks": weeks.length } as CSSProperties}
+              >
+                {WEEKDAYS.map((w) => (
+                  <div key={w} className="grid-head" role="columnheader">
+                    {w}
+                  </div>
+                ))}
+                <div className="grid-head week-head" role="columnheader">
+                  Tuần
                 </div>
-              ))}
-              <div className="grid-head week-head" role="columnheader">
-                Tuần
+                {weeks.map((week, wi) => (
+                  <WeekRow
+                    key={wi}
+                    week={week}
+                    hoursPerDay={hpd}
+                    today={today}
+                    selected={selected}
+                    onSelect={setSelected}
+                  />
+                ))}
               </div>
-              {weeks.map((week, wi) => (
-                <WeekRow
-                  key={wi}
-                  week={week}
-                  hoursPerDay={hpd}
-                  today={today}
-                  selected={selected}
-                  onSelect={setSelected}
-                />
-              ))}
-            </div>
             )}
 
             <ul className="legend">
@@ -193,14 +246,14 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
       {!shown && !error ? (
         <PanelSkeleton />
       ) : (
-      <DayPanel
-        key={selected}
-        day={selectedDay}
-        settings={settings}
-        onOpenSettings={onOpenSettings}
-        onOpenHistory={onOpenHistory}
-        onWritten={load}
-      />
+        <DayPanel
+          key={selected}
+          day={selectedDay}
+          settings={settings}
+          onOpenSettings={onOpenSettings}
+          onOpenHistory={onOpenHistory}
+          onWritten={load}
+        />
       )}
     </div>
   );
@@ -217,9 +270,17 @@ function WeekRow(props: {
   const days = week.filter((d): d is DaySummary => !!d);
   const logged = days.reduce((s, d) => s + d.hours, 0);
   // Quota for this week's workdays inside the month; days off and holidays don't count.
-  const expected = days.filter((d) => d.status !== "weekend" && d.status !== "holiday").length * hoursPerDay;
-  const short = days.some((d) => d.status === "missing" || d.status === "partial");
-  const tone = short ? "is-short" : expected > 0 && logged >= expected ? "is-full" : "";
+  const expected =
+    days.filter((d) => d.status !== "weekend" && d.status !== "holiday")
+      .length * hoursPerDay;
+  const short = days.some(
+    (d) => d.status === "missing" || d.status === "partial",
+  );
+  const tone = short
+    ? "is-short"
+    : expected > 0 && logged >= expected
+      ? "is-full"
+      : "";
 
   return (
     <>
@@ -247,7 +308,9 @@ function WeekRow(props: {
             <span className="week-logged">{fmtHours(logged)}</span>
             <span className="week-expected">/ {fmtHours(expected)}</span>
             <span className="week-bar" aria-hidden>
-              <span style={{ width: `${Math.min(logged / expected, 1) * 100}%` }} />
+              <span
+                style={{ width: `${Math.min(logged / expected, 1) * 100}%` }}
+              />
             </span>
           </>
         )}
@@ -256,23 +319,185 @@ function WeekRow(props: {
   );
 }
 
-function MonthLine({ s, onOpenReport }: { s: MonthSummary; onOpenReport: () => void }) {
+/**
+ * The month at a glance, in the toolbar: logged against expected with a
+ * bar, what is missing so far (jumps to the first such day), days off
+ * (opens the leave page) and the workdays still to come.
+ */
+function MonthStats(props: {
+  s: MonthSummary | null;
+  hpd: number;
+  onJumpMissing: (date: string) => void;
+  onOpenLeave: () => void;
+}) {
+  const { s, hpd, onJumpMissing, onOpenLeave } = props;
+  if (!s) {
+    return (
+      <div className="month-stats" aria-busy="true">
+        <Skel w="auto" h={60} r={0} />
+        <Skel w="auto" h={60} r={0} />
+        <Skel w="auto" h={60} r={0} />
+        <Skel w="auto" h={60} r={0} />
+      </div>
+    );
+  }
+  const pct =
+    s.expected_hours > 0 ? Math.min(s.total_hours / s.expected_hours, 1) : 0;
+  const firstMissing = s.days.find((d) => d.status === "missing");
+  const leaveHours = s.days.reduce((n, d) => n + d.leave_hours, 0);
+  const ahead = s.days.filter((d) => d.status === "future").length;
   return (
-    <>
-      Đã log <strong>{fmtHours(s.total_hours)}</strong> trên {fmtHours(s.expected_hours)} của tháng.{" "}
+    <div className="month-stats">
+      <div
+        className="stat stat-progress"
+        title={`${Math.round(pct * 100)}% định mức của tháng`}
+      >
+        <span className="stat-label">Đã log</span>
+        <span className="stat-value">
+          <strong>{fmtHours(s.total_hours)}</strong> /{" "}
+          {fmtHours(s.expected_hours)}
+        </span>
+        <span className="stat-bar" aria-hidden>
+          <span style={{ width: `${pct * 100}%` }} />
+        </span>
+      </div>
       {s.missing_days > 0 ? (
-        <>
-          Tính đến hôm nay còn thiếu <strong className="text-missing">{fmtHours(s.missing_hours)}</strong> ở{" "}
-          {s.missing_days} ngày.{" "}
-          <button className="link" onClick={onOpenReport}>
-            Lấp bằng báo cáo công việc
-          </button>
-          .
-        </>
+        <button
+          className="stat stat-missing"
+          onClick={() => firstMissing && onJumpMissing(firstMissing.date)}
+          title="Đến ngày thiếu giờ đầu tiên"
+        >
+          <span className="stat-label">Còn thiếu</span>
+          <span className="stat-value">
+            <strong>{fmtHours(s.missing_hours)}</strong> · {s.missing_days} ngày
+          </span>
+        </button>
       ) : (
-        "Tính đến hôm nay không thiếu ngày nào."
+        <div className="stat stat-ok">
+          <span className="stat-label">Tính đến hôm nay</span>
+          <span className="stat-value">
+            <strong>Đủ giờ</strong>
+          </span>
+        </div>
       )}
-    </>
+      <button
+        className="stat stat-leave"
+        onClick={onOpenLeave}
+        title="Xem ngày nghỉ trong năm"
+      >
+        <span className="stat-label">Nghỉ phép</span>
+        <span className="stat-value">
+          <strong>{fmtDays(leaveHours / hpd)}</strong> ngày
+        </span>
+      </button>
+      <div className="stat">
+        <span className="stat-label">Còn lại</span>
+        <span className="stat-value">
+          <strong>{ahead}</strong> ngày làm việc
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** The month title as a button: opens a year with its twelve months. */
+function MonthPicker({
+  ym,
+  onPick,
+}: {
+  ym: { year: number; month: number };
+  onPick: (year: number, month: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [year, setYear] = useState(ym.year);
+  const box = useRef<HTMLDivElement>(null);
+  const now = new Date();
+
+  const close = () => {
+    if (!open || closing) return;
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, exitDelay(120));
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) close();
+    };
+    const esc = (e: globalThis.KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("keydown", esc);
+    };
+  });
+
+  return (
+    <div className="month-picker" ref={box}>
+      <button
+        className="nav-btn month-btn"
+        aria-label={`Tháng ${ym.month} năm ${ym.year}, chọn tháng khác`}
+        aria-expanded={open}
+        onClick={() => {
+          if (open) return close();
+          setYear(ym.year);
+          setOpen(true);
+        }}
+      >
+        Tháng {ym.month}, {ym.year}
+        <Icon name="chevronDown" size={16} />
+      </button>
+      {open && (
+        <div
+          className={`month-pop${closing ? " is-closing" : ""}`}
+          role="dialog"
+          aria-label="Chọn tháng"
+        >
+          <div className="month-pop-head">
+            <button
+              className="nav-btn icon-only"
+              onClick={() => setYear(year - 1)}
+              aria-label="Năm trước"
+            >
+              <Icon name="chevronLeft" />
+            </button>
+            <strong>{year}</strong>
+            <button
+              className="nav-btn icon-only"
+              onClick={() => setYear(year + 1)}
+              aria-label="Năm sau"
+            >
+              <Icon name="chevronRight" />
+            </button>
+          </div>
+          <div className="month-pop-grid">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <button
+                key={m}
+                className="month-pop-item"
+                aria-pressed={year === ym.year && m === ym.month}
+                data-now={
+                  year === now.getFullYear() && m === now.getMonth() + 1
+                    ? ""
+                    : undefined
+                }
+                onClick={() => {
+                  onPick(year, m);
+                  close();
+                }}
+              >
+                Th {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -287,7 +512,8 @@ function DayCell(props: {
   const logged = Math.min(day.hours / hoursPerDay, 1) * 100;
   const dayNum = Number(day.date.slice(8));
   const off = day.status === "weekend" || day.status === "holiday";
-  const showHours = day.hours > 0 || day.status === "missing" || day.status === "partial";
+  const showHours =
+    day.hours > 0 || day.status === "missing" || day.status === "partial";
 
   return (
     <button
@@ -317,7 +543,6 @@ function DayCell(props: {
   );
 }
 
-
 type PanelMode = "idle" | "report" | "add" | "leave";
 
 function DayPanel(props: {
@@ -332,7 +557,10 @@ function DayPanel(props: {
   const toast = useToast();
   const [mode, setMode] = useState<PanelMode>(() =>
     // Browser mock mode can open a composer directly: ?panel=report
-    import.meta.env.VITE_MOCK === "1" ? ((new URLSearchParams(location.search).get("panel") as PanelMode) ?? "idle") : "idle",
+    import.meta.env.VITE_MOCK === "1"
+      ? ((new URLSearchParams(location.search).get("panel") as PanelMode) ??
+        "idle")
+      : "idle",
   );
   /** A form's entries waiting for "Ghi ngay" in the confirmation dialog. */
   const [plan, setPlan] = useState<WritePlan | null>(null);
@@ -348,10 +576,15 @@ function DayPanel(props: {
   const hpd = settings.hours_per_day;
   const remaining = Math.max(hpd - day.hours, 0);
   const off = day.status === "weekend" || day.status === "holiday";
+  /** A day already full on Redmine is read-only here. */
+  const locked = day.hours >= hpd;
 
   const closed = (batch: Batch | null) => {
     setPlan(null);
-    const ok = batch?.ops.filter((o) => o.payload.op === "create_time_entry" && o.status === "done").length ?? 0;
+    const ok =
+      batch?.ops.filter(
+        (o) => o.payload.op === "create_time_entry" && o.status === "done",
+      ).length ?? 0;
     if (ok === 0) return;
     setMode("idle");
     onWritten();
@@ -362,19 +595,23 @@ function DayPanel(props: {
     <aside className="day-panel">
       <header className="panel-head">
         <h2 className="panel-title">{fmtDayLong(day.date)}</h2>
-        <p className={`status-pill s-${day.status}`}>{STATUS_LABEL[day.status]}</p>
+        <p className={`status-pill s-${day.status}`}>
+          {STATUS_LABEL[day.status]}
+        </p>
         <div className="panel-meter">
           <div className="panel-numbers">
             <span>
               <strong>{fmtHours(day.hours)}</strong> / {fmtHours(hpd)}
             </span>
-            {remaining > 0 && !off && <span className="muted">còn trống {fmtHours(remaining)}</span>}
+            {remaining > 0 && !off && (
+              <span className="muted">còn trống {fmtHours(remaining)}</span>
+            )}
           </div>
           <QuotaRail existing={day.hours} planned={0} quota={hpd} />
         </div>
       </header>
 
-      {mode === "report" && (
+      {!locked && mode === "report" && (
         <DayReport
           date={day.date}
           settings={settings}
@@ -384,13 +621,10 @@ function DayPanel(props: {
         />
       )}
 
-      {mode === "add" && (
+      {!locked && mode === "add" && (
         <section className="panel-block">
           <header className="block-head">
             <h3>Ghi logtime vào issue</h3>
-            <button className="link" onClick={() => setMode("idle")}>
-              Đóng
-            </button>
           </header>
           <AddEntryForm
             date={day.date}
@@ -402,25 +636,28 @@ function DayPanel(props: {
         </section>
       )}
 
-      {mode === "leave" && (
+      {!locked && mode === "leave" && (
         <section className="panel-block">
           <header className="block-head">
             <h3>Xin nghỉ ngày {fmtDayShort(day.date)}</h3>
-            <button className="link" onClick={() => setMode("idle")}>
-              Đóng
-            </button>
           </header>
           <LeaveForm
             date={day.date}
             settings={settings}
             onOpenSettings={onOpenSettings}
             onCancel={() => setMode("idle")}
-            onAdd={(item, subtask) => setPlan({ items: [item], subtasks: [subtask] })}
+            onAdd={(item, subtask) =>
+              setPlan({ items: [item], subtasks: [subtask] })
+            }
           />
         </section>
       )}
 
-      {mode === "idle" && (
+      {locked ? (
+        <p className="panel-block panel-locked">
+          Ngày này đã đủ {fmtHours(hpd)} trên Redmine nên chỉ xem, không ghi thêm.
+        </p>
+      ) : mode === "idle" && (
         <section className="panel-block panel-actions">
           <button className="btn primary" onClick={() => setMode("report")}>
             <Icon name="report" size={16} />
@@ -430,10 +667,12 @@ function DayPanel(props: {
             <Icon name="plus" size={16} />
             Ghi logtime vào issue
           </button>
-          <button className="btn" onClick={() => setMode("leave")}>
-            <Icon name="leave" size={16} />
-            Xin nghỉ ngày này
-          </button>
+          {!off && (
+            <button className="btn" onClick={() => setMode("leave")}>
+              <Icon name="leave" size={16} />
+              Xin nghỉ ngày này
+            </button>
+          )}
         </section>
       )}
 
@@ -451,14 +690,14 @@ function DayPanel(props: {
                 <div className="entry-body">
                   <div className="entry-title">
                     {e.issue ? (
-                      <span className="issue-ref">
-                        <IssueLink id={e.issue.id} />
-                      </span>
+                      <span className="issue-ref">#{e.issue.id}</span>
                     ) : null}
                     {e.project.name}
                   </div>
                   <div className="entry-meta">{e.activity.name}</div>
-                  {e.comments ? <div className="entry-comment">{e.comments}</div> : null}
+                  {e.comments ? (
+                    <div className="entry-comment">{e.comments}</div>
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -466,7 +705,14 @@ function DayPanel(props: {
         )}
       </section>
 
-      {plan && <WriteDialog plan={plan} redmineUrl={settings.redmine_url} onClose={closed} onOpenHistory={onOpenHistory} />}
+      {plan && (
+        <WriteDialog
+          plan={plan}
+          redmineUrl={settings.redmine_url}
+          onClose={closed}
+          onOpenHistory={onOpenHistory}
+        />
+      )}
     </aside>
   );
 }
@@ -500,10 +746,20 @@ function DayReport(props: {
         disabled={ai.running}
         aria-label={`Báo cáo ngày ${fmtDayShort(date)}`}
       />
-      <p className="hint">Mỗi dòng một việc. Việc đã log của ngày này sẽ tự bỏ qua.</p>
+      <p className="hint">
+        Mỗi dòng một việc. Việc đã log của ngày này sẽ tự bỏ qua.
+      </p>
       <div className="row">
-        <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
-          {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
+        <button
+          className="btn primary"
+          onClick={f.analyze}
+          disabled={ai.running || !f.text.trim()}
+        >
+          {ai.running
+            ? "Đang phân tích…"
+            : view
+              ? "Phân tích lại"
+              : "Phân tích bằng AI"}
         </button>
         <button
           className="btn"
@@ -516,7 +772,15 @@ function DayReport(props: {
       </div>
       <AiLog ai={ai} />
 
-      {view && <ReportResult f={f} settings={settings} compact onWritten={onWritten} onOpenHistory={onOpenHistory} />}
+      {view && (
+        <ReportResult
+          f={f}
+          settings={settings}
+          compact
+          onWritten={onWritten}
+          onOpenHistory={onOpenHistory}
+        />
+      )}
     </section>
   );
 }

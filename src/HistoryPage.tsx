@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RowsSkeleton, Skel } from "./Skeleton";
 import { api, errorText, type Batch } from "./api";
+import PageHeader from "./PageHeader";
 import { describeOp, fmtTimestamp } from "./fmt";
 
 export default function HistoryPage() {
@@ -41,18 +42,18 @@ export default function HistoryPage() {
       <div className="page-pad muted">{error}</div>
     ) : (
       <div className="history page-pad">
-        <Skel w={180} h={30} style={{ margin: "4px 0 18px" }} />
-        <Skel w="54%" h={14} style={{ marginBottom: 18 }} />
+        <Skel w={160} h={31} style={{ marginBottom: 8 }} />
+        <Skel w="54%" h={14} style={{ marginBottom: 24 }} />
         <RowsSkeleton rows={5} />
       </div>
     );
 
   return (
     <div className="history page-pad">
-      <h1 className="page-title">Lịch sử ghi</h1>
-      <p className="hint">
-        Mỗi lần bấm ghi là một lô. Hoàn tác sẽ xoá các logtime lô đó đã tạo; task con vẫn giữ trên Redmine.
-      </p>
+      <PageHeader
+        title="Lịch sử ghi"
+        description="Xem kết quả từng lần ghi, thử lại mục lỗi hoặc hoàn tác logtime. Task con vẫn được giữ trên Redmine."
+      />
       {error && <p className="notice error">{error}</p>}
       {batches.length === 0 && <div className="empty">Chưa ghi lô nào.</div>}
 

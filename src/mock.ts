@@ -593,9 +593,6 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       }
       return structuredClone(batch);
     }
-    case "open_issue":
-      window.open(`${settings.redmine_url}/issues/${args.id}`, "_blank", "noopener");
-      return delay(undefined);
     case "gchat_status":
       return delay(gchat);
     case "gchat_connect":

@@ -79,7 +79,7 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         disabled={ai.running}
         aria-label="Báo cáo công việc"
       />
-      <div className="row">
+      <div className="row composer-tools">
         <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
           {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
         </button>

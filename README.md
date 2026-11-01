@@ -14,13 +14,13 @@ curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scrip
 
 Hỗ trợ macOS 11+ (Intel và Apple Silicon) và Ubuntu 22.04+ (`amd64`). Ubuntu sẽ hỏi mật khẩu máy; nếu chưa có `curl`: `sudo apt install -y curl`.
 
-Mở **Redmine Logtime**, nhập địa chỉ Redmine và API key (trên Redmine: **Tài khoản của tôi → API access key → Hiện**) → **Kết nối và mở lịch**. Kiểm tra giờ mỗi ngày, ngày làm việc và ngày lễ trong **Cài đặt**.
+Mở **Redmine Logtime**, nhập địa chỉ Redmine và API key (trên Redmine: **Tài khoản của tôi → API access key → Hiện**) → **Kết nối và mở lịch**. Kiểm tra giờ mỗi ngày, ngày làm việc và ngày lễ trong **Cài đặt → Lịch & nghỉ phép**.
 
 ![Kết nối Redmine lần đầu](docs/images/setup.png)
 
 ## Ghi logtime từ báo cáo
 
-Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/): chạy `claude` trong Terminal để đăng nhập, rồi **Cài đặt → Chạy thử Claude** và **Phân tích cấu trúc Redmine**.
+Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/): chạy `claude` trong Terminal để đăng nhập, rồi **Cài đặt → Ghi giờ & AI → Chạy thử Claude** và **Phân tích cấu trúc Redmine**.
 
 **1.** Vào **Ghi logtime**, dán báo cáo (hoặc **Lấy từ Google Chat**) → **Phân tích bằng AI**.
 
@@ -52,7 +52,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Ghi tay vào issue](docs/images/manual-entry.png)
 
-**Xin nghỉ:** lần đầu vào **Cài đặt → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
+**Xin nghỉ:** lần đầu vào **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
 
 ![Xin nghỉ](docs/images/leave-request.png)
 
@@ -62,11 +62,11 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Lịch sử ghi](docs/images/history.png)
 
-**Nhắc log giờ:** 17:30 ngày làm việc, app báo nếu thiếu giờ. Đóng cửa sổ thì app ẩn xuống thanh menu/khay; chọn **Thoát** ở biểu tượng app để tắt. Đổi trong **Cài đặt → Nhắc log giờ**.
+**Nhắc log giờ:** 17:30 ngày làm việc, app báo nếu thiếu giờ. Đóng cửa sổ thì app ẩn xuống thanh menu/khay; chọn **Thoát** ở biểu tượng app để tắt. Đổi trong **Cài đặt → Ứng dụng → Nhắc log giờ**.
 
 ![Cài đặt nhắc log giờ](docs/images/settings-reminder.png)
 
-**Google Chat:** cần Client ID/secret từ admin công ty ([hướng dẫn admin](docs/development.md#google-chat)), nhập ở **Cài đặt → Google Chat → Kết nối Google**. App chỉ đọc tin bạn gửi.
+**Google Chat:** cần Client ID/secret từ admin công ty ([hướng dẫn admin](docs/development.md#google-chat)), nhập ở **Cài đặt → Tài khoản → Google Chat → Kết nối Google**. App chỉ đọc tin bạn gửi.
 
 ## Cập nhật, gỡ cài đặt
 
@@ -76,9 +76,9 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 ## Khi gặp lỗi
 
 - **Không kết nối được:** kiểm tra địa chỉ, API key, mạng/VPN. Redmine nội bộ dùng SSL tự ký: bật **Chấp nhận chứng chỉ SSL tự ký** trong **Cài đặt**.
-- **AI lỗi:** đăng nhập lại `claude`, rồi **Cài đặt → Chạy thử Claude**.
+- **AI lỗi:** đăng nhập lại `claude`, rồi **Cài đặt → Ghi giờ & AI → Chạy thử Claude**.
 - **macOS hỏi quyền Keychain** (nơi lưu API key) sau khi cập nhật: chọn **Luôn cho phép**.
-- **Báo lỗi:** **Cài đặt → Mở thư mục log**, gửi kèm file log (không chứa API key).
+- **Báo lỗi:** **Cài đặt → Ứng dụng → Mở thư mục log**, gửi kèm file log (không chứa API key).
 
 ---
 

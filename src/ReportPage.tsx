@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Settings } from "./api";
+import PageHeader from "./PageHeader";
 import ReportComposer, { type ComposerHandle } from "./ReportComposer";
 
 interface Props {
@@ -19,8 +20,11 @@ export default function ReportPage({ settings, focusReport, onOpenHistory, onOpe
   }, [focusReport]);
 
   return (
-    <div className="report-page">
-      <h1 className="page-title">Ghi logtime</h1>
+    <div className="report-page page-pad">
+      <PageHeader
+        title="Ghi logtime"
+        description="Nhập báo cáo, kiểm tra công việc và số giờ, rồi xác nhận ghi lên Redmine."
+      />
       <ReportComposer ref={composer} settings={settings} onOpenSettings={onOpenSettings} onOpenHistory={onOpenHistory} />
     </div>
   );

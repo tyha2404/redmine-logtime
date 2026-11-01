@@ -44,7 +44,7 @@ export default function LeaveSettings(props: {
 
   return (
     <section className="card">
-      <h2>Nghỉ phép</h2>
+      <h3>Nghỉ phép</h3>
       <p className="hint">
         Mỗi tháng HR mở một task cha cho từng loại nghỉ. Khi xin nghỉ, app tạo một issue cho ngày đó dưới task cha của
         tháng rồi log giờ vào. Giờ log trong các project này được tính là ngày nghỉ trên lịch.

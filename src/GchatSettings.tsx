@@ -44,7 +44,7 @@ export default function GchatSettings() {
 
   return (
     <section className="card">
-      <h2>Google Chat</h2>
+      <h3>Google Chat</h3>
       <p className="hint">
         Lấy báo cáo bạn đã gửi trong group Google Chat để AI phân tích. App chỉ đọc tin nhắn của bạn, không gửi gì. Cần OAuth
         client loại Desktop app do admin Google Workspace của công ty tạo.

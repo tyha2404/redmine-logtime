@@ -80,7 +80,6 @@ pub fn run() {
             commands::list_activities,
             commands::month_summary,
             commands::check_tools,
-            commands::open_issue,
             commands::open_log_dir,
             plan_commands::lookup_issue,
             plan_commands::search_issues,
