@@ -5,7 +5,6 @@ declare const __APP_VERSION__: string;
 
 interface ImportMetaEnv {
   readonly VITE_MOCK?: string;
-  /** Set by GitLab CI: where releases and the installer live. */
-  readonly VITE_GITLAB_URL?: string;
-  readonly VITE_GITLAB_PROJECT?: string;
+  /** Set by the release workflow: GitHub repo ("owner/name") of releases and the installer. */
+  readonly VITE_GITHUB_REPO?: string;
 }

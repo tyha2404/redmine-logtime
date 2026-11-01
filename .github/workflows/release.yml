@@ -1,57 +1,87 @@
-# Builds installers for macOS (Apple Silicon + Intel) and Ubuntu and attaches
-# them to a draft GitHub release. Run by pushing a tag like v0.2.0, or by hand.
+# Phát hành: make release VERSION=X.Y.Z && git push --follow-tags
+# Push tag vX.Y.Z → build bản Ubuntu (.deb) và macOS (universal) → GitHub Release
+# kèm install.sh. Lệnh cài một dòng (README) tải các file này.
 name: release
 
 on:
   push:
-    tags: ["v*"]
-  workflow_dispatch:
+    tags: ["v*.*.*"]
 
 permissions:
   contents: write
 
+env:
+  # Bản phát hành kiểm tra bản mới trên repo này (src/useUpdate.ts).
+  VITE_GITHUB_REPO: ${{ github.repository }}
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            args: --target aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-          - platform: ubuntu-22.04
-            args: ""
-    runs-on: ${{ matrix.platform }}
+  linux:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Ubuntu build dependencies
-        if: startsWith(matrix.platform, 'ubuntu')
+      - run: scripts/ci/check-version.sh "$GITHUB_REF_NAME"
+      - name: Gói build của Tauri
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - run: npm ci --no-audit --no-fund
+      - run: cargo test --workspace
+      - run: npx tauri build --bundles deb
+      - name: Đặt tên file như install.sh cần
+        run: |
+          mkdir -p dist-release
+          cp target/release/bundle/deb/*.deb "dist-release/redmine-logtime_${GITHUB_REF_NAME#v}_amd64.deb"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist-release/
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/ci/check-version.sh "$GITHUB_REF_NAME"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: swatinem/rust-cache@v2
-
-      - run: npm ci
-
-      - run: cargo test --workspace
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: scripts/package-macos.sh
+      - uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
-          releaseName: Redmine Logtime ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
-          releaseDraft: true
-          args: ${{ matrix.args }}
+          name: macos
+          path: target/publish/
+
+  release:
+    needs: [linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Tạo GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp scripts/install.sh assets/install.sh
+          cat > notes.md <<NOTES
+          Cài hoặc cập nhật trên macOS và Ubuntu/Debian:
+
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/HEAD/scripts/install.sh | bash
+          \`\`\`
+          NOTES
+          gh release create "$GITHUB_REF_NAME" assets/* \
+            --title "Redmine Logtime ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md

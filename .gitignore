@@ -3,6 +3,6 @@ node_modules
 /dist
 .DS_Store
 docker/.data
-# GitLab CI caches
+# cache khi build trong CI
 /.cargo
 /.npm

@@ -43,7 +43,7 @@ export default function AboutCard({ update }: { update: UpdateState }) {
         </>
       ) : (
         <p className="hint">
-          Bản build từ mã nguồn. Bản phát hành qua GitLab sẽ hiện lệnh cài và báo khi có bản mới tại đây.
+          Bản build từ mã nguồn. Bản phát hành trên GitHub hiện lệnh cài và báo khi có bản mới tại đây.
         </p>
       )}
     </section>

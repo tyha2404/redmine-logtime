@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Cài Redmine Logtime trên macOS hoặc Ubuntu/Debian.
 #
-# Không cần clone source (bản build sẵn từ GitLab Release):
-#   curl -fsSL <link install.sh> | bash
-#   curl -fsSL <link install.sh> | bash -s -- --version 0.2.0
-#   curl -fsSL <link install.sh> | bash -s -- --uninstall
+# Không cần clone source (bản build sẵn từ GitHub Releases):
+#   curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
+#   ... | bash -s -- --version 0.2.0
+#   ... | bash -s -- --uninstall
 #
 # Từ thư mục source:
 #   ./scripts/install.sh               build từ source rồi cài
@@ -12,14 +12,12 @@
 #   ./scripts/install.sh --build-only  chỉ build, không cài
 #
 # Tuỳ chọn khác: --force (cài lại dù đã là bản mới nhất), --help.
-# Project GitLab private: đặt GITLAB_TOKEN (quyền read_api) trước khi chạy.
+# Bản fork: đặt LOGTIME_REPO=<chủ>/<repo> để tải từ repo GitHub khác.
 #
 # Viết cho bash 3.2 (bash mặc định của macOS): không dùng tính năng bash 4.
 set -euo pipefail
 
-# CI thay hai giá trị này khi đăng install.sh lên GitLab; biến môi trường ghi đè.
-GITLAB_URL="${LOGTIME_GITLAB_URL:-__GITLAB_URL__}"
-GITLAB_PROJECT="${LOGTIME_GITLAB_PROJECT:-__GITLAB_PROJECT__}"
+REPO="${LOGTIME_REPO:-tyha2404/redmine-logtime}"
 
 APP_NAME="Redmine Logtime"
 PACKAGE="redmine-logtime"
@@ -44,7 +42,7 @@ Cài Redmine Logtime (macOS, Ubuntu/Debian).
   --from-source     luôn build từ mã nguồn
   --build-only      trong thư mục source: chỉ build, không cài
 
-Project GitLab private: đặt GITLAB_TOKEN (quyền read_api) trước khi chạy.
+Bản fork: đặt LOGTIME_REPO=<chủ>/<repo>.
 USAGE
 }
 
@@ -79,51 +77,19 @@ if [ "$SOURCE" = auto ]; then
   if [ -n "$SRC_DIR" ]; then SOURCE=source; else SOURCE=prebuilt; fi
 fi
 
-# --- GitLab -------------------------------------------------------------------
+# --- GitHub -------------------------------------------------------------------
 
-# Giá trị chưa được CI thay: thử lấy từ git remote của thư mục source.
-case "$GITLAB_URL" in __*) GITLAB_URL="" ;; esac
-case "$GITLAB_PROJECT" in __*) GITLAB_PROJECT="" ;; esac
-if [ -z "$GITLAB_URL$GITLAB_PROJECT" ] && [ -n "$SRC_DIR" ]; then
-  remote="$(git -C "$SRC_DIR" remote get-url origin 2>/dev/null || true)"
-  remote="${remote%.git}"
-  host="" path=""
-  case "$remote" in
-    https://*) rest="${remote#https://}"; rest="${rest#*@}"; host="${rest%%/*}"; path="${rest#*/}" ;;
-    ssh://*) rest="${remote#ssh://}"; rest="${rest#*@}"; host="${rest%%/*}"; host="${host%%:*}"; path="${rest#*/}" ;;
-    *@*:*) rest="${remote#*@}"; host="${rest%%:*}"; path="${rest#*:}" ;;
-  esac
-  if [ -n "$host" ] && [ -n "$path" ]; then
-    GITLAB_URL="https://$host"
-    GITLAB_PROJECT="$path"
-  fi
-fi
-GITLAB_URL="${GITLAB_URL%/}"
-PROJECT_ID="${GITLAB_PROJECT//\//%2F}"
-
-AUTH=()
-if [ -n "${GITLAB_TOKEN:-}" ]; then AUTH=(-H "PRIVATE-TOKEN: $GITLAB_TOKEN"); fi
-
-# curl tới GitLab, có token nếu được đặt. `${AUTH[@]+...}` cho bash 3.2 + set -u.
-gl_curl() { curl -fsSL --retry 2 ${AUTH[@]+"${AUTH[@]}"} "$@"; }
-
-need_gitlab() {
-  [ -n "$GITLAB_URL" ] && [ -n "$GITLAB_PROJECT" ] && return 0
-  die "Không biết tải từ GitLab nào. Đặt LOGTIME_GITLAB_URL (ví dụ https://gitlab.com) và LOGTIME_GITLAB_PROJECT (ví dụ nhom/redmine-logtime hoặc ID số)."
-}
+gh_curl() { curl -fsSL --retry 2 "$@"; }
 
 latest_version() {
-  local json tag
-  json="$(gl_curl "$GITLAB_URL/api/v4/projects/$PROJECT_ID/releases?per_page=1")" || {
-    [ -z "${GITLAB_TOKEN:-}" ] && warn "Không đọc được danh sách release. Nếu project là private, đặt GITLAB_TOKEN rồi chạy lại."
-    return 1
-  }
-  tag="$(printf '%s' "$json" | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)"
+  local tag
+  tag="$(gh_curl "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)" || return 1
   [ -n "$tag" ] || return 1
   printf '%s' "${tag#v}"
 }
 
-package_url() { printf '%s/api/v4/projects/%s/packages/generic/%s/%s/%s' "$GITLAB_URL" "$PROJECT_ID" "$PACKAGE" "$1" "$2"; }
+asset_url() { printf 'https://github.com/%s/releases/download/v%s/%s' "$REPO" "$1" "$2"; }
 
 installed_version() {
   case "$OS" in
@@ -223,7 +189,7 @@ install_prebuilt() {
   make_tmp
   file="$TMP/$asset"
   info "Tải $asset"
-  gl_curl -o "$file" "$(package_url "$version" "$asset")" 2>/dev/null || return 1
+  gh_curl -o "$file" "$(asset_url "$version" "$asset")" 2>/dev/null || return 1
   case "$OS" in
     Darwin)
       tar -xzf "$file" -C "$TMP"
@@ -305,13 +271,12 @@ install_built() {
 # Không có thư mục source: tải mã nguồn của phiên bản (không cần git) vào
 # $TMP/src. Gọi trực tiếp, không qua $(...), để $TMP còn được dọn khi thoát.
 fetch_source() {
-  local version="$1" ref=""
-  need_gitlab
+  local version="$1" ref="HEAD"
   make_tmp
-  [ -n "$version" ] && ref="?sha=v$version"
-  info "Tải mã nguồn ${version:+v$version }từ GitLab"
-  gl_curl -o "$TMP/source.tar.gz" "$GITLAB_URL/api/v4/projects/$PROJECT_ID/repository/archive.tar.gz$ref" \
-    || die "Không tải được mã nguồn. Project private thì đặt GITLAB_TOKEN."
+  [ -n "$version" ] && ref="refs/tags/v$version"
+  info "Tải mã nguồn ${version:+v$version }từ GitHub ($REPO)"
+  gh_curl -o "$TMP/source.tar.gz" "https://github.com/$REPO/archive/$ref.tar.gz" \
+    || die "Không tải được mã nguồn từ https://github.com/$REPO."
   mkdir -p "$TMP/src"
   tar -xzf "$TMP/source.tar.gz" -C "$TMP/src" --strip-components=1
 }
@@ -346,7 +311,6 @@ if [ "$SOURCE" = source ] && [ -n "$SRC_DIR" ]; then
   exit 0
 fi
 
-need_gitlab
 version="$WANT_VERSION"
 if [ -z "$version" ]; then
   version="$(latest_version || true)"
@@ -365,7 +329,7 @@ if [ -n "$version" ]; then
   fi
   warn "Chưa có bản build sẵn cho máy này ($OS $(uname -m)) trong v$version. Chuyển sang build từ mã nguồn."
 else
-  warn "Chưa có release nào trên GitLab. Build từ mã nguồn mới nhất của nhánh mặc định."
+  warn "Chưa có release nào trên GitHub. Build từ mã nguồn mới nhất của nhánh mặc định."
 fi
 
 fetch_source "$version"

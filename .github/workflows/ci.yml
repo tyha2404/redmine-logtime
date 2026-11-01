@@ -1,0 +1,28 @@
+# Kiểm tra mỗi lần push và pull request.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gói build của Tauri
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: cargo test --workspace
+      - name: Cú pháp script
+        run: for f in scripts/*.sh scripts/ci/*.sh; do bash -n "$f"; done

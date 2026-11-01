@@ -35,5 +35,5 @@ scripts/ci/check-version.sh "v$VERSION"
 git add package.json package-lock.json src-tauri/tauri.conf.json Cargo.toml Cargo.lock
 git commit -q -m "chore: release v$VERSION"
 git tag -a "v$VERSION" -m "Redmine Logtime $VERSION"
-echo "Đã tạo commit và tag v$VERSION. Đẩy lên GitLab để CI build và phát hành:"
+echo "Đã tạo commit và tag v$VERSION. Đẩy lên GitHub để Actions build và phát hành:"
 echo "  git push --follow-tags"

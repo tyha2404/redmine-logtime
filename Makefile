@@ -2,7 +2,7 @@
 
 # rustup cài cargo vào ~/.cargo/bin; thêm vào PATH phòng khi shell chưa nạp.
 export PATH := $(HOME)/.cargo/bin:$(PATH)
-.PHONY: dev mock test build install uninstall release publish-macos install-command
+.PHONY: dev mock test build install uninstall release package-macos
 
 dev:
 	npm run tauri dev
@@ -28,10 +28,6 @@ release:
 	@test -n "$(VERSION)" || (echo "Dùng: make release VERSION=0.2.0" && exit 1)
 	./scripts/release.sh $(VERSION)
 
-# Bản macOS khi GitLab không có runner macOS: GITLAB_TOKEN=... make publish-macos
-publish-macos:
-	./scripts/publish-macos.sh
-
-# In lệnh cài một dòng cho project GitLab trong git remote origin.
-install-command:
-	@./scripts/install-command.sh
+# Bản macOS universal đóng gói như trên GitHub Release (target/publish/).
+package-macos:
+	./scripts/package-macos.sh

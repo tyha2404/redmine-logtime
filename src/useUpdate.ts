@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
 
 /**
- * Release channel baked in by GitLab CI (VITE_GITLAB_URL, VITE_GITLAB_PROJECT).
- * Local builds have neither, and simply skip the update check.
+ * GitHub repo of the release channel ("owner/name"), baked in by the release
+ * workflow (VITE_GITHUB_REPO). Local builds have none and skip the update check.
  */
 const MOCK = import.meta.env.VITE_MOCK === "1";
-const GITLAB = (import.meta.env.VITE_GITLAB_URL ?? (MOCK ? "https://gitlab.congty.vn" : "")).replace(/\/$/, "");
-const PROJECT = import.meta.env.VITE_GITLAB_PROJECT ?? (MOCK ? "42" : "");
+const REPO = import.meta.env.VITE_GITHUB_REPO ?? (MOCK ? "tyha2404/redmine-logtime" : "");
 
 export const APP_VERSION = __APP_VERSION__;
 
-const API = GITLAB && PROJECT ? `${GITLAB}/api/v4/projects/${encodeURIComponent(PROJECT)}` : null;
+const API = REPO ? `https://api.github.com/repos/${REPO}` : null;
 
 /** The one-line installer; re-running it updates in place. */
-export const INSTALL_COMMAND = API
-  ? `curl -fsSL ${API}/packages/generic/redmine-logtime/latest/install.sh | bash`
+export const INSTALL_COMMAND = REPO
+  ? `curl -fsSL https://raw.githubusercontent.com/${REPO}/HEAD/scripts/install.sh | bash`
   : null;
 
 export interface UpdateState {
@@ -32,12 +31,14 @@ let cached: Promise<string | null> | null = null;
 function fetchLatest(): Promise<string | null> {
   if (MOCK) return Promise.resolve("0.2.0");
   if (!API) return Promise.resolve(null);
-  cached ??= fetch(`${API}/releases?per_page=1`)
+  cached ??= fetch(`${API}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
     .then((r) => {
-      if (!r.ok) throw new Error(r.status === 404 || r.status === 401 ? "Project private, không kiểm tra được bản mới." : `GitLab trả lỗi ${r.status}.`);
+      // 404: the repo has no release yet.
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(r.status === 403 ? "GitHub tạm giới hạn lượt kiểm tra, thử lại sau." : `GitHub trả lỗi ${r.status}.`);
       return r.json();
     })
-    .then((rs: { tag_name: string }[]) => (rs[0]?.tag_name ?? "").replace(/^v/, "") || null)
+    .then((r: { tag_name?: string } | null) => (r?.tag_name ?? "").replace(/^v/, "") || null)
     .catch((e) => {
       cached = null;
       throw e;
