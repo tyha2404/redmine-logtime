@@ -373,7 +373,8 @@ body {
   justify-content: center;
   gap: 5px;
   height: 64px;
-  padding: 0 2px;
+  /* No side padding: the bold "Ghi logtime" needs the full 60px. */
+  padding: 0;
   text-align: center;
   font-size: 10px;
   font-weight: 400;
