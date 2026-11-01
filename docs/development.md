@@ -12,6 +12,7 @@ Dành cho người chạy từ mã nguồn, đóng góp hoặc phát hành app. 
 | `crates/logtime-core/` | Cài đặt, lịch tháng, nghỉ phép và chia giờ |
 | `crates/logtime-engine/` | Hàng chờ, SQLite, ghi theo lô, chống trùng và hoàn tác |
 | `crates/ai-bridge/` | Gọi Claude CLI, phân tích cấu trúc Redmine và báo cáo |
+| `crates/google-chat/` | Đăng nhập Google (OAuth, chỉ đọc) và lấy tin nhắn Google Chat |
 | `docker/` | Redmine local và dữ liệu thử nghiệm |
 | `scripts/` | Cài đặt, kiểm tra phiên bản và phát hành |
 | `.github/workflows/` | CI và build bản phát hành |
@@ -115,6 +116,19 @@ Người dùng thêm mục vào hàng chờ, kiểm tra rồi xác nhận ghi. C
 
 App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc; app chia giờ theo bước 0,5 giờ, tính cả giờ đã ghi và đang chờ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
 
+### Google Chat
+
+Người dùng lấy tin nhắn của chính mình trong một group Google Chat để đưa vào ô báo cáo. App chỉ xin quyền `chat.spaces.readonly`, `chat.messages.readonly` và `openid email`, không gửi hay sửa tin nhắn. Đăng nhập theo OAuth cho app cài trên máy: mở trình duyệt, nhận mã qua `http://127.0.0.1:<cổng ngẫu nhiên>`, đổi mã bằng PKCE. Refresh token lưu trong `credentials.json`.
+
+Mỗi công ty tự tạo OAuth client; app không kèm client chung. Admin Google Workspace làm một lần:
+
+1. Tạo project trên Google Cloud Console, bật **Google Chat API**.
+2. Trong trang cấu hình Google Chat API, điền tên app, ảnh đại diện và mô tả (Google yêu cầu kể cả khi chỉ đọc). Không cần bật tính năng tương tác.
+3. **OAuth consent screen**: chọn loại **Internal** để không cần Google xét duyệt quyền đọc tin nhắn.
+4. **Credentials → Create credentials → OAuth client ID**, loại **Desktop app**. Gửi Client ID và Client secret cho nhân viên nhập vào **Cài đặt → Google Chat**.
+
+Thử giao diện không cần Google: `make mock`, thêm `&gchat=0` vào URL để xem trạng thái chưa kết nối.
+
 ### Nghỉ phép
 
 Mỗi loại nghỉ tương ứng một project; mỗi tháng có task cha do HR tạo. App tạo issue con cho từng ngày nghỉ và ghi giờ vào đó. **Cài đặt → Nghỉ phép → Tìm trên Redmine** giúp tìm project, hoạt động và tên người dùng; cần **Lưu cài đặt** sau khi kiểm tra kết quả.
@@ -128,7 +142,7 @@ App lưu `settings.json`, `credentials.json` và `redmine-profile.md` trong thư
 - macOS: `~/Library/Application Support/app.redmine-logtime.desktop/`
 - Ubuntu: `~/.config/app.redmine-logtime.desktop/`
 
-API key nằm trong file JSON, được bảo vệ bằng quyền file `0600`, thư mục cấu hình `0700`. Không đưa file này vào Git hoặc đính kèm khi báo lỗi.
+API key và đăng nhập Google Chat nằm trong file JSON, được bảo vệ bằng quyền file `0600`, thư mục cấu hình `0700`. Không đưa file này vào Git hoặc đính kèm khi báo lỗi.
 
 Hàng chờ và lịch sử nằm trong `logtime.db` ở thư mục dữ liệu của app: trên macOS cùng đường dẫn trên, trên Ubuntu mặc định là `~/.local/share/app.redmine-logtime.desktop/`. Gỡ app bằng script vẫn giữ cấu hình và dữ liệu này.
 

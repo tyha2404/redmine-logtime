@@ -294,6 +294,18 @@ const BATCHES: Batch[] = [
 
 let fresh = new URLSearchParams(location.search).has("setup");
 
+// ?gchat=0 starts with Google Chat not connected.
+let gchat = new URLSearchParams(location.search).get("gchat") === "0"
+  ? { connected: false, email: null as string | null, client_id: null as string | null }
+  : { connected: true, email: "dev.a@congty.vn", client_id: "123-abc.apps.googleusercontent.com" };
+
+const CHAT_MESSAGES = [
+  { name: "spaces/TEAM/messages/1", create_time: "2026-10-26T10:05:00Z", text: "Thứ 2 26/10:\n- Sửa feedback công nợ\n- Review Module Sự kiện" },
+  { name: "spaces/TEAM/messages/2", create_time: "2026-10-27T10:12:00Z", text: "Báo cáo hôm nay:\n- Sửa feedback công nợ (filter + export)" },
+  { name: "spaces/TEAM/messages/3", create_time: "2026-10-27T10:20:00Z", text: "Mai em xin nghỉ buổi sáng ạ" },
+  { name: "spaces/TEAM/messages/4", create_time: "2026-10-28T10:01:00Z", text: "Báo cáo hôm nay:\n- [FE] Biểu đồ doanh số theo vùng\n- Review PR module Sự kiện" },
+];
+
 const delay = <T,>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms));
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
@@ -411,6 +423,37 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "open_issue":
       window.open(`${settings.redmine_url}/issues/${args.id}`, "_blank", "noopener");
       return delay(undefined);
+    case "gchat_status":
+      return delay(gchat);
+    case "gchat_connect":
+      gchat = { connected: true, email: "dev.a@congty.vn", client_id: String(args.clientId) };
+      return delay(gchat, 1500);
+    case "gchat_cancel_connect":
+      return delay(undefined);
+    case "gchat_disconnect":
+      gchat = { connected: false, email: null, client_id: gchat.client_id };
+      return delay(gchat);
+    case "gchat_spaces":
+      if (!gchat.connected) throw "Chưa kết nối Google Chat. Vào Cài đặt → Google Chat để kết nối.";
+      return delay(
+        [
+          { name: "spaces/OTHER", display_name: "Dự án XYZ" },
+          { name: "spaces/TEAM", display_name: "Team ABC - Báo cáo hằng ngày" },
+        ],
+        400,
+      );
+    case "gchat_messages": {
+      if (args.space !== "spaces/TEAM") return delay([], 500);
+      const from = new RealDate(`${args.from}T00:00:00`).getTime();
+      const to = new RealDate(`${args.to}T23:59:59`).getTime();
+      return delay(
+        CHAT_MESSAGES.filter((m) => {
+          const t = new RealDate(m.create_time).getTime();
+          return t >= from && t <= to;
+        }),
+        700,
+      );
+    }
     case "ai_test":
       return delay("Sẵn sàng phân tích báo cáo.", 800);
     default:

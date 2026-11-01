@@ -1,5 +1,6 @@
-//! Redmine API key storage: `credentials.json` in the app config dir, readable
-//! only by the current user (0600 on macOS/Linux), like `gh` or `aws` CLIs.
+//! Secrets storage: `credentials.json` in the app config dir, readable only by
+//! the current user (0600 on macOS/Linux), like `gh` or `aws` CLIs. Holds the
+//! Redmine API key and the Google Chat sign-in.
 
 use std::fs;
 use std::io::{self, Write};
@@ -9,8 +10,22 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize)]
 struct File {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    google: Option<GoogleAuth>,
+}
+
+/// A Google sign-in with read-only Chat scopes. The client id/secret belong
+/// to the user's company (an "Internal" OAuth client of type Desktop app).
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GoogleAuth {
+    pub client_id: String,
+    pub client_secret: String,
+    pub refresh_token: String,
+    /// OIDC `sub`: the id Google Chat uses for this user's messages.
+    pub user_id: String,
+    pub email: String,
 }
 
 pub struct Credentials {
@@ -25,32 +40,52 @@ impl Credentials {
     }
 
     pub fn get_api_key(&self) -> Result<Option<String>, String> {
-        let raw = match fs::read_to_string(&self.path) {
-            Ok(raw) => raw,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(format!("Không đọc được API key: {e}")),
-        };
-        restrict(&self.path).map_err(|e| format!("Không đặt được quyền cho file API key: {e}"))?;
-        let file: File =
-            serde_json::from_str(&raw).map_err(|e| format!("File API key bị hỏng: {e}"))?;
+        let file = self.load().map_err(|e| format!("Không đọc được API key: {e}"))?;
         Ok(file.api_key.filter(|k| !k.trim().is_empty()))
     }
 
     pub fn set_api_key(&self, key: &str) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(&File {
-            api_key: Some(key.trim().to_string()),
-        })
-        .map_err(|e| e.to_string())?;
-        self.write(&json)
+        self.modify(|f| f.api_key = Some(key.trim().to_string()))
             .map_err(|e| format!("Không lưu được API key: {e}"))
     }
 
     pub fn delete_api_key(&self) -> Result<(), String> {
-        match fs::remove_file(&self.path) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(format!("Không xoá được API key: {e}")),
+        self.modify(|f| f.api_key = None)
+            .map_err(|e| format!("Không xoá được API key: {e}"))
+    }
+
+    pub fn get_google(&self) -> Result<Option<GoogleAuth>, String> {
+        let file = self.load().map_err(|e| format!("Không đọc được đăng nhập Google: {e}"))?;
+        Ok(file.google)
+    }
+
+    pub fn set_google(&self, auth: Option<GoogleAuth>) -> Result<(), String> {
+        self.modify(|f| f.google = auth)
+            .map_err(|e| format!("Không lưu được đăng nhập Google: {e}"))
+    }
+
+    fn load(&self) -> Result<File, String> {
+        let raw = match fs::read_to_string(&self.path) {
+            Ok(raw) => raw,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(File::default()),
+            Err(e) => return Err(e.to_string()),
+        };
+        restrict(&self.path).map_err(|e| format!("không đặt được quyền cho file: {e}"))?;
+        serde_json::from_str(&raw).map_err(|e| format!("file bị hỏng: {e}"))
+    }
+
+    /// Changes one secret and keeps the others; removes the file once empty.
+    fn modify(&self, change: impl FnOnce(&mut File)) -> Result<(), String> {
+        let mut file = self.load()?;
+        change(&mut file);
+        if file.api_key.is_none() && file.google.is_none() {
+            return match fs::remove_file(&self.path) {
+                Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e.to_string()),
+                _ => Ok(()),
+            };
         }
+        let json = serde_json::to_string_pretty(&file).map_err(|e| e.to_string())?;
+        self.write(&json).map_err(|e| e.to_string())
     }
 
     /// Writes a private temp file, then renames it over the real one so the
@@ -113,6 +148,32 @@ mod tests {
         assert_eq!(creds.get_api_key().unwrap().as_deref(), Some("new"));
         creds.delete_api_key().unwrap();
         assert_eq!(creds.get_api_key().unwrap(), None);
+        assert!(!dir.join("credentials.json").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn google_sign_in_and_api_key_are_kept_apart() {
+        let dir = std::env::temp_dir().join(format!("rl-cred-g-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let creds = Credentials::new(&dir);
+        creds.set_api_key("key").unwrap();
+        creds
+            .set_google(Some(GoogleAuth {
+                client_id: "cid".into(),
+                client_secret: "cs".into(),
+                refresh_token: "rt".into(),
+                user_id: "42".into(),
+                email: "a@congty.vn".into(),
+            }))
+            .unwrap();
+
+        creds.delete_api_key().unwrap();
+        assert_eq!(creds.get_google().unwrap().unwrap().refresh_token, "rt");
+        creds.set_api_key("key2").unwrap();
+        creds.set_google(None).unwrap();
+        assert_eq!(creds.get_api_key().unwrap().as_deref(), Some("key2"));
+        assert!(creds.get_google().unwrap().is_none());
         fs::remove_dir_all(&dir).unwrap();
     }
 }

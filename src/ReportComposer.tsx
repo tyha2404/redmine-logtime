@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import AiLog from "./AiLog";
 import type { Settings } from "./api";
 import { fmtDayLong, fmtHours } from "./fmt";
+import GchatImport from "./GchatImport";
 import QuotaRail from "./QuotaRail";
 import { summaryLine, TaskRow, useReportFlow } from "./reportFlow";
 import { useToast } from "./toast";
@@ -46,6 +47,7 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
   const busyWithReport = !!view || ai.running || f.text.trim() !== "";
   const open = busyWithReport || (openChoice ?? draft.draft.items.length === 0);
   const [wantFocus, setWantFocus] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (!open || !wantFocus) return;
@@ -68,13 +70,30 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
     toast(`Đã thêm ${n} logtime vào hàng chờ bên dưới.`);
   };
 
+  const importDialog = importing && (
+    <GchatImport
+      onClose={() => setImporting(false)}
+      onOpenSettings={() => {
+        setImporting(false);
+        onOpenSettings();
+      }}
+      onInsert={(chat) => {
+        f.setText((cur) => (cur.trim() ? `${cur.trimEnd()}\n\n${chat}` : chat));
+        setImporting(false);
+        setOpenChoice(true);
+        setWantFocus(true);
+        toast("Đã đưa tin nhắn vào ô báo cáo. Kiểm tra rồi bấm Phân tích bằng AI.");
+      }}
+    />
+  );
+
   if (!open) {
     return (
       <section className="composer is-folded" aria-labelledby="composer-title">
         <h2 id="composer-title" className="section-title">
           Từ báo cáo công việc
         </h2>
-        <p className="hint">Dán báo cáo để Claude chia giờ và thêm vào hàng chờ.</p>
+        <p className="hint">Dán báo cáo hoặc lấy từ Google Chat để Claude chia giờ và thêm vào hàng chờ.</p>
         <button
           className="btn"
           onClick={() => {
@@ -84,6 +103,10 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         >
           Dán báo cáo
         </button>
+        <button className="btn" onClick={() => setImporting(true)}>
+          Lấy từ Google Chat
+        </button>
+        {importDialog}
       </section>
     );
   }
@@ -133,7 +156,11 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         <button className="btn primary" onClick={f.analyze} disabled={ai.running || !f.text.trim()}>
           {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
         </button>
+        <button className="btn" onClick={() => setImporting(true)} disabled={ai.running}>
+          Lấy từ Google Chat
+        </button>
       </div>
+      {importDialog}
       <AiLog ai={ai} />
 
       {view && (

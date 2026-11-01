@@ -3188,3 +3188,220 @@ select::-ms-expand {
   color: var(--ink-2);
   font-size: 12.5px;
 }
+
+/* Picking report messages from Google Chat. */
+.gchat-dialog {
+  width: min(680px, calc(100vw - 32px));
+}
+.gchat-dialog > p {
+  margin-bottom: 14px;
+}
+.gchat-range-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.gchat-range-row .range {
+  flex: 1;
+  min-width: 0;
+}
+.gchat-range-row > .btn {
+  height: var(--control-h);
+}
+.gchat-messages[aria-busy="true"] {
+  opacity: 0.55;
+}
+.gchat-empty {
+  padding: 18px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-s);
+  text-align: center;
+  color: var(--ink-2);
+}
+.gchat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+.gchat-messages li + li {
+  border-top: 1px solid var(--line);
+}
+.gchat-messages .check {
+  margin: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.gchat-messages .check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gchat-time {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.gchat-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Date range as one field, opening inline: quick ranges + a month grid. */
+.range-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface-2) var(--chevron) no-repeat right 10px center / 16px 16px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.range-trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink-2) 55%, var(--line));
+}
+.range-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.range-trigger svg {
+  flex: none;
+  color: var(--ink-2);
+}
+.range-value {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.range-span {
+  margin-left: auto;
+  padding-right: 22px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.range-panel {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  gap: 16px;
+  width: min(480px, calc(100vw - 16px));
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0, 0, 0, 0.18);
+  animation: range-in 0.12s ease-out;
+}
+@keyframes range-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .range-panel {
+    animation: none;
+  }
+}
+.range-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+  padding-right: 12px;
+  border-right: 1px solid var(--line);
+}
+.range-preset {
+  padding: 7px 12px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.range-preset:hover {
+  background: var(--surface-2);
+}
+.range-preset[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.range-cal {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.range-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.range-cal-title {
+  font-weight: 600;
+}
+.range-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 2px;
+}
+.range-dow {
+  padding: 4px 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--ink-2);
+}
+.range-day {
+  height: 34px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.range-day:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: var(--radius-s);
+}
+.range-day.today {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.range-day.in {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.range-day.lo {
+  border-radius: var(--radius-s) 0 0 var(--radius-s);
+}
+.range-day.hi {
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+.range-day.lo.hi {
+  border-radius: var(--radius-s);
+}
+.range-day.lo,
+.range-day.hi {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.range-day:disabled {
+  color: var(--ink-2);
+  opacity: 0.4;
+  cursor: default;
+}
+.range-panel .range-hint {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}

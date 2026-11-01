@@ -306,6 +306,25 @@ export interface AiProgress {
   text: string;
 }
 
+export interface GchatStatus {
+  connected: boolean;
+  email: string | null;
+  client_id: string | null;
+}
+
+export interface ChatSpace {
+  /** spaces/AAAA… */
+  name: string;
+  display_name: string;
+}
+
+export interface ChatMessage {
+  name: string;
+  text: string;
+  /** RFC 3339, UTC */
+  create_time: string;
+}
+
 export function issueBrief(i: Issue): IssueBrief {
   return {
     id: i.id,
@@ -358,6 +377,14 @@ export const api = {
   clearLastReport: (day: string | null) => invoke<void>("clear_last_report", { day }),
   analyzeReport: (text: string, day: string | null) => invoke<ReportView>("analyze_report", { text, day }),
   planReport: (view: ReportView, excluded: string[]) => invoke<DayPlan[]>("plan_report", { view, excluded }),
+  gchatStatus: () => invoke<GchatStatus>("gchat_status"),
+  gchatConnect: (clientId: string, clientSecret: string) =>
+    invoke<GchatStatus>("gchat_connect", { clientId, clientSecret }),
+  gchatCancelConnect: () => invoke<void>("gchat_cancel_connect"),
+  gchatDisconnect: () => invoke<GchatStatus>("gchat_disconnect"),
+  gchatSpaces: () => invoke<ChatSpace[]>("gchat_spaces"),
+  gchatMessages: (space: string, from: string, to: string) =>
+    invoke<ChatMessage[]>("gchat_messages", { space, from, to }),
   onAiProgress: (cb: (p: AiProgress) => void): Promise<UnlistenFn> =>
     listen<AiProgress>("ai-progress", (e) => cb(e.payload)),
 };

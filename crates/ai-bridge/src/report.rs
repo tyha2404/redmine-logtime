@@ -215,6 +215,7 @@ Today is {today} ({weekday}). Working days (ISO, Monday=1): {workdays:?}. A full
 - DAILY reports cover one date each (headers like "Thứ 2 26/10", "Ngày 27/10", "T3:").
 - Lines under a project header (e.g. "1. Dự án ABC") belong to that project.
 - Each report line is its own task. The same work appearing on several days is ONE task (same `key`).
+- Reports pasted from Google Chat start each message with "[Gửi lúc <thứ> DD/MM/YYYY HH:MM]". A message with no date of its own covers the day it was sent ("hôm nay" = that day, "hôm qua" = the working day before it). Dates written in a message take precedence over its send date.
 
 ## What to produce
 - period_from / period_to: the dates the report covers.

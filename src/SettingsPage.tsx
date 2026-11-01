@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import AboutCard from "./AboutCard";
+import GchatSettings from "./GchatSettings";
 import { api, errorText, type Activity, type Settings, type ToolStatus, type Tracker } from "./api";
 import LeaveSettings from "./LeaveSettings";
 import ProfileSection from "./ProfileSection";
@@ -376,6 +377,8 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         </div>
       </section>
 
+
+      <GchatSettings />
 
       <LeaveSettings
         settings={settings}

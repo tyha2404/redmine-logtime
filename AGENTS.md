@@ -6,6 +6,7 @@ Redmine Logtime combines Tauri 2, React/TypeScript, and a Rust workspace.
 
 - `src/`: React pages, shared components, hooks (`useDraft.ts`, `useAiRun.ts`), API bridge, mock data, and CSS.
 - `src-tauri/`: desktop commands, application state, credentials, and Tauri configuration.
+- `crates/google-chat/`: read-only Google Chat client and OAuth sign-in.
 - `crates/redmine-client/`: Redmine REST client.
 - `crates/logtime-core/`: settings, calendar, leave, and planning logic.
 - `crates/logtime-engine/`: SQLite-backed queue, batch execution, deduplication, and undo.
@@ -37,7 +38,7 @@ Follow the history's Conventional Commit prefixes: `feat:`, `fix:`, `docs:`, and
 
 ## Security & Configuration
 
-Never commit API keys or credentials. Test writes against Docker Redmine, following `docs/development.md`; its seed does not cover the full monthly leave workflow. Preserve explicit user review before Redmine writes and the AI integration's read-only access. Undo removes time entries, retaining subtasks.
+Never commit API keys or credentials. Test writes against Docker Redmine, following `docs/development.md`; its seed does not cover the full monthly leave workflow. Preserve explicit user review before Redmine writes and the read-only access of the AI and Google Chat integrations. Undo removes time entries, retaining subtasks.
 
 ## Documentation
 

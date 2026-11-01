@@ -17,3 +17,4 @@ redmine-client = { path = "crates/redmine-client" }
 logtime-core = { path = "crates/logtime-core" }
 logtime-engine = { path = "crates/logtime-engine" }
 ai-bridge = { path = "crates/ai-bridge" }
+google-chat = { path = "crates/google-chat" }

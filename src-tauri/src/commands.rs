@@ -133,9 +133,13 @@ pub(crate) fn issue_url(redmine_url: &str, id: u32) -> CmdResult<String> {
 #[tauri::command]
 pub fn open_issue(state: State<'_, AppState>, id: u32) -> CmdResult<()> {
     let url = issue_url(&state.settings().redmine_url, id)?;
+    open_in_browser(&url)
+}
+
+pub(crate) fn open_in_browser(url: &str) -> CmdResult<()> {
     let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
     std::process::Command::new(opener)
-        .arg(&url)
+        .arg(url)
         .spawn()
         .map(|_| ())
         .map_err(|e| format!("Không mở được trình duyệt: {e}"))

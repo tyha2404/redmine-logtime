@@ -3,6 +3,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use logtime_core::Settings;
 use logtime_engine::Store;
@@ -23,6 +24,11 @@ pub struct AppState {
     executing: AtomicBool,
     ai_running: AtomicBool,
     pub ai_cancel: AtomicBool,
+    /// Google access token and when it expires; refreshed from the stored
+    /// refresh token, never written to disk.
+    pub gchat_token: Mutex<Option<(String, Instant)>>,
+    gchat_connecting: AtomicBool,
+    pub gchat_cancel: AtomicBool,
 }
 
 impl AppState {
@@ -49,6 +55,9 @@ impl AppState {
             executing: AtomicBool::new(false),
             ai_running: AtomicBool::new(false),
             ai_cancel: AtomicBool::new(false),
+            gchat_token: Mutex::new(None),
+            gchat_connecting: AtomicBool::new(false),
+            gchat_cancel: AtomicBool::new(false),
         })
     }
 
@@ -75,6 +84,13 @@ impl AppState {
     pub fn begin_ai(&self) -> Option<ExecutionGuard<'_>> {
         let guard = claim(&self.ai_running)?;
         self.ai_cancel.store(false, Ordering::Release);
+        Some(guard)
+    }
+
+    /// Allows one Google sign-in at a time and clears any stale cancel request.
+    pub fn begin_gchat_connect(&self) -> Option<ExecutionGuard<'_>> {
+        let guard = claim(&self.gchat_connecting)?;
+        self.gchat_cancel.store(false, Ordering::Release);
         Some(guard)
     }
 }

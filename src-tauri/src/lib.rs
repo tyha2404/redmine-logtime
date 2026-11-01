@@ -1,5 +1,6 @@
 mod ai_commands;
 mod commands;
+mod gchat_commands;
 mod leave_commands;
 mod plan_commands;
 mod secrets;
@@ -47,6 +48,12 @@ pub fn run() {
             leave_commands::discover_leave,
             leave_commands::leave_parent,
             leave_commands::leave_entries,
+            gchat_commands::gchat_status,
+            gchat_commands::gchat_connect,
+            gchat_commands::gchat_cancel_connect,
+            gchat_commands::gchat_disconnect,
+            gchat_commands::gchat_spaces,
+            gchat_commands::gchat_messages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

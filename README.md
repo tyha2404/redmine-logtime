@@ -81,6 +81,16 @@ Bạn có thể ghi giờ thủ công mà không cần AI. Để dùng AI:
 
 AI chỉ đọc Redmine để đề xuất công việc; bạn quyết định các mục sẽ ghi.
 
+### Lấy báo cáo từ Google Chat (tùy chọn)
+
+Nếu bạn gửi báo cáo vào group Google Chat, app có thể lấy lại các tin đó thay vì dán tay. Cần Client ID và Client secret do admin Google Workspace của công ty cung cấp ([hướng dẫn cho admin](docs/development.md#google-chat)).
+
+1. Vào **Cài đặt → Google Chat**, nhập Client ID, Client secret → **Kết nối Google**, rồi đăng nhập và cho phép trong trình duyệt.
+2. Vào **Ghi logtime → Lấy từ Google Chat**, chọn group và khoảng ngày → **Tải tin nhắn**.
+3. Bỏ tick những tin không phải báo cáo → **Đưa vào báo cáo**, rồi **Phân tích bằng AI** như trên.
+
+App chỉ đọc tin nhắn do bạn gửi, không gửi hay sửa gì trên Google Chat.
+
 ### Hoàn tác khi ghi nhầm
 
 Vào **Lịch sử ghi → Hoàn tác lô này**. Thao tác này xóa các logtime đã tạo trong lô; **task con vẫn được giữ trên Redmine**.
