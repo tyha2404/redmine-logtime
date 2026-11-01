@@ -87,9 +87,24 @@ Vào **Lịch sử ghi → Hoàn tác lô này**. Thao tác này xóa các logti
 
 ## 4. Cập nhật và gỡ cài đặt
 
-**Cập nhật:** chạy lại lệnh cài đặt ở trên.
+### Cập nhật lên bản mới
 
-**Gỡ app:** mở Terminal và chạy:
+Khi có bản mới, biểu tượng tải xuống ở góc trên app có chấm đỏ.
+
+1. Đóng app.
+2. Mở Terminal, chạy **đúng lệnh cài đặt** (giống lúc cài lần đầu):
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
+   ```
+
+3. Mở lại app. Cài đặt, API key và hàng chờ được giữ nguyên.
+
+Nếu máy đã là bản mới nhất, lệnh báo vậy và không làm gì thêm.
+
+### Gỡ app
+
+Mở Terminal và chạy lệnh dưới. Lệnh này giống lệnh cài đặt, chỉ thêm `-s -- --uninstall` ở cuối:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall
