@@ -1,116 +1,170 @@
 # Phát triển Redmine Logtime
 
-Tài liệu cho người muốn chạy từ mã nguồn, đóng góp hoặc phát hành app. Hướng dẫn cho người dùng nằm ở [README](../README.md).
+Dành cho người chạy từ mã nguồn, đóng góp hoặc phát hành app. Người dùng chỉ cần [hướng dẫn cài đặt và sử dụng](../README.md). Quy ước đóng góp nằm trong [AGENTS.md](../AGENTS.md).
 
-## Cấu trúc
+## Cấu trúc dự án
 
-```
-crates/redmine-client   REST client cho Redmine (đọc, tạo task con, tạo/xoá logtime)
-crates/logtime-core     Settings, tính trạng thái lịch tháng, nghỉ phép
-crates/logtime-engine   Hàng chờ, duyệt, ghi theo lô (chống trùng), hoàn tác; SQLite
-crates/ai-bridge        Gọi Claude CLI + mcp-redmine (chỉ đọc): phân tích cấu trúc Redmine, phân tích báo cáo
-src-tauri/              App Tauri 2: commands, lưu settings và API key
-src/                    Giao diện React
-docker/                 Redmine local để test thao tác ghi
-scripts/                Cài đặt, phát hành, CI
-```
+| Thư mục | Vai trò |
+| --- | --- |
+| `src/` | Giao diện React/TypeScript, hooks, CSS và dữ liệu mẫu |
+| `src-tauri/` | App Tauri 2, commands, trạng thái và lưu API key |
+| `crates/redmine-client/` | REST client: đọc Redmine, tạo task con, tạo/xóa logtime |
+| `crates/logtime-core/` | Cài đặt, lịch tháng, nghỉ phép và chia giờ |
+| `crates/logtime-engine/` | Hàng chờ, SQLite, ghi theo lô, chống trùng và hoàn tác |
+| `crates/ai-bridge/` | Gọi Claude CLI, phân tích cấu trúc Redmine và báo cáo |
+| `docker/` | Redmine local và dữ liệu thử nghiệm |
+| `scripts/` | Cài đặt, kiểm tra phiên bản và phát hành |
+| `.github/workflows/` | CI và build bản phát hành |
 
-## Chạy dev
+## Chuẩn bị môi trường
 
-Yêu cầu: Rust (rustup), Node 20+. Trên Ubuntu cần thêm các gói build cho Tauri:
-`sudo apt install libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev`.
+Dùng **Node.js 22** như CI, npm và Rust stable qua rustup. Chạy các lệnh bên dưới từ thư mục gốc repo.
+
+### macOS
+
+Cài Xcode Command Line Tools nếu chưa có:
 
 ```bash
-npm install
-npm run tauri dev      # hoặc: make dev
+xcode-select --install
 ```
 
-URL Redmine và API key nhập trong màn **Cài đặt**. API key được lưu trong `credentials.json` ở thư mục cấu hình của app, chỉ user hiện tại đọc được (quyền 0600, thư mục 0700):
+### Ubuntu
+
+Cài các gói hệ thống dùng khi build:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+CI build trên Ubuntu 22.04. Docker chỉ cần khi thử với Redmine local; Claude CLI đã đăng nhập và `uv` chỉ cần cho tính năng AI.
+
+## Chạy ứng dụng
+
+```bash
+npm ci
+make dev
+```
+
+`make dev` tương đương `npm run tauri dev`, khởi chạy cả giao diện và app desktop. Nhập URL Redmine và API key ở màn kết nối hoặc trong **Cài đặt**.
+
+### Chỉ xem giao diện
+
+```bash
+make mock
+```
+
+Mở `http://localhost:1430/?page=calendar`. Có thể đổi `calendar` thành `review`, `leave`, `history`, `settings`; dùng `?setup=1` để xem màn kết nối lần đầu.
+
+Chế độ này dùng `src/mock.ts`, với dữ liệu tháng 10/2026; không cần Tauri hoặc Redmine. Không bật `VITE_MOCK` khi build bản dùng thật. `npm run dev` chỉ chạy Vite, không tự bật dữ liệu mẫu.
+
+## Kiểm tra trước khi gửi thay đổi
+
+```bash
+make test
+npm run build
+```
+
+- `make test`: `cargo test --workspace` và `npx tsc --noEmit`.
+- `npm run build`: kiểm tra TypeScript và build frontend vào `dist/`.
+- `cargo test -p logtime-engine`: chạy riêng một crate khi phát triển.
+
+Rust dùng `#[test]`, `#[tokio::test]` và Wiremock; test nằm trong các module `mod tests`. Chưa có test runner frontend hoặc mức coverage bắt buộc. Với thay đổi giao diện, kiểm tra bằng `make mock`; với kết nối desktop, kiểm tra bằng `make dev`.
+
+CI chạy TypeScript, Rust tests và kiểm tra cú pháp shell trên các lần push và pull request. Xem cấu hình thực tế ở [ci.yml](../.github/workflows/ci.yml).
+
+## Thử với Redmine local
+
+Dùng môi trường này cho thao tác ghi và hoàn tác:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+docker compose -f docker/docker-compose.yml logs -f redmine
+```
+
+Khi Redmine sẵn sàng, thoát xem log bằng `Ctrl C` rồi nạp dữ liệu:
+
+```bash
+docker compose -f docker/docker-compose.yml exec redmine bin/rails runner /seed.rb
+```
+
+Seed in API key của `dev1`. Trong app, nhập URL `http://localhost:3000` và key đó. Có thể đăng nhập web bằng `dev1` / `password123`; tài khoản quản trị mặc định là `admin` / `admin`.
+
+Thay `YOUR_LOCAL_API_KEY` trong ví dụ bằng key local của bạn. Dữ liệu mẫu và các ví dụ sử dụng tháng 10/2026.
+
+```bash
+# Đọc thông tin người dùng và logtime
+REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
+  cargo run -p redmine-client --example smoke -- 2026-10-01 2026-10-31
+
+# Tạo task con, ghi giờ, kiểm tra chạy lại không trùng và hoàn tác
+REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
+  cargo run -p logtime-engine --example local_e2e
+
+# Thử Claude thật với Redmine local; có sử dụng hạn mức Claude
+REDMINE_API_KEY=YOUR_LOCAL_API_KEY cargo run -p ai-bridge --example local_ai
+```
+
+Ví dụ `local_e2e` giữ lại task con sau khi hoàn tác logtime. Dừng môi trường bằng `docker compose -f docker/docker-compose.yml down`; dữ liệu PostgreSQL vẫn được giữ trong Docker volume.
+
+## Luồng xử lý và dữ liệu
+
+### Hàng chờ và AI
+
+Người dùng thêm mục vào hàng chờ, kiểm tra rồi xác nhận ghi. Các thao tác ghi do app thực hiện; hoàn tác chỉ xóa logtime của lô, giữ task con.
+
+App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc; app chia giờ theo bước 0,5 giờ, tính cả giờ đã ghi và đang chờ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
+
+### Nghỉ phép
+
+Mỗi loại nghỉ tương ứng một project; mỗi tháng có task cha do HR tạo. App tạo issue con cho từng ngày nghỉ và ghi giờ vào đó. **Cài đặt → Nghỉ phép → Tìm trên Redmine** giúp tìm project, hoạt động và tên người dùng; cần **Lưu cài đặt** sau khi kiểm tra kết quả.
+
+Seed Docker hiện dùng một issue nghỉ chung, chưa mô phỏng đầy đủ các project nghỉ và task cha theo tháng. Muốn thử toàn bộ luồng nghỉ phép, chuẩn bị thêm cấu trúc này trên Redmine local.
+
+### Cấu hình và thông tin đăng nhập
+
+App lưu `settings.json`, `credentials.json` và `redmine-profile.md` trong thư mục cấu hình:
 
 - macOS: `~/Library/Application Support/app.redmine-logtime.desktop/`
 - Ubuntu: `~/.config/app.redmine-logtime.desktop/`
 
-Từ thư mục source cũng dùng được `make install` (build rồi cài), `./scripts/install.sh --prebuilt` (tải bản build sẵn), `make build`, `make uninstall`.
+API key nằm trong file JSON, được bảo vệ bằng quyền file `0600`, thư mục cấu hình `0700`. Không đưa file này vào Git hoặc đính kèm khi báo lỗi.
 
-## Xem giao diện bằng dữ liệu mẫu
+Hàng chờ và lịch sử nằm trong `logtime.db` ở thư mục dữ liệu của app: trên macOS cùng đường dẫn trên, trên Ubuntu mặc định là `~/.local/share/app.redmine-logtime.desktop/`. Gỡ app bằng script vẫn giữ cấu hình và dữ liệu này.
 
-Không cần Redmine hay Tauri: chạy UI trong trình duyệt với dữ liệu tháng 10/2026 giả lập (`src/mock.ts`, không có trong bản build thật). Ảnh trong README được chụp từ chế độ này.
+## Build và cài từ mã nguồn
 
-```bash
-make mock          # = VITE_MOCK=1 npx vite --port 1430
-# mở http://localhost:1430/?page=calendar  (review | leave | history | settings)
-# màn chào lần đầu: http://localhost:1430/?setup=1
-```
+| Lệnh | Kết quả |
+| --- | --- |
+| `make build` | Build bản release, không cài |
+| `make install` | Build rồi cài vào máy |
+| `make uninstall` | Gỡ app, giữ cấu hình và dữ liệu |
+| `./scripts/install.sh --prebuilt` | Tải và cài bản phát hành có sẵn |
 
-## Test
+`make build` tạo `.app` trên macOS hoặc `.deb` trên Ubuntu, trong `target/release/bundle/`. Lệnh cài tải từ GitHub sẽ chuyển sang build từ mã nguồn nếu không tìm được bản cài sẵn phù hợp.
 
-```bash
-make test          # = cargo test --workspace && npx tsc --noEmit
-```
-
-## Redmine local
-
-Mọi thao tác ghi nên thử trên Redmine chạy bằng Docker, không thử trên Redmine thật:
+Muốn chọn loại gói thủ công, chạy trên đúng hệ điều hành:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d
-# đợi ~30s cho Redmine khởi tạo DB
-docker compose -f docker/docker-compose.yml exec redmine bin/rails runner /seed.rb
+npm run tauri build -- --bundles app        # macOS
+npm run tauri build -- --bundles deb        # Ubuntu
 ```
-
-Seed in ra API key của user `dev1`. Trong app nhập URL `http://localhost:3000` và key đó. Đăng nhập web: `admin` / `admin`.
-
-Thử engine ghi đầu-cuối (chỉ chạy với localhost): tạo task con, ghi logtime, chạy lại không trùng, hoàn tác:
-
-```bash
-REDMINE_API_KEY=... cargo run -p logtime-engine --example local_e2e
-```
-
-Kiểm tra nhanh client (chỉ đọc):
-
-```bash
-REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=... \
-  cargo run -p redmine-client --example smoke -- 2026-10-01 2026-10-31
-```
-
-Thử AI thật với Redmine local (tốn một ít lượt dùng Claude):
-
-```bash
-REDMINE_API_KEY=... cargo run -p ai-bridge --example local_ai
-```
-
-## Tính năng AI hoạt động thế nào
-
-App gọi [Claude CLI](https://claude.ai/install.sh) (`claude -p`) với [mcp-redmine](https://github.com/runekaagaard/mcp-redmine) chạy qua `uvx`, cấu hình `REDMINE_READ_ONLY=1`: Claude chỉ đọc Redmine, mọi thao tác ghi do app làm sau khi người dùng duyệt.
-
-- **Phân tích cấu trúc Redmine** tạo một hồ sơ (cách nhận biết task cha, tracker task con, quy ước đặt tên) và đưa hồ sơ đó cho Claude ở mỗi lần phân tích báo cáo.
-- **Phân tích báo cáo** trả về danh sách việc kèm task cha đề xuất; app (không phải Claude) chia giờ theo bội số 0.5h cho đủ giờ còn trống mỗi ngày và bỏ qua việc đã log hoặc đang chờ ghi.
-
-## Nghỉ phép
-
-App hỗ trợ cách quản lý nghỉ phép: mỗi loại nghỉ có một project (ví dụ Annual Leave, Sick Leave, Unpaid Leave); đầu mỗi tháng HR tạo một task cha trong từng project ("Xin nghỉ phép Tháng 10.2026", "… Đột Xuất …", "… KL …"); mỗi ngày nghỉ là một issue con dưới task cha của tháng đó, log giờ vào issue con.
-
-- **Cài đặt → Nghỉ phép → Tìm trên Redmine**: tìm các project có tên chứa "Leave"/"Nghỉ", activity cùng tên, và tên người dùng hay dùng trong tiêu đề (ví dụ "BE - Tên") từ các issue nghỉ cũ.
-- Task cha của tháng được nhận ra qua tiêu đề có tháng ("10.2026", "T10.2026", "Tháng 10/2026"…).
-- Lịch tính giờ log trong các project nghỉ là ngày nghỉ.
 
 ## Phát hành
 
-GitHub Actions: `ci.yml` chạy `tsc`, `cargo test` mỗi lần push; `release.yml` chạy khi push tag `vX.Y.Z`, build `.deb` (Ubuntu 22.04, amd64) và `.app` universal (macOS), rồi tạo GitHub Release kèm `install.sh`.
+Trước khi phát hành, chạy kiểm tra và commit các thay đổi để working tree sạch. Chọn phiên bản mới theo dạng `X.Y.Z`:
 
 ```bash
-make release VERSION=0.2.0     # đổi version ở mọi file, commit, tạo tag
+make release VERSION=0.2.0
 git push --follow-tags
 ```
 
-Phát hành đúng version đang có (không đổi gì để commit): `git tag -a v0.1.0 -m "Redmine Logtime 0.1.0" && git push --follow-tags`.
+Lệnh `make release` đồng bộ phiên bản npm, Tauri và Cargo, tạo commit cùng tag `v0.2.0`. Push tag kích hoạt [release.yml](../.github/workflows/release.yml), tạo GitHub Release gồm:
 
-App chưa ký bằng Apple Developer ID. Cài bằng lệnh `curl` thì macOS không chặn.
+- `redmine-logtime_X.Y.Z_amd64.deb`: Ubuntu, build trên 22.04.
+- `Redmine-Logtime_X.Y.Z_macos-universal.tar.gz`: app macOS cho Intel và Apple Silicon.
+- `install.sh`: script cài và cập nhật.
 
-## Build bản cài đặt thủ công
+Có thể đóng gói macOS universal tại máy Mac bằng `make package-macos`; kết quả ở `target/publish/`.
 
-```bash
-npm run tauri build
-```
-
-Ra `.app`/`.dmg` trên macOS và `.deb`/`.AppImage` trên Ubuntu (build trên từng hệ điều hành).
+App chưa được ký bằng Apple Developer ID. Script cài đặt gỡ thuộc tính quarantine của app đã tải; bản tải trực tiếp bằng trình duyệt có thể bị macOS chặn.
