@@ -2,7 +2,7 @@
 
 App trên máy tính (macOS, Ubuntu) để xem, ghi logtime hàng loạt và xin nghỉ phép trên [Redmine](https://www.redmine.org/). Mọi thứ vào hàng chờ để bạn kiểm tra, **chỉ ghi lên Redmine khi bạn bấm ghi**.
 
-![Hàng chờ dạng bảng tuần](docs/images/06-bang-tuan.png)
+![Hàng chờ dạng bảng tuần](docs/images/week-grid.png)
 
 ## Cài đặt
 
@@ -20,7 +20,7 @@ Lần đầu mở app, nhập địa chỉ Redmine và API key (Redmine → **T�
 
 ## Cách dùng
 
-![Lịch tháng](docs/images/02-lich-thang.png)
+![Lịch tháng](docs/images/calendar.png)
 
 1. **Thêm vào hàng chờ**, theo một trong ba cách:
    - Trên **Lịch tháng**, chọn ngày → **Thêm logtime vào issue** (issue có sẵn hoặc tạo task con mới).
@@ -46,7 +46,7 @@ make mock                          # chỉ giao diện, dữ liệu mẫu
 make test
 ```
 
-Xem thêm [docs/phat-trien.md](docs/phat-trien.md).
+Xem thêm [docs/development.md](docs/development.md).
 
 ## Giấy phép
 
