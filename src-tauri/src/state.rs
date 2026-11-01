@@ -11,7 +11,7 @@ use logtime_engine::Store;
 use crate::secrets::Credentials;
 
 /// App-wide state: settings are persisted as JSON in the OS config dir, the
-/// draft and execution history in SQLite in the data dir.
+/// write history (batches) in SQLite in the data dir.
 pub struct AppState {
     settings_path: PathBuf,
     settings: Mutex<Settings>,

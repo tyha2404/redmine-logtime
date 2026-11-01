@@ -114,7 +114,7 @@ Ví dụ `local_e2e` giữ lại task con sau khi hoàn tác logtime. Dừng mô
 
 Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Hoàn tác chỉ xóa logtime của lô, giữ task con.
 
-App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc; app chia giờ theo bước 0,5 giờ, tính cả giờ đã ghi và đang chờ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
+App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine và giờ nghỉ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
 
 ### Google Chat
 
