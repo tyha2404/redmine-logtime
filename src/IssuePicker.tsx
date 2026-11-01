@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api, errorText, issueBrief, type IssueBrief } from "./api";
+import { RowsSkeleton } from "./Skeleton";
+import { exitDelay } from "./useModal";
 
 interface Props {
   value: IssueBrief | null;
@@ -22,11 +24,19 @@ export default function IssuePicker({ value, onPick, label, disabled }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
+  /** Fades the list out, then puts the field back. */
+  const [closing, setClosing] = useState(false);
   const close = () => {
-    setOpen(false);
-    setQ("");
-    setResults(null);
-    setError(null);
+    const reset = () => {
+      setOpen(false);
+      setClosing(false);
+      setQ("");
+      setResults(null);
+      setError(null);
+    };
+    if (!box.current?.querySelector(".ipick-pop")) return reset();
+    setClosing(true);
+    setTimeout(reset, exitDelay(120));
   };
 
   useEffect(() => {
@@ -119,11 +129,15 @@ export default function IssuePicker({ value, onPick, label, disabled }: Props) {
       )}
 
       {open && (q.trim() || error) && (
-        <div className="ipick-pop" id="ipick-list" role="listbox" aria-label="Issue tìm được">
+        <div className={`ipick-pop${closing ? " is-closing" : ""}`} id="ipick-list" role="listbox" aria-label="Issue tìm được">
           {error ? (
             <p className="ipick-note text-missing">{error}</p>
           ) : results === null ? (
-            <p className="ipick-note muted">{q.trim().length < 2 ? "Gõ thêm để tìm…" : "Đang tìm…"}</p>
+            q.trim().length < 2 && !/^#?\d+$/.test(q.trim()) ? (
+              <p className="ipick-note muted">Gõ thêm để tìm…</p>
+            ) : (
+              <RowsSkeleton rows={3} className="is-compact" />
+            )
           ) : results.length === 0 ? (
             <p className="ipick-note muted">Không tìm thấy issue đang mở nào khớp.</p>
           ) : (

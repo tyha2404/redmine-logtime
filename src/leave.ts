@@ -150,19 +150,24 @@ const entryCache = new Map<number, { at: number; entries: Promise<TimeEntry[]> }
 
 /** A year's leave entries, shared for a minute between pages and forms. */
 export function useLeaveEntries(year: number, reloadKey = 0) {
-  const [state, setState] = useState<{ entries: TimeEntry[] | null; error: string | null }>({ entries: null, error: null });
+  const [state, setState] = useState<{ entries: TimeEntry[] | null; error: string | null; loading: boolean }>({
+    entries: null,
+    error: null,
+    loading: true,
+  });
   useEffect(() => {
     let live = true;
     const hit = entryCache.get(year);
     const fresh = hit && Date.now() - hit.at < 60_000 && reloadKey === 0;
     const entries = fresh ? hit.entries : api.leaveEntries(year);
     if (!fresh) entryCache.set(year, { at: Date.now(), entries });
-    setState((s) => ({ entries: s.entries, error: null }));
+    // Keep showing the old year while the new answer comes in.
+    setState((s) => ({ entries: s.entries, error: null, loading: true }));
     entries
-      .then((e) => live && setState({ entries: e, error: null }))
+      .then((e) => live && setState({ entries: e, error: null, loading: false }))
       .catch((e) => {
         entryCache.delete(year);
-        if (live) setState({ entries: null, error: errorText(e) });
+        if (live) setState({ entries: null, error: errorText(e), loading: false });
       });
     return () => {
       live = false;

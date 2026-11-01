@@ -1,144 +1,85 @@
 # Redmine Logtime
 
-Ứng dụng cho macOS và Ubuntu giúp xem giờ làm việc, ghi giờ vào công việc (issue) và tạo yêu cầu nghỉ phép trên Redmine.
+App cho macOS và Ubuntu: xem giờ đã log theo lịch tháng, ghi logtime từ báo cáo công việc và xin nghỉ phép trên Redmine. App chỉ ghi lên Redmine sau khi bạn bấm **Ghi ngay** trong popup xác nhận.
 
-**App chỉ ghi lên Redmine sau khi bạn xem lại và bấm Ghi ngay trong popup xác nhận.**
+![Lịch tháng](docs/images/calendar.png)
 
-## 1. Cài đặt
+## Cài đặt
 
-### macOS
-
-Hỗ trợ máy Mac dùng chip Intel và Apple Silicon, macOS 11 trở lên.
-
-1. Mở **Terminal** bằng Spotlight (`⌘ Space`, gõ `Terminal`).
-2. Dán lệnh sau, nhấn Enter và chờ báo **Đã cài**:
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
-   ```
-
-3. Mở **Redmine Logtime** bằng Spotlight hoặc trong thư mục **Applications**.
-
-### Ubuntu
-
-Bản cài sẵn dành cho máy Intel/AMD 64-bit (`amd64`), được build trên Ubuntu 22.04.
-
-1. Mở **Terminal** (`Ctrl Alt T`). Nếu máy chưa có `curl`, chạy:
-
-   ```bash
-   sudo apt update && sudo apt install -y curl
-   ```
-
-2. Cài app bằng lệnh:
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
-   ```
-
-3. Nhập mật khẩu máy nếu được hỏi (khi gõ sẽ không hiện ký tự). Cài xong, mở **Redmine Logtime** từ menu ứng dụng.
-
-Nếu trình cài báo chưa có bản build sẵn và chuyển sang build từ mã nguồn, cần thêm Node.js 22, Rust và công cụ build. Xem [cách chuẩn bị môi trường](docs/development.md#chuẩn-bị-môi-trường).
-
-## 2. Kết nối lần đầu
-
-1. Trên Redmine, vào **Tài khoản của tôi → API access key → Hiện** để sao chép API key.
-2. Mở app, nhập **Địa chỉ Redmine** của công ty và **API key**.
-3. Bấm **Kết nối và mở lịch**.
-
-API key được lưu trên máy của bạn; không chia sẻ key cho người khác. Nếu không thấy mục API access key, nhờ quản trị viên Redmine hỗ trợ.
-
-Trong **Cài đặt → Ngày làm việc**, kiểm tra số giờ mỗi ngày, ngày làm việc và ngày lễ, rồi bấm **Lưu cài đặt**.
-
-![Lịch tháng hiển thị giờ làm việc](docs/images/calendar.png)
-
-## 3. Sử dụng hằng ngày
-
-### Ghi giờ từ báo cáo công việc
-
-Cần AI: cài [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/), mở Terminal chạy `claude` để đăng nhập, rồi vào **Cài đặt → Chạy thử Claude**. Nên chạy **Phân tích cấu trúc Redmine** trước lần đầu.
-
-1. Vào **Ghi logtime**, dán báo cáo có ngày và nội dung công việc → **Phân tích bằng AI**.
-2. Kết quả được nhóm theo ngày, mỗi ngày có tổng giờ so với định mức. Kiểm tra từng dòng:
-   - Bỏ tick việc không muốn ghi ở ngày đó; giờ trong ngày được chia lại.
-   - Sửa số giờ ở ô bên phải; nhập `0` để bỏ.
-   - Bấm dòng **task cha › task con** dưới tên việc để đổi: gõ số issue hoặc từ khoá để tìm task cha, chọn task con có sẵn hoặc tạo mới. Thay đổi áp dụng cho việc đó ở mọi ngày.
-3. Bấm **Ghi N logtime lên Redmine**, xem lại trong popup rồi bấm **Ghi ngay**.
-
-Nếu có mục lỗi, popup ghi rõ lý do. Bấm **Thử lại phần lỗi**, hoặc đóng popup, sửa rồi ghi lại; các mục đã ghi được đánh dấu ✓ và không ghi lần nữa. AI chỉ đọc Redmine để đề xuất; bạn quyết định mục nào được ghi.
-
-**Khớp nhanh (không cần AI):** mỗi lần ghi, app nhớ task cha và task con bạn đã chọn cho từng việc. Lần sau, bấm **Khớp nhanh** để khớp ngay các việc quen; dòng chưa gặp bao giờ được liệt kê để bạn dùng **Phân tích bằng AI**. Xem hoặc xoá ghi nhớ ở **Cài đặt → Ghi logtime**.
-
-![Kết quả phân tích báo cáo](docs/images/report-result.png)
-
-### Ghi giờ thủ công
-
-Trên **Lịch tháng**, chọn ngày → **Ghi logtime vào issue**, chọn issue có sẵn hoặc tạo task con mới, nhập số giờ → **Ghi lên Redmine…** → **Ghi ngay**.
-
-### Xin nghỉ phép
-
-Lần đầu: vào **Cài đặt → Nghỉ phép → Tìm trên Redmine**, kiểm tra loại nghỉ và tên của bạn, rồi bấm **Lưu cài đặt**.
-
-Sau đó, chọn ngày trên **Lịch tháng → Xin nghỉ ngày này**, điền thông tin → **Ghi … nghỉ lên Redmine…** → **Ghi ngay**. Nếu không tìm thấy task cha nghỉ phép của tháng, liên hệ HR.
-
-### Lấy báo cáo từ Google Chat (tùy chọn)
-
-Nếu bạn gửi báo cáo vào group Google Chat, app có thể lấy lại các tin đó thay vì dán tay. Cần Client ID và Client secret do admin Google Workspace của công ty cung cấp ([hướng dẫn cho admin](docs/development.md#google-chat)).
-
-1. Vào **Cài đặt → Google Chat**, nhập Client ID, Client secret → **Kết nối Google**, rồi đăng nhập và cho phép trong trình duyệt.
-2. Vào **Ghi logtime → Lấy từ Google Chat**, chọn group và khoảng ngày; tin nhắn tự tải.
-3. Bỏ tick những tin không phải báo cáo → **Đưa vào báo cáo**, rồi **Phân tích bằng AI** như trên.
-
-App chỉ đọc tin nhắn do bạn gửi, không gửi hay sửa gì trên Google Chat.
-
-### Nhắc log giờ
-
-Vào ngày làm việc, lúc 17:30, app báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật nhắc, đóng cửa sổ chỉ ẩn app xuống thanh menu (macOS) hoặc khay hệ thống (Ubuntu); bấm biểu tượng app để mở lại, kiểm tra giờ hôm nay hoặc **Thoát**. Đổi giờ, tắt nhắc hoặc bật **Mở cùng máy** trong **Cài đặt → Nhắc log giờ**.
-
-### Hoàn tác khi ghi nhầm
-
-Bấm **Hoàn tác lô này** ngay trong popup sau khi ghi, hoặc vào **Lịch sử ghi**. Thao tác này xóa các logtime đã tạo trong lô; **task con vẫn được giữ trên Redmine**.
-
-## 4. Cập nhật và gỡ cài đặt
-
-### Cập nhật lên bản mới
-
-Khi có bản mới, biểu tượng tải xuống ở góc trên app có chấm đỏ. Bấm vào đó, rồi **Cập nhật lên …**: app tự tải, cài và khởi động lại.
-
-Nếu nút báo không cập nhật được (ví dụ bản cũ chưa hỗ trợ), cập nhật bằng Terminal:
-
-1. Đóng app.
-2. Mở Terminal, chạy **đúng lệnh cài đặt** (giống lúc cài lần đầu):
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
-   ```
-
-3. Mở lại app. Cài đặt, API key và lịch sử ghi được giữ nguyên.
-
-Nếu máy đã là bản mới nhất, lệnh báo vậy và không làm gì thêm.
-
-### Gỡ app
-
-Mở Terminal và chạy lệnh dưới. Lệnh này giống lệnh cài đặt, chỉ thêm `-s -- --uninstall` ở cuối:
+Mở Terminal, chạy:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash
 ```
 
-Cài đặt, API key và lịch sử ghi vẫn được giữ trên máy để dùng khi cài lại. Gỡ app không xóa logtime đã ghi trên Redmine.
+Hỗ trợ macOS 11+ (Intel và Apple Silicon) và Ubuntu 22.04+ (`amd64`). Ubuntu sẽ hỏi mật khẩu máy; nếu chưa có `curl`: `sudo apt install -y curl`.
 
-## 5. Khi gặp lỗi
+Mở **Redmine Logtime**, nhập địa chỉ Redmine và API key (trên Redmine: **Tài khoản của tôi → API access key → Hiện**) → **Kết nối và mở lịch**. Kiểm tra giờ mỗi ngày, ngày làm việc và ngày lễ trong **Cài đặt**.
 
-- **Không kết nối được Redmine:** kiểm tra địa chỉ, API key và kết nối mạng/VPN của công ty.
-- **Redmine nội bộ dùng SSL tự ký:** chọn mục tương ứng ở màn kết nối, hoặc **Cài đặt → Kết nối Redmine → Chấp nhận chứng chỉ SSL tự ký** nếu công ty dùng loại chứng chỉ này.
-- **macOS chặn app tải bằng trình duyệt:** thử cài lại bằng lệnh Terminal ở trên.
-- **AI báo lỗi:** kiểm tra đã đăng nhập Claude, rồi vào **Cài đặt → Chạy thử Claude**.
-- **Báo lỗi cho người phát triển:** vào **Cài đặt → Phiên bản → Mở thư mục log** và gửi kèm file log. Log không chứa API key.
+![Kết nối Redmine lần đầu](docs/images/setup.png)
 
-API key và đăng nhập Google được lưu trong Keychain (macOS) hoặc kho mật khẩu của máy (Ubuntu); máy không có kho này thì lưu trong file chỉ tài khoản của bạn đọc được. Trên macOS, sau mỗi lần cập nhật, máy có thể hỏi cho app dùng Keychain: chọn **Luôn cho phép**.
+## Ghi logtime từ báo cáo
+
+Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/): chạy `claude` trong Terminal để đăng nhập, rồi **Cài đặt → Chạy thử Claude** và **Phân tích cấu trúc Redmine**.
+
+**1.** Vào **Ghi logtime**, dán báo cáo (hoặc **Lấy từ Google Chat**) → **Phân tích bằng AI**.
+
+![Dán báo cáo](docs/images/report-paste.png)
+
+**2.** Kiểm tra kết quả theo từng ngày: bỏ tick việc không ghi, sửa số giờ ở ô bên phải.
+
+![Kết quả theo ngày](docs/images/report-result.png)
+
+Bấm dòng **task cha › task con** dưới tên việc để đổi task; thay đổi áp dụng cho việc đó ở mọi ngày.
+
+![Đổi task cha và task con](docs/images/report-edit-task.png)
+
+**3.** Bấm **Ghi … lên Redmine**, xem lại những gì sẽ tạo → **Ghi ngay**.
+
+![Popup xác nhận](docs/images/write-confirm.png)
+
+Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này**; mục lỗi có nút **Thử lại phần lỗi**.
+
+![Kết quả ghi](docs/images/write-done.png)
+
+**Khớp nhanh:** app nhớ task bạn đã chọn. Lần sau bấm **Khớp nhanh** để khớp các việc quen mà không cần AI; dòng chưa gặp được liệt kê để dùng AI.
+
+![Khớp nhanh](docs/images/quick-match.png)
+
+## Việc khác
+
+**Ghi tay:** **Lịch tháng** → chọn ngày → **Ghi logtime vào issue**.
+
+![Ghi tay vào issue](docs/images/manual-entry.png)
+
+**Xin nghỉ:** lần đầu vào **Cài đặt → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
+
+![Xin nghỉ](docs/images/leave-request.png)
+
+![Ngày nghỉ trong năm](docs/images/leave-overview.png)
+
+**Lịch sử, hoàn tác:** trang **Lịch sử ghi** liệt kê mọi lần ghi; **Hoàn tác lô này** chỉ xoá logtime, task con vẫn giữ.
+
+![Lịch sử ghi](docs/images/history.png)
+
+**Nhắc log giờ:** 17:30 ngày làm việc, app báo nếu thiếu giờ. Đóng cửa sổ thì app ẩn xuống thanh menu/khay; chọn **Thoát** ở biểu tượng app để tắt. Đổi trong **Cài đặt → Nhắc log giờ**.
+
+![Cài đặt nhắc log giờ](docs/images/settings-reminder.png)
+
+**Google Chat:** cần Client ID/secret từ admin công ty ([hướng dẫn admin](docs/development.md#google-chat)), nhập ở **Cài đặt → Google Chat → Kết nối Google**. App chỉ đọc tin bạn gửi.
+
+## Cập nhật, gỡ cài đặt
+
+- **Cập nhật:** khi biểu tượng tải xuống ở góc trên có chấm đỏ, bấm vào → **Cập nhật lên …**. Nếu không được, chạy lại lệnh cài đặt.
+- **Gỡ:** `curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall`. Cài đặt và API key vẫn giữ trên máy; logtime trên Redmine không bị xoá.
+
+## Khi gặp lỗi
+
+- **Không kết nối được:** kiểm tra địa chỉ, API key, mạng/VPN. Redmine nội bộ dùng SSL tự ký: bật **Chấp nhận chứng chỉ SSL tự ký** trong **Cài đặt**.
+- **AI lỗi:** đăng nhập lại `claude`, rồi **Cài đặt → Chạy thử Claude**.
+- **macOS hỏi quyền Keychain** (nơi lưu API key) sau khi cập nhật: chọn **Luôn cho phép**.
+- **Báo lỗi:** **Cài đặt → Mở thư mục log**, gửi kèm file log (không chứa API key).
 
 ---
 
-Dành cho người đóng góp: [Hướng dẫn phát triển](docs/development.md) · [Quy ước đóng góp](AGENTS.md). Giấy phép: [MIT](LICENSE).
-
-Logo dựa trên [logo Redmine](https://www.redmine.org/projects/redmine/wiki/Logo) © 2009 Martin Herr, đổi màu; logo này theo giấy phép [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/). Redmine Logtime không phải sản phẩm chính thức của Redmine.
+Người đóng góp: [Hướng dẫn phát triển](docs/development.md) · [Quy ước](AGENTS.md). Mã nguồn theo giấy phép [MIT](LICENSE). Logo dựa trên [logo Redmine](https://www.redmine.org/projects/redmine/wiki/Logo) © 2009 Martin Herr, đổi màu, theo giấy phép [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/). Redmine Logtime không phải sản phẩm chính thức của Redmine.

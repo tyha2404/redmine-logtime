@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CardsSkeleton, RowsSkeleton, Skel } from "./Skeleton";
 import type { Settings } from "./api";
 import { fmtDayLong, fmtHours } from "./fmt";
 import { Icon } from "./icons";
@@ -18,7 +19,7 @@ export default function LeavePage(props: {
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [reloads, setReloads] = useState(0);
-  const { entries, error } = useLeaveEntries(year, reloads);
+  const { entries, error, loading } = useLeaveEntries(year, reloads);
   const data = useMemo(
     () => (entries ? leaveYear(settings, year, entries) : null),
     [entries, settings, year],
@@ -63,9 +64,10 @@ export default function LeavePage(props: {
             </button>
           </div>
           <button
-            className={`nav-btn icon-only refresh${entries === null && !error ? " is-loading" : ""}`}
+            className={`nav-btn icon-only refresh${loading ? " is-loading" : ""}`}
             onClick={() => setReloads((n) => n + 1)}
-            aria-label="Tải lại từ Redmine"
+            disabled={loading}
+            aria-label={loading ? "Đang tải lại từ Redmine" : "Tải lại từ Redmine"}
             title="Tải lại từ Redmine"
           >
             <Icon name="refresh" />
@@ -76,7 +78,11 @@ export default function LeavePage(props: {
       {error ? (
         <p className="notice error">{error}</p>
       ) : !data ? (
-        <p className="muted">Đang đọc ngày nghỉ năm {year} từ Redmine…</p>
+        <>
+          <Skel w="58%" h={16} style={{ margin: "14px 0 22px" }} />
+          <CardsSkeleton cards={3} className="is-leave" />
+          <RowsSkeleton rows={4} />
+        </>
       ) : (
         <>
           <p className="month-summary">

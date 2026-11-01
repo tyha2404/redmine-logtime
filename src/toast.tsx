@@ -1,4 +1,5 @@
 import { Icon } from "./icons";
+import { exitDelay } from "./useModal";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
@@ -48,7 +49,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastItem({ toast, dismiss }: { toast: Toast; dismiss: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
-  const onDone = useCallback(() => dismiss(toast.id), [dismiss, toast.id]);
+  const [leaving, setLeaving] = useState(false);
+  // Fade out, then leave the stack.
+  const onDone = useCallback(() => {
+    setLeaving(true);
+    setTimeout(() => dismiss(toast.id), exitDelay());
+  }, [dismiss, toast.id]);
 
   // Hovering or focusing a toast holds it open, so the action stays reachable.
   useEffect(() => {
@@ -59,7 +65,7 @@ function ToastItem({ toast, dismiss }: { toast: Toast; dismiss: (id: number) => 
 
   return (
     <div
-      className={`toast is-${toast.tone}`}
+      className={`toast is-${toast.tone}${leaving ? " is-leaving" : ""}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

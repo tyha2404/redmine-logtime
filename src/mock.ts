@@ -388,7 +388,9 @@ const CHAT_MESSAGES = [
   { name: "spaces/TEAM/messages/4", create_time: "2026-10-28T10:01:00Z", text: "Báo cáo hôm nay:\n- [FE] Biểu đồ doanh số theo vùng\n- Review PR module Sự kiện" },
 ];
 
-const delay = <T,>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms));
+/** `?slow=1` stretches every answer, to look at loading states (skeletons). */
+const SLOW = new URLSearchParams(location.search).has("slow") ? 15 : 1;
+const delay = <T,>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms * SLOW));
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
   switch (cmd) {

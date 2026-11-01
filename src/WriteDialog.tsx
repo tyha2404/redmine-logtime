@@ -43,8 +43,8 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
   const [error, setError] = useState<string | null>(null);
   const [confirmUndo, setConfirmUndo] = useState(false);
   const running = phase.kind === "running";
-  const close = () => onClose(phase.kind === "done" ? phase.batch : null);
-  const modal = useModal(close, running);
+  const finish = () => onClose(phase.kind === "done" ? phase.batch : null);
+  const { close, ...modal } = useModal(finish, running);
 
   const newSubtasks = plan.subtasks.filter((s) =>
     plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key),
@@ -168,7 +168,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
           )}
 
           <div className="confirm-dialog-actions">
-            <button className="btn ghost" onClick={close}>
+            <button className="btn ghost" onClick={() => close()}>
               Huỷ
             </button>
             <button className="btn primary" disabled={newSubtasks.length > 0 && !ack} onClick={write} autoFocus>
@@ -222,10 +222,12 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
               {onOpenHistory && (
                 <button
                   className="btn ghost"
-                  onClick={() => {
-                    close();
-                    onOpenHistory();
-                  }}
+                  onClick={() =>
+                    close(() => {
+                      finish();
+                      onOpenHistory();
+                    })
+                  }
                 >
                   Xem lịch sử ghi
                 </button>
@@ -251,7 +253,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                   Thử lại phần lỗi
                 </button>
               )}
-              <button className="btn primary" onClick={close} autoFocus>
+              <button className="btn primary" onClick={() => close()} autoFocus>
                 Đóng
               </button>
             </div>

@@ -8,6 +8,7 @@ import { inTauri, isMac } from "./platform";
 import ReportPage from "./ReportPage";
 import SettingsPage, { type SettingsHandle } from "./SettingsPage";
 import SetupPage from "./SetupPage";
+import { PageSkeleton } from "./Skeleton";
 import { ToastProvider } from "./toast";
 import { useModal } from "./useModal";
 import { useUpdate } from "./useUpdate";
@@ -209,6 +210,7 @@ function Shell() {
       </nav>
 
       <main className="main">
+        {(page === null || !settings) && page !== "history" && page !== "settings" && <PageSkeleton />}
         {page === "calendar" && settings && (
           <CalendarPage
             settings={settings}
@@ -242,10 +244,7 @@ function Shell() {
             onDirtyChange={setSettingsDirty}
             update={update}
             focus={settingsFocus}
-            onSaved={() => {
-              loadSettings();
-              go("calendar");
-            }}
+            onSaved={loadSettings}
           />
         )}
       </main>
@@ -267,16 +266,16 @@ function Shell() {
 /** Asks what to do with unsaved settings before leaving the page. */
 function UnsavedDialog({ onSave, onDiscard, onStay }: { onSave: () => Promise<void>; onDiscard: () => void; onStay: () => void }) {
   const [busy, setBusy] = useState(false);
-  const modal = useModal(onStay, busy);
+  const { close, ...modal } = useModal(onStay, busy);
   return (
     <dialog {...modal} className="confirm-dialog" aria-labelledby="unsaved-title">
       <h2 id="unsaved-title">Cài đặt có thay đổi chưa lưu</h2>
       <p>Lưu trước khi chuyển trang, hay bỏ những thay đổi này?</p>
       <div className="confirm-dialog-actions">
-        <button className="btn ghost" onClick={onStay} disabled={busy}>
+        <button className="btn ghost" onClick={() => close()} disabled={busy}>
           Ở lại
         </button>
-        <button className="btn" onClick={onDiscard} disabled={busy}>
+        <button className="btn" onClick={() => close(onDiscard)} disabled={busy}>
           Bỏ thay đổi
         </button>
         <button

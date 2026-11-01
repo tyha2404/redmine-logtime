@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { CardsSkeleton, Skel } from "./Skeleton";
 import AboutCard from "./AboutCard";
 import GchatSettings from "./GchatSettings";
 import { api, errorText, type Activity, type Settings, type SettingsView, type ToolStatus, type Tracker } from "./api";
@@ -55,6 +56,7 @@ export interface SettingsHandle {
 }
 
 interface Props {
+  /** After a successful save: reload the settings the rest of the app uses. */
   onSaved: () => void;
   /** Called whenever the form starts or stops differing from what is saved. */
   onDirtyChange?: (dirty: boolean) => void;
@@ -108,6 +110,12 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   // A save error is about the values it tried; editing them retires it.
   useEffect(() => setSaveNotice((n) => (n?.kind === "error" ? null : n)), [current]);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+  // "Đã lưu cài đặt." shows for a moment, then the bar goes away.
+  useEffect(() => {
+    if (saveNotice?.kind !== "ok" || dirty) return;
+    const t = setTimeout(() => setSaveNotice(null), 2500);
+    return () => clearTimeout(t);
+  }, [saveNotice, dirty]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const saveRef = useRef<() => Promise<boolean>>(async () => true);
@@ -117,7 +125,13 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
     if (loaded && focus) document.getElementById(focus)?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [loaded, focus]);
 
-  if (!settings) return <div className="page-pad muted">Đang tải cài đặt…</div>;
+  if (!settings)
+    return (
+      <div className="settings page-pad">
+        <Skel w={140} h={30} style={{ margin: "4px 0 24px" }} />
+        <CardsSkeleton cards={6} className="settings-grid" />
+      </div>
+    );
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setSettings({ ...settings, [key]: value });
@@ -178,6 +192,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
       setHolidayText(dates.join("\n"));
       setSaveNotice({ kind: "ok", text: "Đã lưu cài đặt." });
       loadLists();
+      onSaved();
       return true;
     } catch (e) {
       setSaveNotice({ kind: "error", text: errorText(e) });
@@ -442,22 +457,24 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
 
       </div>
 
-      <div className={`save-bar${dirty ? " is-dirty" : ""}`}>
-        {/* A failed save keeps the changes unsaved, so its reason must show anyway. */}
-        {saveNotice && (saveNotice.kind === "error" || !dirty) ? (
-          <p className={`notice ${saveNotice.kind}`} role={saveNotice.kind === "error" ? "alert" : "status"}>
-            {saveNotice.text}
-          </p>
-        ) : (
-          dirty && <p className="save-dirty">Có thay đổi chưa lưu</p>
-        )}
-        <button className="btn" onClick={onSaved} disabled={busy}>
-          Về lịch
-        </button>
-        <button className="btn primary" onClick={save} disabled={busy}>
-          Lưu cài đặt
-        </button>
-      </div>
+      {/* Only while there is something to save, or the outcome of a save. */}
+      {(dirty || saveNotice) && (
+        <div className={`save-bar${dirty ? " is-dirty" : ""}`}>
+          {/* A failed save keeps the changes unsaved, so its reason must show anyway. */}
+          {saveNotice && (saveNotice.kind === "error" || !dirty) ? (
+            <p className={`notice ${saveNotice.kind}`} role={saveNotice.kind === "error" ? "alert" : "status"}>
+              {saveNotice.text}
+            </p>
+          ) : (
+            <p className="save-dirty">Có thay đổi chưa lưu</p>
+          )}
+          {dirty && (
+            <button className="btn primary" onClick={save} disabled={busy}>
+              {busy ? "Đang lưu…" : "Lưu cài đặt"}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 });

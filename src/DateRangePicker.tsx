@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { fmtDayShort, isoOf, parseIso, todayIso } from "./fmt";
 import { Icon } from "./icons";
+import { exitDelay } from "./useModal";
 
 const WEEK_HEAD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -75,9 +76,16 @@ export default function DateRangePicker({ from, to, onChange, maxDays, disabled 
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<CSSProperties>({ visibility: "hidden" });
 
+  /** Fades the panel out, then removes it. */
+  const [closing, setClosing] = useState(false);
   const close = () => {
-    setOpen(false);
-    setAnchor(null);
+    if (!open || closing) return;
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      setAnchor(null);
+    }, exitDelay(120));
   };
 
   // Below the field, or above it when the window has no room; kept on screen.
@@ -109,23 +117,29 @@ export default function DateRangePicker({ from, to, onChange, maxDays, disabled 
     document.addEventListener("pointerdown", outside, true);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
+    // A dialog re-centres when its content grows (messages arriving), which
+    // moves the field without any scroll or resize event.
+    const box = triggerRef.current?.closest("dialog") ?? document.body;
+    const grew = new ResizeObserver(place);
+    grew.observe(box);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
+      grew.disconnect();
     };
   }, [open]);
 
   const choose = (a: string, b: string) => {
     onChange(a, b);
-    setAnchor(null);
-    setOpen(false);
+    close();
   };
 
   const toggle = () => {
+    if (open) return close();
     setAnchor(null);
     setMonth(monthStart(to));
-    setOpen((o) => !o);
+    setOpen(true);
   };
 
   const pick = (day: string) => {
@@ -180,7 +194,7 @@ export default function DateRangePicker({ from, to, onChange, maxDays, disabled 
       </button>
 
       {open && (
-        <div ref={panelRef} className="range-panel" role="dialog" aria-label="Chọn khoảng ngày" style={pos}>
+        <div ref={panelRef} className={`range-panel${closing ? " is-closing" : ""}`} role="dialog" aria-label="Chọn khoảng ngày" style={pos}>
           <div className="range-presets" role="group" aria-label="Khoảng nhanh">
             {presets(today).map(([label, a, b]) => (
               <button

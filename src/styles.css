@@ -44,6 +44,12 @@
   --control-h: 38px;
   --control-h-s: 30px;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  /* Motion: every animation and transition runs at a constant (linear) pace. */
+  --motion-fast: 120ms;
+  --motion: 200ms;
+  --motion-slow: 360ms;
+  --skel: color-mix(in srgb, var(--ink) 7%, transparent);
+  --skel-hi: color-mix(in srgb, var(--ink) 14%, transparent);
   --radius-s: 6px;
   --radius-m: 10px;
   --font: "Be Vietnam Pro", system-ui, sans-serif;
@@ -593,13 +599,12 @@ body {
 }
 
 /*
- * Each day is a tank. The fill is only a faint tint; what you read is the
- * water-level line at the logged hours, in the status colour. Full days stay
- * quiet so short, missing and over days are what catch the eye.
+ * Each day is a glass of water: the fill shows the logged hours in the
+ * status colour. No borders; the cells read by their colour alone.
  */
 .day {
   --tone: var(--off);
-  --tint: 12%;
+  --tint: 24%;
   position: relative;
   overflow: hidden;
   /* Square-ish when there is room, never shorter than the date and hours
@@ -610,7 +615,7 @@ body {
   width: 100%;
   min-width: 0;
   min-height: 64px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius-m);
   background: var(--surface);
   padding: 7px 9px;
@@ -619,41 +624,83 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  transition:
+    box-shadow var(--motion) linear,
+    transform var(--motion) linear,
+    background-color var(--motion) linear;
 }
 .day:hover {
-  border-color: var(--ink-2);
+  background-color: color-mix(in srgb, var(--surface) 92%, var(--ink));
 }
+/* Selected: lifted off the page instead of outlined. */
 .day[aria-selected="true"] {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ink);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 16px rgba(20, 30, 40, 0.18),
+    0 1px 3px rgba(20, 30, 40, 0.12);
 }
-/* Days off keep the same cell, sunk into the page: not part of the quota. */
+/* On a dark page a shadow does not show: the selected cell lights up instead. */
+@media (prefers-color-scheme: dark) {
+  .day[aria-selected="true"] {
+    filter: brightness(1.35);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+  }
+}
+/* Days off sink into the page: not part of the quota. */
 .day.off {
-  background: color-mix(in srgb, var(--surface) 35%, transparent);
-  border-color: color-mix(in srgb, var(--line) 60%, transparent);
-}
-.day.off:hover {
-  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
 }
 .day.s-future {
-  background: transparent;
-  border-style: dashed;
+  background: color-mix(in srgb, var(--surface) 30%, transparent);
+}
+/* A past workday with nothing logged: an empty glass, tinted red. */
+.day.s-missing {
+  background: color-mix(in srgb, var(--missing) 12%, var(--surface));
 }
 
+/*
+ * The logged hours fill the cell from the bottom: the colour rises at a
+ * constant pace (cells one after another), then its level line draws in
+ * from the left. A cell filled to the brim (full, over, a whole day off)
+ * has no line; the colour says it.
+ */
 .day-fill {
+  --delay: calc(var(--i, 0) * 16ms);
   position: absolute;
-  inset: auto 0 0 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: color-mix(in srgb, var(--tone) var(--tint), transparent);
-  border-top: 2px solid var(--tone);
-  transition: height 0.35s ease;
+  transform-origin: bottom center;
+  animation: day-rise var(--motion-slow) linear var(--delay) both;
+  transition: height var(--motion-slow) linear;
+}
+.day-fill::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--tone);
+  transform-origin: left center;
+  animation: day-line var(--motion) linear calc(var(--delay) + var(--motion-slow)) both;
+}
+.day-fill.is-brim::before {
+  display: none;
+}
+@keyframes day-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes day-line {
+  from {
+    transform: scaleX(0);
+  }
 }
 .day.s-full {
-  --tint: 7%;
+  --tint: 18%;
 }
-/* A full day is filled to the brim: no level line, just the tint. */
-.day.s-full .day-fill {
-  border-top-color: transparent;
-}
+
 .day-top,
 .day-hours {
   position: relative;
@@ -701,13 +748,6 @@ body {
   font-weight: 500;
 }
 
-/* A missing past day has nothing to fill, so its level line sits on the floor. */
-.day.s-missing {
-  box-shadow: inset 0 -3px 0 var(--missing);
-}
-.day.s-missing[aria-selected="true"] {
-  box-shadow: inset 0 -3px 0 var(--missing), 0 0 0 1px var(--ink);
-}
 
 .s-full { --tone: var(--full); }
 .s-partial { --tone: var(--partial); }
@@ -1399,7 +1439,10 @@ select::-ms-expand {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .day-fill {
+  .day,
+  .day-fill,
+  .day-fill::before {
+    animation: none;
     transition: none;
   }
 }
@@ -1444,7 +1487,7 @@ select::-ms-expand {
   height: 9px;
   border-radius: 50%;
   background: var(--pending);
-  animation: breathe 1.6s ease-in-out infinite;
+  animation: breathe 1.6s linear infinite;
 }
 @keyframes breathe {
   50% {
@@ -1683,7 +1726,7 @@ select::-ms-expand {
   color: var(--surface);
   font-size: 13px;
   box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 22%, transparent);
-  animation: toast-in 0.18s ease-out;
+  animation: toast-in var(--motion) linear;
 }
 .toast.is-error {
   background: var(--missing);
@@ -1726,8 +1769,7 @@ select::-ms-expand {
 }
 
 /* ---------------------------------------------------------------------------
- * First run. The brand's tank, large: empty until Redmine answers, then it
- * fills to the day's quota line. The one moment of motion in the app.
+ * First run: the app logo beside the connection form.
  */
 .shell.is-bare {
   display: grid;
@@ -1745,45 +1787,8 @@ select::-ms-expand {
   gap: 48px;
   align-items: start;
 }
-.setup-tank {
-  position: relative;
-  width: 96px;
-  height: 128px;
+.setup-logo {
   margin-top: 6px;
-  border: 4px solid var(--ink);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.setup-tank-fill {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 0;
-  background: var(--full);
-  transition: height 0.9s cubic-bezier(0.3, 0.7, 0.2, 1);
-}
-/* The quota tick: where a full day reaches. */
-.setup-tank-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 18%;
-  border-top: 2px dashed var(--ink-2);
-}
-.setup-tank.is-checking .setup-tank-fill {
-  height: 22%;
-  background: var(--pending);
-  animation: tank-wait 1.4s ease-in-out infinite alternate;
-}
-.setup-tank.is-done .setup-tank-fill {
-  height: 82%;
-}
-.setup-tank.is-error {
-  border-color: var(--missing);
-}
-@keyframes tank-wait {
-  to {
-    height: 38%;
-  }
 }
 .setup-form {
   display: flex;
@@ -1827,11 +1832,9 @@ select::-ms-expand {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  .setup-tank {
-    width: 54px;
-    height: 72px;
-    border-width: 3px;
-    border-radius: 10px;
+  .setup-logo svg {
+    width: 56px;
+    height: 56px;
   }
 }
 
@@ -1879,12 +1882,8 @@ select::-ms-expand {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .toast,
-  .setup-tank.is-checking .setup-tank-fill {
+  .toast {
     animation: none;
-  }
-  .setup-tank-fill {
-    transition: none;
   }
   .nav-btn.refresh.is-loading .icon {
     animation: none;
@@ -2287,13 +2286,7 @@ select::-ms-expand {
   border-radius: var(--radius-m);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0, 0, 0, 0.18);
-  animation: range-in 0.12s ease-out;
-}
-@keyframes range-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
+  animation: pop-in var(--motion-fast) linear;
 }
 @media (prefers-reduced-motion: reduce) {
   .range-panel {
@@ -2872,4 +2865,294 @@ select::-ms-expand {
 }
 .about-logs {
   margin-top: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion. All linear. Controls fade between states; things that appear
+ * (pages, dialogs, popovers, panels, results, bars) fade and slide in a few
+ * pixels; bars and meters grow to their value. Entrances fill "backwards"
+ * only, so no transform stays behind (it would break position: fixed
+ * popovers inside a page or dialog).
+ */
+.btn,
+.link,
+.nav-btn,
+.rail-item,
+.mast-btn,
+.avatar,
+.toggle span,
+.segmented button,
+.ipick-value,
+.ipick-option,
+.range-day,
+.range-preset,
+.batch-head,
+.rentry-target,
+input,
+select,
+textarea {
+  transition:
+    background-color var(--motion) linear,
+    border-color var(--motion) linear,
+    color var(--motion) linear,
+    box-shadow var(--motion) linear,
+    opacity var(--motion) linear;
+}
+.rail-icon .icon {
+  transition: transform var(--motion) linear;
+}
+.rail-item:hover .rail-icon .icon {
+  transform: scale(1.08);
+}
+
+/* A page, the day panel and its forms, results and notices appear. */
+.main > *,
+.day-panel > *,
+.composer-result,
+.rday-group,
+.rentry-editor,
+.ai-log,
+.ai-questions,
+.notice,
+.batch-body,
+.write-body,
+.empty,
+.leave-card,
+.save-bar {
+  animation: fade-up var(--motion-slow) linear backwards;
+}
+/* Day groups and leave cards follow one another. */
+.rday-group:nth-child(2),
+.leave-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+.rday-group:nth-child(3),
+.leave-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+.rday-group:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+.save-bar {
+  animation-name: slide-up;
+}
+
+/* Dialogs and popovers. */
+dialog[open] {
+  animation: dialog-in var(--motion) linear backwards;
+}
+dialog[open]::backdrop {
+  animation: fade-in var(--motion) linear backwards;
+}
+.ipick-pop,
+.range-panel {
+  animation: pop-in var(--motion-fast) linear backwards;
+}
+
+/* Writing: each operation's mark changes as Redmine answers. */
+.op,
+.op-mark {
+  transition:
+    color var(--motion) linear,
+    opacity var(--motion) linear;
+}
+.op.is-pending {
+  opacity: 0.55;
+}
+
+/* Bars grow to their value. */
+.rail-seg,
+.rail-over,
+.week-bar > span {
+  transition:
+    width var(--motion-slow) linear,
+    left var(--motion-slow) linear;
+  animation: bar-grow var(--motion-slow) linear backwards;
+  transform-origin: left center;
+}
+.ltank-used {
+  transition: height var(--motion-slow) linear;
+  animation: tank-rise var(--motion-slow) linear backwards;
+  transform-origin: bottom center;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes tank-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Reduce motion: every change is immediate and nothing moves. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  ::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Leaving: dialogs, popovers and toasts fade out before they unmount. */
+dialog.is-closing {
+  animation: dialog-out var(--motion) linear forwards;
+}
+dialog.is-closing::backdrop {
+  animation: fade-out var(--motion) linear forwards;
+}
+.range-panel.is-closing,
+.ipick-pop.is-closing {
+  animation: pop-out var(--motion-fast) linear forwards;
+}
+.toast.is-leaving {
+  animation: toast-out var(--motion) linear forwards;
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Skeletons: grey blocks with a light sweep, shaped like what is loading.
+ */
+.skel {
+  display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  border-radius: var(--radius-s);
+  background: linear-gradient(90deg, var(--skel) 0%, var(--skel-hi) 50%, var(--skel) 100%);
+  background-size: 200% 100%;
+  animation: skel-sweep 1.3s linear infinite;
+}
+@keyframes skel-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.skel-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.month-summary .skel {
+  display: inline-block;
+  vertical-align: middle;
+}
+.grid.is-skeleton {
+  pointer-events: none;
+}
+.day-skel {
+  cursor: default;
+  background: var(--surface);
+}
+.day-skel:hover {
+  background: var(--surface);
+}
+.week-skel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  padding-right: 2px;
+}
+.cards-skel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.cards-skel.settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cards-skel.is-leave {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 24px;
+}
+.rows-skel {
+  display: flex;
+  flex-direction: column;
+}
+.row-skel {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.row-skel .skel:nth-child(2) {
+  flex: 1 1 auto;
+}
+.rows-skel.is-compact .row-skel {
+  gap: 12px;
+  padding: 10px 2px;
+}
+
+.panel-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.panel-skel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
 }

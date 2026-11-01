@@ -43,6 +43,10 @@ export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: numb
   return <Svg className="icon" size={size} strokeWidth={1.75} aria-hidden focusable="false" {...rest} />;
 }
 
+/** Apple's icon tile: 824px at 100,100, radius 185.4 with continuous corners. */
+const TILE =
+  "M627.36 100c103.83 0 155.75 0 195.41 20.21a185.4 185.4 0 0 1 81.02 81.02c20.21 39.66 20.21 91.58 20.21 195.41L924 627.36c0 103.83 0 155.75 -20.21 195.41a185.4 185.4 0 0 1 -81.02 81.02c-39.66 20.21 -91.58 20.21 -195.41 20.21L396.64 924c-103.83 0 -155.75 0 -195.41 -20.21a185.4 185.4 0 0 1 -81.02 -81.02c-20.21 -39.66 -20.21 -91.58 -20.21 -195.41L100 396.64c0 -103.83 0 -155.75 20.21 -195.41a185.4 185.4 0 0 1 81.02 -81.02c39.66 -20.21 91.58 -20.21 195.41 -20.21Z";
+
 /** The Redmine mark's seven pieces, base to top (redmine_logo.svg units). */
 const MARK: [string, string][] = [
   ["#0b4f78", "0,69.55 16.8,69.55 18,55.149 2.399,51.55"],
@@ -61,7 +65,7 @@ const MARK: [string, string][] = [
 export function BrandMark({ size = 24 }: { size?: number }) {
   return (
     <svg className="brand-mark" width={size} height={size} viewBox="100 100 824 824" aria-hidden focusable="false">
-      <rect x="100" y="100" width="824" height="824" rx="184" fill="#fff" />
+      <path d={TILE} fill="#fff" />
       <g transform="translate(241 220) scale(7)">
         {MARK.map(([fill, points]) => (
           <polygon key={points} fill={fill} points={points} />

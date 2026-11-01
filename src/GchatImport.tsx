@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { RowsSkeleton } from "./Skeleton";
 import { api, errorText, type ChatMessage, type ChatSpace } from "./api";
 import DateRangePicker from "./DateRangePicker";
 import { useModal } from "./useModal";
@@ -58,7 +59,7 @@ interface Props {
 
 /** Picks the user's own report messages from a Google Chat group. */
 export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props) {
-  const modal = useModal(onClose);
+  const { close, ...modal } = useModal(onClose);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [spaces, setSpaces] = useState<ChatSpace[] | null>(null);
   const [space, setSpace] = useState(remembered);
@@ -165,6 +166,7 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props
             </div>
           </div>
 
+          {!messages && !error && (loading || !spaces) && <RowsSkeleton rows={3} className="is-compact gchat-skel" />}
           {messages &&
             (messages.length === 0 ? (
               <p className="gchat-empty">Không có tin nhắn nào của bạn trong khoảng ngày này.</p>
@@ -189,15 +191,15 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props
       {error && <p className="notice error">{error}</p>}
 
       <div className="confirm-dialog-actions">
-        <button className="btn ghost" onClick={onClose}>
+        <button className="btn ghost" onClick={() => close()}>
           Huỷ
         </button>
         {connected === false ? (
-          <button className="btn primary" onClick={onOpenSettings}>
+          <button className="btn primary" onClick={() => close(onOpenSettings)}>
             Mở Cài đặt
           </button>
         ) : (
-          <button className="btn primary" disabled={chosen.length === 0} onClick={() => onInsert(chatBlocks(chosen))}>
+          <button className="btn primary" disabled={chosen.length === 0} onClick={() => close(() => onInsert(chatBlocks(chosen)))}>
             {chosen.length > 0 ? `Đưa ${chosen.length} tin vào báo cáo` : "Đưa vào báo cáo"}
           </button>
         )}

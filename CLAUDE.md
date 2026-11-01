@@ -13,6 +13,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - In mock, "today" is pinned to 2026-10-29 (`TODAY` in `src/mock.ts`).
 - Real-Redmine examples (Docker only): `cargo run -p logtime-engine --example local_e2e` and `cargo run -p ai-bridge --example local_ai`. The second one uses Claude quota.
 - Real OS keychain round trip (throwaway item): `cargo test -p redmine-logtime real_keychain -- --ignored`.
+- Mock flag `&slow=1` makes every mock answer ~15× slower, to see the loading skeletons.
 - Mock flag `&memory=0` starts with no remembered tasks (Khớp nhanh then explains why it cannot match).
 
 ## Architecture

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import AddEntryForm from "./AddEntryForm";
 import AiLog from "./AiLog";
+import { CalendarSkeleton, PanelSkeleton, Skel } from "./Skeleton";
 import LeaveForm from "./LeaveForm";
 import { api, errorText, type Batch, type DayStatus, type DaySummary, type MonthSummary, type Settings, type WritePlan } from "./api";
 import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, todayIso } from "./fmt";
@@ -90,6 +91,8 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
 
   // Monday-first grid: blank cells before the 1st, then the month in weeks.
   const leading = useMemo(() => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7, [ym]);
+  /** The loaded month, once it is the one on screen (not the previous one). */
+  const shown = summary && summary.year === ym.year && summary.month === ym.month ? summary : null;
   const weeks = useMemo(() => {
     if (!summary) return [];
     const cells: (DaySummary | null)[] = [...Array(leading).fill(null), ...summary.days];
@@ -142,9 +145,12 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
         ) : (
           <>
             <p className="month-summary">
-              {summary ? <MonthLine s={summary} onOpenReport={onOpenReport} /> : "Đang tải dữ liệu từ Redmine…"}
+              {shown ? <MonthLine s={shown} onOpenReport={onOpenReport} /> : <Skel w="62%" h={16} />}
             </p>
 
+            {!shown ? (
+              <CalendarSkeleton />
+            ) : (
             <div
               className="grid"
               role="grid"
@@ -170,6 +176,7 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
                 />
               ))}
             </div>
+            )}
 
             <ul className="legend">
               {LEGEND.map((s) => (
@@ -183,6 +190,9 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
         )}
       </section>
 
+      {!shown && !error ? (
+        <PanelSkeleton />
+      ) : (
       <DayPanel
         key={selected}
         day={selectedDay}
@@ -191,6 +201,7 @@ export default function CalendarPage({ settings, onOpenSettings, onOpenHistory, 
         onOpenHistory={onOpenHistory}
         onWritten={load}
       />
+      )}
     </div>
   );
 }
@@ -288,7 +299,13 @@ function DayCell(props: {
       aria-label={`Ngày ${dayNum}: ${fmtHours(day.hours)}, ${STATUS_LABEL[day.status]}`}
       onClick={onSelect}
     >
-      {day.hours > 0 && <span className="day-fill" style={{ height: `${logged}%` }} aria-hidden />}
+      {day.hours > 0 && (
+        <span
+          className={`day-fill${logged >= 100 ? " is-brim" : ""}`}
+          style={{ height: `${logged}%`, "--i": dayNum } as CSSProperties}
+          aria-hidden
+        />
+      )}
       <span className="day-top">
         <span className="day-num">{dayNum}</span>
         {day.status === "holiday" && <span className="day-tag">Lễ</span>}

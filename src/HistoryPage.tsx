@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { RowsSkeleton, Skel } from "./Skeleton";
 import { api, errorText, type Batch } from "./api";
 import { describeOp, fmtTimestamp } from "./fmt";
 
@@ -35,7 +36,16 @@ export default function HistoryPage() {
     }
   };
 
-  if (!batches) return <div className="page-pad muted">{error ?? "Đang tải lịch sử…"}</div>;
+  if (!batches)
+    return error ? (
+      <div className="page-pad muted">{error}</div>
+    ) : (
+      <div className="history page-pad">
+        <Skel w={180} h={30} style={{ margin: "4px 0 18px" }} />
+        <Skel w="54%" h={14} style={{ marginBottom: 18 }} />
+        <RowsSkeleton rows={5} />
+      </div>
+    );
 
   return (
     <div className="history page-pad">

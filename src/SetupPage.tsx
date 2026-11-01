@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorText, type Settings } from "./api";
+import { BrandMark } from "./icons";
 
 type State = { kind: "idle" } | { kind: "checking" } | { kind: "error"; text: string } | { kind: "done"; name: string };
 
@@ -62,15 +63,14 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
 
   return (
     <div className="setup">
-      <div className={`setup-tank is-${state.kind}`} aria-hidden>
-        <span className="setup-tank-fill" />
-        <span className="setup-tank-line" />
+      <div className="setup-logo">
+        <BrandMark size={96} />
       </div>
 
       <form className="setup-form" onSubmit={connect} noValidate>
         <h1 className="setup-title">Kết nối Redmine</h1>
         <p className="setup-lede">
-          App đọc logtime của bạn để vẽ lịch tháng. Chưa có gì được ghi lên Redmine cho tới khi bạn bấm ghi ở bước duyệt.
+          App đọc logtime của bạn để vẽ lịch tháng. Không có gì được ghi lên Redmine cho tới khi bạn bấm Ghi ngay trong popup xác nhận.
         </p>
 
         <label className="field">
