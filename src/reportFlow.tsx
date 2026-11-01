@@ -220,6 +220,17 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const badHours = pending.some((x) => !(x.d.hours <= 24));
   const blankSubject = tasksToWrite.some((t) => choices[t.task.key].subtask === "new" && !choices[t.task.key].subject.trim());
   const duplicateCount = tasks.filter((t) => t.task.days.length === 0 && t.duplicates.length > 0).length;
+  /** A day cannot hold more than 24h: Redmine's hours, what was written here, and what is ticked. */
+  const overfullDay = [...planned].sort().find((date) => {
+    const before = view?.days.find((d) => d.date === date)?.existing_hours ?? 0;
+    const work = tasks
+      .flatMap((t) => daysOf(t))
+      .filter((d) => d.date === date && (d.on || d.written))
+      .reduce((s, d) => s + d.hours, 0);
+    const l = leave.find((x) => x.date === date);
+    const off = l && (leaveOn(date) || leaveId(date) in written) ? l.hours : 0;
+    return before + work + off > 24 + EPS;
+  });
   const blocker =
     missingParent > 0
       ? `${missingParent} việc chưa có task cha.`
@@ -229,7 +240,9 @@ export function useReportFlow(day: string | null, settings: Settings) {
           ? "Chưa chọn tracker cho task con trong Cài đặt."
           : badHours
             ? "Số giờ mỗi ngày phải từ 0 đến 24."
-            : pendingLeave.length > 0 && settings.leave_types.length === 0
+            : overfullDay
+              ? `Ngày ${fmtDayShort(overfullDay)} vượt 24h, hãy giảm số giờ.`
+              : pendingLeave.length > 0 && settings.leave_types.length === 0
               ? "Báo cáo có ngày nghỉ nhưng chưa cài nghỉ phép trong Cài đặt (mục Nghỉ phép, “Tìm trên Redmine”)."
               : count === 0
                 ? "Không có giờ nào để ghi."
@@ -410,9 +423,15 @@ export function ReportResult({
     setPlan(null);
     if (!batch) return;
     const n = await f.afterWrite(batch);
+    const failed = batch.ops.filter((o) => o.payload.op === "create_time_entry" && o.status === "failed").length;
     if (n > 0) {
       onWritten?.();
-      toast(`Đã ghi ${n} logtime lên Redmine.`);
+      toast(
+        failed
+          ? `Đã ghi ${n} logtime lên Redmine, ${failed} mục lỗi chưa ghi.`
+          : `Đã ghi ${n} logtime lên Redmine.`,
+        { tone: failed ? "error" : "ok" },
+      );
     }
   };
 

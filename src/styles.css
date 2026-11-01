@@ -666,10 +666,11 @@ body {
   font-weight: 600;
   font-size: 15px;
 }
+/* Today in the accent, so it stays distinct from the ink selection ring. */
 .day.today .day-num {
   border-radius: 50%;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .day-tag {
   font-size: 11px;
@@ -688,7 +689,7 @@ body {
   color: var(--ink-2);
   font-weight: 500;
 }
-.day.off .day-num {
+.day.off:not(.today) .day-num {
   color: var(--ink-2);
   font-weight: 500;
 }
@@ -2389,9 +2390,8 @@ select::-ms-expand {
   color: var(--ink-2);
 }
 
-/* "Ghi logtime" page: the report card alone, at a readable width. */
+/* "Ghi logtime" page: the report card across the full width, like the other pages. */
 .report-page {
-  max-width: 1080px;
   padding: 28px 32px 48px;
 }
 
