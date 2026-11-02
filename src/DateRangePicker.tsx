@@ -151,11 +151,8 @@ export default function DateRangePicker({ from, to, onChange, maxDays, disabled 
   };
 
   // While picking, show the range up to the hovered day.
-  const [lo, hi] = anchor
-    ? [anchor, hover ?? anchor].sort()
-    : [from, to];
-  const reachable = (day: string) =>
-    day <= today && (!anchor || Math.abs(daysBetween(anchor, day)) < maxDays);
+  const [lo, hi] = anchor ? [anchor, hover ?? anchor].sort() : [from, to];
+  const reachable = (day: string) => day <= today && (!anchor || Math.abs(daysBetween(anchor, day)) < maxDays);
 
   const first = parseIso(month);
   const lead = (first.getDay() + 6) % 7;
@@ -194,7 +191,13 @@ export default function DateRangePicker({ from, to, onChange, maxDays, disabled 
       </button>
 
       {open && (
-        <div ref={panelRef} className={`range-panel${closing ? " is-closing" : ""}`} role="dialog" aria-label="Chọn khoảng ngày" style={pos}>
+        <div
+          ref={panelRef}
+          className={`range-panel${closing ? " is-closing" : ""}`}
+          role="dialog"
+          aria-label="Chọn khoảng ngày"
+          style={pos}
+        >
           <div className="range-presets" role="group" aria-label="Khoảng nhanh">
             {presets(today).map(([label, a, b]) => (
               <button

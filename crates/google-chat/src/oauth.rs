@@ -36,7 +36,10 @@ impl Pkce {
     pub fn new() -> Self {
         let verifier = random_token();
         let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-        Self { verifier, challenge }
+        Self {
+            verifier,
+            challenge,
+        }
     }
 }
 
@@ -113,7 +116,8 @@ impl OAuthClient {
     /// The consent page. `prompt=consent` makes Google return a refresh token
     /// even when the user approved this app before.
     pub fn auth_url(&self, redirect_uri: &str, state: &str, pkce: &Pkce) -> Result<String> {
-        let mut url = Url::parse(&self.endpoints.auth).map_err(|e| Error::Invalid(e.to_string()))?;
+        let mut url =
+            Url::parse(&self.endpoints.auth).map_err(|e| Error::Invalid(e.to_string()))?;
         url.query_pairs_mut()
             .append_pair("client_id", &self.client_id)
             .append_pair("redirect_uri", redirect_uri)
@@ -127,7 +131,12 @@ impl OAuthClient {
         Ok(url.into())
     }
 
-    pub async fn exchange_code(&self, code: &str, verifier: &str, redirect_uri: &str) -> Result<Tokens> {
+    pub async fn exchange_code(
+        &self,
+        code: &str,
+        verifier: &str,
+        redirect_uri: &str,
+    ) -> Result<Tokens> {
         self.token_request(&[
             ("grant_type", "authorization_code"),
             ("code", code),
@@ -160,7 +169,12 @@ impl OAuthClient {
     }
 
     async fn token_request(&self, form: &[(&str, &str)]) -> Result<Tokens> {
-        let res = self.http.post(&self.endpoints.token).form(form).send().await?;
+        let res = self
+            .http
+            .post(&self.endpoints.token)
+            .form(form)
+            .send()
+            .await?;
         let status = res.status();
         let body = res.text().await?;
         if status.is_success() {
@@ -193,12 +207,20 @@ impl Loopback {
     }
 
     pub fn redirect_uri(&self) -> Result<String> {
-        Ok(format!("http://127.0.0.1:{}", self.listener.local_addr()?.port()))
+        Ok(format!(
+            "http://127.0.0.1:{}",
+            self.listener.local_addr()?.port()
+        ))
     }
 
     /// Blocks until Google redirects back with a code for `state`, the user
     /// cancels, or `timeout` passes. Other requests (favicon…) are ignored.
-    pub fn wait_for_code(&self, state: &str, timeout: Duration, cancel: &AtomicBool) -> Result<String> {
+    pub fn wait_for_code(
+        &self,
+        state: &str,
+        timeout: Duration,
+        cancel: &AtomicBool,
+    ) -> Result<String> {
         self.listener.set_nonblocking(true)?;
         let deadline = Instant::now() + timeout;
         loop {
@@ -223,7 +245,8 @@ impl Loopback {
     }
 }
 
-const PAGE_OK: &str = "Đã kết nối Google Chat. Bạn có thể đóng tab này và quay lại Redmine Logtime.";
+const PAGE_OK: &str =
+    "Đã kết nối Google Chat. Bạn có thể đóng tab này và quay lại Redmine Logtime.";
 const PAGE_FAIL: &str = "Chưa kết nối được Google Chat. Quay lại Redmine Logtime để thử lại.";
 
 /// `None` for a request that is not the OAuth redirect.
@@ -266,7 +289,11 @@ pub(crate) fn parse_redirect(target: &str, state: &str) -> Option<Result<String>
     if url.path() != "/" {
         return None;
     }
-    let get = |k: &str| url.query_pairs().find(|(n, _)| n == k).map(|(_, v)| v.into_owned());
+    let get = |k: &str| {
+        url.query_pairs()
+            .find(|(n, _)| n == k)
+            .map(|(_, v)| v.into_owned())
+    };
     if get("state").as_deref() != Some(state) {
         return None;
     }
@@ -300,7 +327,10 @@ mod tests {
     fn pkce_challenge_is_sha256_of_verifier() {
         let p = Pkce::new();
         assert_eq!(p.verifier.len(), 43);
-        assert_eq!(p.challenge, URL_SAFE_NO_PAD.encode(Sha256::digest(p.verifier.as_bytes())));
+        assert_eq!(
+            p.challenge,
+            URL_SAFE_NO_PAD.encode(Sha256::digest(p.verifier.as_bytes()))
+        );
         assert_ne!(Pkce::new().verifier, p.verifier);
     }
 
@@ -313,14 +343,23 @@ mod tests {
         assert_eq!(q["client_id"], "id");
         assert_eq!(q["code_challenge"], p.challenge);
         assert_eq!(q["access_type"], "offline");
-        assert!(q["scope"].split(' ').all(|s| !s.starts_with("https://") || s.ends_with(".readonly")));
+        assert!(
+            q["scope"]
+                .split(' ')
+                .all(|s| !s.starts_with("https://") || s.ends_with(".readonly"))
+        );
     }
 
     #[test]
     fn redirect_needs_matching_state() {
         assert!(parse_redirect("/favicon.ico", "s").is_none());
         assert!(parse_redirect("/?state=other&code=c", "s").is_none());
-        assert_eq!(parse_redirect("/?state=s&code=4%2Fabc", "s").unwrap().unwrap(), "4/abc");
+        assert_eq!(
+            parse_redirect("/?state=s&code=4%2Fabc", "s")
+                .unwrap()
+                .unwrap(),
+            "4/abc"
+        );
         assert!(matches!(
             parse_redirect("/?state=s&error=access_denied", "s").unwrap(),
             Err(Error::Denied(_))
@@ -331,7 +370,13 @@ mod tests {
     fn identity_reads_sub_and_email() {
         let payload = URL_SAFE_NO_PAD.encode(r#"{"sub":"1077","email":"a@congty.vn"}"#);
         let id = identity(&format!("h.{payload}.sig")).unwrap();
-        assert_eq!(id, Identity { sub: "1077".into(), email: "a@congty.vn".into() });
+        assert_eq!(
+            id,
+            Identity {
+                sub: "1077".into(),
+                email: "a@congty.vn".into()
+            }
+        );
         assert!(identity("garbage").is_err());
     }
 
@@ -342,12 +387,15 @@ mod tests {
         let addr = uri.trim_start_matches("http://").to_string();
         let t = std::thread::spawn(move || {
             let mut s = TcpStream::connect(&addr).unwrap();
-            s.write_all(b"GET /?state=s&code=xyz HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+            s.write_all(b"GET /?state=s&code=xyz HTTP/1.1\r\nHost: x\r\n\r\n")
+                .unwrap();
             let mut out = String::new();
             s.read_to_string(&mut out).unwrap();
             out
         });
-        let code = lb.wait_for_code("s", Duration::from_secs(5), &AtomicBool::new(false)).unwrap();
+        let code = lb
+            .wait_for_code("s", Duration::from_secs(5), &AtomicBool::new(false))
+            .unwrap();
         assert_eq!(code, "xyz");
         assert!(t.join().unwrap().contains("Đã kết nối"));
 
@@ -368,8 +416,14 @@ mod tests {
             .mount(&server)
             .await;
         let c = OAuthClient::new("id", "secret", endpoints(&server)).unwrap();
-        let t = c.exchange_code("code", "v", "http://127.0.0.1:1").await.unwrap();
-        assert_eq!((t.access_token.as_str(), t.refresh_token.as_deref()), ("at", Some("rt")));
+        let t = c
+            .exchange_code("code", "v", "http://127.0.0.1:1")
+            .await
+            .unwrap();
+        assert_eq!(
+            (t.access_token.as_str(), t.refresh_token.as_deref()),
+            ("at", Some("rt"))
+        );
     }
 
     #[tokio::test]

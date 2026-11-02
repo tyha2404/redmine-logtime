@@ -78,7 +78,10 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
       .listActivities()
       .then((a) => setActivities(a.filter((x) => x.active && !leave.has(x.id))))
       .catch(() => {});
-    api.listTrackers().then(setTrackers).catch(() => {});
+    api
+      .listTrackers()
+      .then(setTrackers)
+      .catch(() => {});
   }, []);
 
   const submit = (e: React.FormEvent) => {
@@ -106,7 +109,14 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
     if (!(hours > 0 && hours <= 24)) return setFormError("Số giờ phải lớn hơn 0 và không quá 24.");
     if (!activityId) return setFormError("Chọn hoạt động.");
 
-    const base = { id: newId(), date, hours, activity_id: activityId, comments: comments.trim(), kind: "work" as const };
+    const base = {
+      id: newId(),
+      date,
+      hours,
+      activity_id: activityId,
+      comments: comments.trim(),
+      kind: "work" as const,
+    };
     if (mode === "existing") {
       onAdd([{ ...base, target: { type: "issue", issue_id: issue.id, label: `#${issue.id} ${issue.subject}` } }], []);
       return;
@@ -156,7 +166,10 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
           </label>
           <label className="field">
             <span>Tracker</span>
-            <select value={trackerId ?? ""} onChange={(e) => setTrackerId(e.target.value ? Number(e.target.value) : null)}>
+            <select
+              value={trackerId ?? ""}
+              onChange={(e) => setTrackerId(e.target.value ? Number(e.target.value) : null)}
+            >
               <option value="">Chọn tracker</option>
               {trackers.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -184,7 +197,10 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
         </label>
         <label className="field grow">
           <span>Hoạt động</span>
-          <select value={activityId ?? ""} onChange={(e) => setActivityId(e.target.value ? Number(e.target.value) : null)}>
+          <select
+            value={activityId ?? ""}
+            onChange={(e) => setActivityId(e.target.value ? Number(e.target.value) : null)}
+          >
             <option value="">Chọn hoạt động</option>
             {activities.map((a) => (
               <option key={a.id} value={a.id}>

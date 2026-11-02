@@ -54,7 +54,10 @@ pub async fn gchat_connect(
     client_id: String,
     client_secret: String,
 ) -> CmdResult<GchatStatus> {
-    let (client_id, client_secret) = (client_id.trim().to_string(), client_secret.trim().to_string());
+    let (client_id, client_secret) = (
+        client_id.trim().to_string(),
+        client_secret.trim().to_string(),
+    );
     if client_id.is_empty() || client_secret.is_empty() {
         return Err("Nhập Client ID và Client secret của OAuth client (loại Desktop app).".into());
     }
@@ -81,11 +84,16 @@ pub async fn gchat_connect(
     .map_err(|e| e.to_string())?
     .map_err(err)?;
 
-    let tokens = oauth.exchange_code(&code, &pkce.verifier, &redirect).await.map_err(err)?;
+    let tokens = oauth
+        .exchange_code(&code, &pkce.verifier, &redirect)
+        .await
+        .map_err(err)?;
     let refresh_token = tokens
         .refresh_token
         .ok_or("Google không trả về refresh token. Thử kết nối lại.")?;
-    let id_token = tokens.id_token.ok_or("Google không cho biết tài khoản đã đăng nhập.")?;
+    let id_token = tokens
+        .id_token
+        .ok_or("Google không cho biết tài khoản đã đăng nhập.")?;
     let who = oauth::identity(&id_token).map_err(err)?;
 
     state.credentials.set_google(Some(GoogleAuth {
@@ -144,7 +152,10 @@ pub async fn gchat_messages(
     if (to - from).num_days() >= MAX_RANGE_DAYS {
         return Err(format!("Chỉ lấy tối đa {MAX_RANGE_DAYS} ngày mỗi lần."));
     }
-    let (start, end) = (local_midnight(from)?, local_midnight(to + chrono::Days::new(1))?);
+    let (start, end) = (
+        local_midnight(from)?,
+        local_midnight(to + chrono::Days::new(1))?,
+    );
     let (client, auth) = chat(&state, false).await?;
     match client.my_messages(&space, &auth.user_id, start, end).await {
         Err(google_chat::Error::Revoked) => {
@@ -179,9 +190,13 @@ async fn chat(state: &AppState, fresh: bool) -> CmdResult<(ChatClient, GoogleAut
     let token = match cached {
         Some((t, exp)) if !fresh && exp > Instant::now() + Duration::from_secs(60) => t,
         _ => {
-            let oauth = OAuthClient::new(&auth.client_id, &auth.client_secret, Endpoints::default())
+            let oauth =
+                OAuthClient::new(&auth.client_id, &auth.client_secret, Endpoints::default())
+                    .map_err(|e| e.to_string())?;
+            let tokens = oauth
+                .refresh(&auth.refresh_token)
+                .await
                 .map_err(|e| e.to_string())?;
-            let tokens = oauth.refresh(&auth.refresh_token).await.map_err(|e| e.to_string())?;
             cache_token(state, tokens.access_token.clone(), tokens.expires_in);
             tokens.access_token
         }

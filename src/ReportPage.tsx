@@ -25,7 +25,12 @@ export default function ReportPage({ settings, focusReport, onOpenHistory, onOpe
         title="Ghi logtime"
         description="Nhập báo cáo, kiểm tra công việc và số giờ, rồi xác nhận ghi lên Redmine."
       />
-      <ReportComposer ref={composer} settings={settings} onOpenSettings={onOpenSettings} onOpenHistory={onOpenHistory} />
+      <ReportComposer
+        ref={composer}
+        settings={settings}
+        onOpenSettings={onOpenSettings}
+        onOpenHistory={onOpenHistory}
+      />
     </div>
   );
 }

@@ -12,7 +12,7 @@ export function useAiRun() {
   /** What is running, for the live line: Claude, or a quick local match. */
   const [label, setLabel] = useState("Claude đang làm việc");
 
-  const run = useCallback(async <T,>(job: () => Promise<T>, what = "Claude đang làm việc"): Promise<T | null> => {
+  const run = useCallback(async <T>(job: () => Promise<T>, what = "Claude đang làm việc"): Promise<T | null> => {
     setLabel(what);
     setRunning(true);
     setError(null);

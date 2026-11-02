@@ -117,7 +117,15 @@ pub async fn write_plan(
         .store
         .create_batch(&label, &settings.redmine_url, &ops)
         .map_err(err)?;
-    run(&app, &state.store, &client, batch_id, &settings.redmine_url, me.id).await
+    run(
+        &app,
+        &state.store,
+        &client,
+        batch_id,
+        &settings.redmine_url,
+        me.id,
+    )
+    .await
 }
 
 /// Sends a batch's failed ops again; done ones are never repeated.
@@ -132,7 +140,15 @@ pub async fn retry_batch(
     let client = client_for(&state.credentials, &settings, None)?;
     let me = client.current_user().await.map_err(err)?;
     state.store.reset_failed(batch_id).map_err(err)?;
-    run(&app, &state.store, &client, batch_id, &settings.redmine_url, me.id).await
+    run(
+        &app,
+        &state.store,
+        &client,
+        batch_id,
+        &settings.redmine_url,
+        me.id,
+    )
+    .await
 }
 
 /// Continues a batch that was interrupted (e.g. the app closed mid-way).
@@ -146,7 +162,15 @@ pub async fn resume_batch(
     let settings = state.settings();
     let client = client_for(&state.credentials, &settings, None)?;
     let me = client.current_user().await.map_err(err)?;
-    run(&app, &state.store, &client, batch_id, &settings.redmine_url, me.id).await
+    run(
+        &app,
+        &state.store,
+        &client,
+        batch_id,
+        &settings.redmine_url,
+        me.id,
+    )
+    .await
 }
 
 async fn run(

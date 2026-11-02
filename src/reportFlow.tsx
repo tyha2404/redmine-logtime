@@ -124,7 +124,10 @@ export function useReportFlow(day: string | null, settings: Settings) {
         ...view,
         analysis: {
           ...view.analysis,
-          tasks: view.analysis.tasks.map((t) => ({ ...t, days: t.days.filter((d) => !off.has(itemId(t.key, d.date))) })),
+          tasks: view.analysis.tasks.map((t) => ({
+            ...t,
+            days: t.days.filter((d) => !off.has(itemId(t.key, d.date))),
+          })),
         },
       },
     [view, off],
@@ -217,13 +220,21 @@ export function useReportFlow(day: string | null, settings: Settings) {
       });
 
   /** Work still to write: ticked entries with hours, minus what is on Redmine already. */
-  const pending = tasks.flatMap((t) => daysOf(t).filter((d) => d.on && !d.written && d.hours > EPS).map((d) => ({ t, d })));
+  const pending = tasks.flatMap((t) =>
+    daysOf(t)
+      .filter((d) => d.on && !d.written && d.hours > EPS)
+      .map((d) => ({ t, d })),
+  );
   const leave = (view?.analysis.leave ?? []).filter((l) => planned.has(l.date));
   const leaveOn = (date: string) => !off.has(leaveId(date));
   const pendingLeave = leave.filter((l) => leaveOn(l.date) && !(leaveId(l.date) in written));
   /** Every entry that can be ticked, for "Chọn tất cả". */
   const allIds = [
-    ...tasks.flatMap((t) => daysOf(t).filter((d) => !d.written).map((d) => d.id)),
+    ...tasks.flatMap((t) =>
+      daysOf(t)
+        .filter((d) => !d.written)
+        .map((d) => d.id),
+    ),
     ...leave.filter((l) => !(leaveId(l.date) in written)).map((l) => leaveId(l.date)),
   ];
   const totalHours = pending.reduce((s, x) => s + x.d.hours, 0) + pendingLeave.reduce((s, l) => s + l.hours, 0);
@@ -234,7 +245,9 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const missingParent = tasksToWrite.filter((t) => !choices[t.task.key].parent).length;
   const needsTracker = tasksToWrite.some((t) => choices[t.task.key].subtask === "new");
   const badHours = pending.some((x) => !(x.d.hours <= 24));
-  const blankSubject = tasksToWrite.some((t) => choices[t.task.key].subtask === "new" && !choices[t.task.key].subject.trim());
+  const blankSubject = tasksToWrite.some(
+    (t) => choices[t.task.key].subtask === "new" && !choices[t.task.key].subject.trim(),
+  );
   const duplicateCount = tasks.filter((t) => t.task.days.length === 0 && t.duplicates.length > 0).length;
   /** A day cannot hold more than 24h: Redmine's hours, what was written here, and what is ticked. */
   const overfullDay = [...planned].sort().find((date) => {
@@ -259,10 +272,10 @@ export function useReportFlow(day: string | null, settings: Settings) {
             : overfullDay
               ? `Ngày ${fmtDayShort(overfullDay)} vượt 24h, hãy giảm số giờ.`
               : pendingLeave.length > 0 && settings.leave_types.length === 0
-              ? "Báo cáo có ngày nghỉ nhưng chưa cài nghỉ phép trong Cài đặt (mục Nghỉ phép, “Tìm trên Redmine”)."
-              : count === 0
-                ? "Không có giờ nào để ghi."
-                : null;
+                ? "Báo cáo có ngày nghỉ nhưng chưa cài nghỉ phép trong Cài đặt (mục Nghỉ phép, “Tìm trên Redmine”)."
+                : count === 0
+                  ? "Không có giờ nào để ghi."
+                  : null;
 
   /** The entries and new sub-tasks to send, for the confirmation dialog. */
   const buildPlan = async (): Promise<WritePlan | null> => {
@@ -445,7 +458,11 @@ export function ReportResult({
   const allOn = f.allIds.every((id) => !f.off.has(id));
   const skipped = f.tasks.filter((t) => t.task.days.length === 0);
   const days = view.days.filter(
-    (d) => d.workday || d.existing_hours > 0 || f.leave.some((l) => l.date === d.date) || f.tasks.some((t) => t.task.days.some((x) => x.date === d.date)),
+    (d) =>
+      d.workday ||
+      d.existing_hours > 0 ||
+      f.leave.some((l) => l.date === d.date) ||
+      f.tasks.some((t) => t.task.days.some((x) => x.date === d.date)),
   );
 
   const open = async () => {
@@ -465,9 +482,7 @@ export function ReportResult({
     if (n > 0) {
       onWritten?.();
       toast(
-        failed
-          ? `Đã ghi ${n} logtime lên Redmine, ${failed} mục lỗi chưa ghi.`
-          : `Đã ghi ${n} logtime lên Redmine.`,
+        failed ? `Đã ghi ${n} logtime lên Redmine, ${failed} mục lỗi chưa ghi.` : `Đã ghi ${n} logtime lên Redmine.`,
         { tone: failed ? "error" : "ok" },
       );
     }
@@ -524,7 +539,11 @@ export function ReportResult({
 
       <div className="composer-actions">
         {(f.blocker || f.notice) && <p className="notice error">{f.notice ?? f.blocker}</p>}
-        <button className="btn primary" disabled={!!f.blocker || f.ai.running || f.planning || preparing} onClick={open}>
+        <button
+          className="btn primary"
+          disabled={!!f.blocker || f.ai.running || f.planning || preparing}
+          onClick={open}
+        >
           {preparing
             ? "Đang chuẩn bị…"
             : f.planning
@@ -533,7 +552,9 @@ export function ReportResult({
         </button>
       </div>
 
-      {plan && <WriteDialog plan={plan} redmineUrl={settings.redmine_url} onClose={closed} onOpenHistory={onOpenHistory} />}
+      {plan && (
+        <WriteDialog plan={plan} redmineUrl={settings.redmine_url} onClose={closed} onOpenHistory={onOpenHistory} />
+      )}
     </div>
   );
 }
@@ -553,21 +574,31 @@ function DayGroup({
   onEdit: (id: string | null) => void;
 }) {
   const hpd = settings.hours_per_day;
-  const rows = f.tasks.flatMap((t) => f.daysOf(t).filter((d) => d.date === day.date).map((d) => ({ t, d })));
+  const rows = f.tasks.flatMap((t) =>
+    f
+      .daysOf(t)
+      .filter((d) => d.date === day.date)
+      .map((d) => ({ t, d })),
+  );
   const leave = f.leave.find((l) => l.date === day.date);
   const leaveWritten = !!leave && f.leaveId(day.date) in f.written;
   const leaveOn = !!leave && f.leaveOn(day.date);
-  const writtenHours = rows.filter((r) => r.d.written).reduce((s, r) => s + r.d.hours, 0) + (leaveWritten ? leave!.hours : 0);
+  const writtenHours =
+    rows.filter((r) => r.d.written).reduce((s, r) => s + r.d.hours, 0) + (leaveWritten ? leave!.hours : 0);
   const plannedHours =
-    rows.filter((r) => r.d.on && !r.d.written).reduce((s, r) => s + r.d.hours, 0) + (leave && leaveOn && !leaveWritten ? leave.hours : 0);
+    rows.filter((r) => r.d.on && !r.d.written).reduce((s, r) => s + r.d.hours, 0) +
+    (leave && leaveOn && !leaveWritten ? leave.hours : 0);
   const existing = day.existing_hours + writtenHours;
   const total = existing + plannedHours;
   const state = total > hpd + EPS ? "over" : total + EPS >= hpd ? "full" : day.workday ? "short" : "off";
   const warnings: string[] = [];
   if (!day.workday && plannedHours > EPS) warnings.push("Ngày nghỉ hoặc ngày lễ.");
   if (total > hpd + EPS) warnings.push(`Vượt ${fmtHours(total - hpd)} so với ${fmtHours(hpd)}.`);
-  else if (day.workday && total + EPS < hpd) warnings.push(`Còn thiếu ${fmtHours(hpd - total)} để đủ ${fmtHours(hpd)}.`);
-  const dups = f.tasks.filter((t) => t.task.days.length > 0).flatMap((t) => t.duplicates.filter((d) => d.date === day.date).map((d) => ({ t, d })));
+  else if (day.workday && total + EPS < hpd)
+    warnings.push(`Còn thiếu ${fmtHours(hpd - total)} để đủ ${fmtHours(hpd)}.`);
+  const dups = f.tasks
+    .filter((t) => t.task.days.length > 0)
+    .flatMap((t) => t.duplicates.filter((d) => d.date === day.date).map((d) => ({ t, d })));
   const leaveType = leave && (settings.leave_types.find((x) => x.key === leave.kind) ?? settings.leave_types[0]);
 
   return (
@@ -588,7 +619,9 @@ function DayGroup({
           </li>
         )}
         {leave && (
-          <li className={`rentry is-leave${leaveOn || leaveWritten ? "" : " is-off"}${leaveWritten ? " is-written" : ""}`}>
+          <li
+            className={`rentry is-leave${leaveOn || leaveWritten ? "" : " is-off"}${leaveWritten ? " is-written" : ""}`}
+          >
             <input
               type="checkbox"
               checked={leaveOn || leaveWritten}
@@ -601,9 +634,18 @@ function DayGroup({
           </li>
         )}
         {rows.map(({ t, d }) => (
-          <EntryRow key={d.id} f={f} view={t} day={d} editing={editing === d.id} onEdit={(on) => onEdit(on ? d.id : null)} />
+          <EntryRow
+            key={d.id}
+            f={f}
+            view={t}
+            day={d}
+            editing={editing === d.id}
+            onEdit={(on) => onEdit(on ? d.id : null)}
+          />
         ))}
-        {rows.length === 0 && !leave && day.workday && <li className="rentry is-static muted">Báo cáo không có việc nào cho ngày này.</li>}
+        {rows.length === 0 && !leave && day.workday && (
+          <li className="rentry is-static muted">Báo cáo không có việc nào cho ngày này.</li>
+        )}
       </ul>
       {(warnings.length > 0 || dups.length > 0) && (
         <div className="rday-notes">
@@ -648,7 +690,9 @@ function EntryRow({
   const label = fmtDayShort(day.date);
 
   return (
-    <li className={`rentry${day.on || day.written ? "" : " is-off"}${day.written ? " is-written" : ""}${view.problems.length ? " is-unsure" : ""}`}>
+    <li
+      className={`rentry${day.on || day.written ? "" : " is-off"}${day.written ? " is-written" : ""}${view.problems.length ? " is-unsure" : ""}`}
+    >
       <input
         type="checkbox"
         checked={day.on || day.written}
@@ -703,7 +747,12 @@ function EntryRow({
       {day.written ? (
         <span className="rentry-hours is-done">✓ {fmtHours(day.hours)}</span>
       ) : (
-        <HoursInput hours={day.hours} disabled={!day.on || f.ai.running} label={`Số giờ “${t.text}” ngày ${label}`} onChange={(h) => f.setHours(day.id, h)} />
+        <HoursInput
+          hours={day.hours}
+          disabled={!day.on || f.ai.running}
+          label={`Số giờ “${t.text}” ngày ${label}`}
+          onChange={(h) => f.setHours(day.id, h)}
+        />
       )}
       {editing && (
         <div className="rentry-editor">
@@ -725,7 +774,11 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
   const fromAi = !!c.parent && t.parent_issue_id === c.parent.id;
   return (
     <>
-      {span > 1 && <p className="rentry-note">Áp dụng cho “{t.text}” ở cả {span} ngày.</p>}
+      {span > 1 && (
+        <p className="rentry-note">
+          Áp dụng cho “{t.text}” ở cả {span} ngày.
+        </p>
+      )}
       <dl className="rtask-grid">
         <dt>Task cha</dt>
         <dd>
@@ -767,7 +820,17 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
 }
 
 /** Hours of one entry; 0 leaves it out. */
-function HoursInput({ hours, disabled, label, onChange }: { hours: number; disabled: boolean; label: string; onChange: (h: number) => void }) {
+function HoursInput({
+  hours,
+  disabled,
+  label,
+  onChange,
+}: {
+  hours: number;
+  disabled: boolean;
+  label: string;
+  onChange: (h: number) => void;
+}) {
   const [raw, setRaw] = useState(String(hours));
   useEffect(() => setRaw(String(hours)), [hours]);
   const commit = () => {

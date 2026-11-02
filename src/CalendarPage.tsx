@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import AddEntryForm from "./AddEntryForm";
 import AiLog from "./AiLog";
 import GchatImport, { appendBlocks, dayChatBlocks } from "./GchatImport";
@@ -21,14 +14,7 @@ import {
   type Settings,
   type WritePlan,
 } from "./api";
-import {
-  fmtDayLong,
-  fmtDayShort,
-  fmtHours,
-  isoOf,
-  parseIso,
-  todayIso,
-} from "./fmt";
+import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, todayIso } from "./fmt";
 import { Icon } from "./icons";
 import PageHeader, { RefreshButton } from "./PageHeader";
 import QuotaRail from "./QuotaRail";
@@ -127,9 +113,7 @@ export default function CalendarPage({
   // Arrow keys move the selection like a desktop calendar; crossing the
   // month edge flips the month.
   const onGridKey = (e: React.KeyboardEvent) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[
-      e.key
-    ];
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
     if (!step) return;
     e.preventDefault();
     const d = parseIso(selected);
@@ -139,40 +123,24 @@ export default function CalendarPage({
     if (d.getMonth() + 1 !== ym.month || d.getFullYear() !== ym.year) {
       setYm({ year: d.getFullYear(), month: d.getMonth() + 1 });
     }
-    requestAnimationFrame(() =>
-      document.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus(),
-    );
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus());
   };
 
   // Monday-first grid: blank cells before the 1st, then the month in weeks.
-  const leading = useMemo(
-    () => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7,
-    [ym],
-  );
+  const leading = useMemo(() => (new Date(ym.year, ym.month - 1, 1).getDay() + 6) % 7, [ym]);
   /** The loaded month, once it is the one on screen (not the previous one). */
-  const shown =
-    summary && summary.year === ym.year && summary.month === ym.month
-      ? summary
-      : null;
+  const shown = summary && summary.year === ym.year && summary.month === ym.month ? summary : null;
   const weeks = useMemo(() => {
     if (!summary) return [];
-    const cells: (DaySummary | null)[] = [
-      ...Array(leading).fill(null),
-      ...summary.days,
-    ];
+    const cells: (DaySummary | null)[] = [...Array(leading).fill(null), ...summary.days];
     while (cells.length % 7) cells.push(null);
-    return Array.from({ length: cells.length / 7 }, (_, i) =>
-      cells.slice(i * 7, i * 7 + 7),
-    );
+    return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
   }, [summary, leading]);
   const selectedDay = summary?.days.find((d) => d.date === selected) ?? null;
   /** Rows the month needs, known before its data arrives (keeps the skeleton the same size). */
-  const weekCount = Math.ceil(
-    (leading + new Date(ym.year, ym.month, 0).getDate()) / 7,
-  );
+  const weekCount = Math.ceil((leading + new Date(ym.year, ym.month, 0).getDate()) / 7);
   const today = todayIso();
-  const isCurrentMonth =
-    ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
+  const isCurrentMonth = ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
 
   return (
     <div className="calendar-page">
@@ -182,7 +150,12 @@ export default function CalendarPage({
         actions={
           <>
             <div className="nav-group" role="group" aria-label="Chọn tháng">
-              <button className="nav-btn icon-only" onClick={() => shift(-1)} aria-label="Tháng trước" title="Tháng trước">
+              <button
+                className="nav-btn icon-only"
+                onClick={() => shift(-1)}
+                aria-label="Tháng trước"
+                title="Tháng trước"
+              >
                 <Icon name="chevronLeft" />
               </button>
               <MonthPicker ym={ym} onPick={(y, m) => setYm({ year: y, month: m })} />
@@ -199,12 +172,7 @@ export default function CalendarPage({
       />
       <section className="calendar-col">
         <header className="month-head">
-          <MonthStats
-            s={shown}
-            hpd={hpd}
-            onJumpMissing={(d) => setSelected(d)}
-            onOpenLeave={onOpenLeave}
-          />
+          <MonthStats s={shown} hpd={hpd} onJumpMissing={(d) => setSelected(d)} onOpenLeave={onOpenLeave} />
         </header>
 
         {error ? (
@@ -288,17 +256,9 @@ function WeekRow(props: {
   const days = week.filter((d): d is DaySummary => !!d);
   const logged = days.reduce((s, d) => s + d.hours, 0);
   // Quota for this week's workdays inside the month; days off and holidays don't count.
-  const expected =
-    days.filter((d) => d.status !== "weekend" && d.status !== "holiday")
-      .length * hoursPerDay;
-  const short = days.some(
-    (d) => d.status === "missing" || d.status === "partial",
-  );
-  const tone = short
-    ? "is-short"
-    : expected > 0 && logged >= expected
-      ? "is-full"
-      : "";
+  const expected = days.filter((d) => d.status !== "weekend" && d.status !== "holiday").length * hoursPerDay;
+  const short = days.some((d) => d.status === "missing" || d.status === "partial");
+  const tone = short ? "is-short" : expected > 0 && logged >= expected ? "is-full" : "";
 
   return (
     <>
@@ -326,9 +286,7 @@ function WeekRow(props: {
             <span className="week-logged">{fmtHours(logged)}</span>
             <span className="week-expected">/ {fmtHours(expected)}</span>
             <span className="week-bar" aria-hidden>
-              <span
-                style={{ width: `${Math.min(logged / expected, 1) * 100}%` }}
-              />
+              <span style={{ width: `${Math.min(logged / expected, 1) * 100}%` }} />
             </span>
           </>
         )}
@@ -359,21 +317,16 @@ function MonthStats(props: {
       </div>
     );
   }
-  const pct =
-    s.expected_hours > 0 ? Math.min(s.total_hours / s.expected_hours, 1) : 0;
+  const pct = s.expected_hours > 0 ? Math.min(s.total_hours / s.expected_hours, 1) : 0;
   const firstMissing = s.days.find((d) => d.status === "missing");
   const leaveHours = s.days.reduce((n, d) => n + d.leave_hours, 0);
   const ahead = s.days.filter((d) => d.status === "future").length;
   return (
     <div className="month-stats">
-      <div
-        className="stat stat-progress"
-        title={`${Math.round(pct * 100)}% định mức của tháng`}
-      >
+      <div className="stat stat-progress" title={`${Math.round(pct * 100)}% định mức của tháng`}>
         <span className="stat-label">Đã log</span>
         <span className="stat-value">
-          <strong>{fmtHours(s.total_hours)}</strong> /{" "}
-          {fmtHours(s.expected_hours)}
+          <strong>{fmtHours(s.total_hours)}</strong> / {fmtHours(s.expected_hours)}
         </span>
         <span className="stat-bar" aria-hidden>
           <span style={{ width: `${pct * 100}%` }} />
@@ -398,11 +351,7 @@ function MonthStats(props: {
           </span>
         </div>
       )}
-      <button
-        className="stat stat-leave"
-        onClick={onOpenLeave}
-        title="Xem ngày nghỉ trong năm"
-      >
+      <button className="stat stat-leave" onClick={onOpenLeave} title="Xem ngày nghỉ trong năm">
         <span className="stat-label">Nghỉ phép</span>
         <span className="stat-value">
           <strong>{fmtDays(leaveHours / hpd)}</strong> ngày
@@ -471,25 +420,13 @@ function MonthPicker({
         <Icon name="chevronDown" size={16} />
       </button>
       {open && (
-        <div
-          className={`month-pop${closing ? " is-closing" : ""}`}
-          role="dialog"
-          aria-label="Chọn tháng"
-        >
+        <div className={`month-pop${closing ? " is-closing" : ""}`} role="dialog" aria-label="Chọn tháng">
           <div className="month-pop-head">
-            <button
-              className="nav-btn icon-only"
-              onClick={() => setYear(year - 1)}
-              aria-label="Năm trước"
-            >
+            <button className="nav-btn icon-only" onClick={() => setYear(year - 1)} aria-label="Năm trước">
               <Icon name="chevronLeft" />
             </button>
             <strong>{year}</strong>
-            <button
-              className="nav-btn icon-only"
-              onClick={() => setYear(year + 1)}
-              aria-label="Năm sau"
-            >
+            <button className="nav-btn icon-only" onClick={() => setYear(year + 1)} aria-label="Năm sau">
               <Icon name="chevronRight" />
             </button>
           </div>
@@ -499,11 +436,7 @@ function MonthPicker({
                 key={m}
                 className="month-pop-item"
                 aria-pressed={year === ym.year && m === ym.month}
-                data-now={
-                  year === now.getFullYear() && m === now.getMonth() + 1
-                    ? ""
-                    : undefined
-                }
+                data-now={year === now.getFullYear() && m === now.getMonth() + 1 ? "" : undefined}
                 onClick={() => {
                   onPick(year, m);
                   close();
@@ -538,8 +471,7 @@ function DayCell(props: {
   const logged = Math.min(day.hours / hoursPerDay, 1) * 100;
   const dayNum = Number(day.date.slice(8));
   const off = day.status === "weekend" || day.status === "holiday";
-  const showHours =
-    day.hours > 0 || day.status === "missing" || day.status === "partial";
+  const showHours = day.hours > 0 || day.status === "missing" || day.status === "partial";
 
   return (
     <button
@@ -562,9 +494,7 @@ function DayCell(props: {
         <span className="day-num">{dayNum}</span>
         {day.status === "holiday" && <span className="day-tag">Lễ</span>}
       </span>
-      <span className="day-hours">
-        {showHours && <span className="day-logged">{fmtHours(day.hours)}</span>}
-      </span>
+      <span className="day-hours">{showHours && <span className="day-logged">{fmtHours(day.hours)}</span>}</span>
     </button>
   );
 }
@@ -586,8 +516,7 @@ function DayPanel(props: {
   const [mode, setMode] = useState<PanelMode>(() =>
     // Browser mock mode can open a composer directly: ?panel=report
     import.meta.env.VITE_MOCK === "1"
-      ? ((new URLSearchParams(location.search).get("panel") as PanelMode) ??
-        "idle")
+      ? ((new URLSearchParams(location.search).get("panel") as PanelMode) ?? "idle")
       : "idle",
   );
   /** A form's entries waiting for "Ghi ngay" in the confirmation dialog. */
@@ -623,10 +552,7 @@ function DayPanel(props: {
 
   const closed = (batch: Batch | null) => {
     setPlan(null);
-    const ok =
-      batch?.ops.filter(
-        (o) => o.payload.op === "create_time_entry" && o.status === "done",
-      ).length ?? 0;
+    const ok = batch?.ops.filter((o) => o.payload.op === "create_time_entry" && o.status === "done").length ?? 0;
     if (ok === 0) return;
     setMode("idle");
     onWritten();
@@ -637,17 +563,13 @@ function DayPanel(props: {
     <aside className="day-panel">
       <header className="panel-head">
         <h2 className="panel-title">{fmtDayLong(day.date)}</h2>
-        <p className={`status-pill s-${day.status}`}>
-          {STATUS_LABEL[day.status]}
-        </p>
+        <p className={`status-pill s-${day.status}`}>{STATUS_LABEL[day.status]}</p>
         <div className="panel-meter">
           <div className="panel-numbers">
             <span>
               <strong>{fmtHours(day.hours)}</strong> / {fmtHours(hpd)}
             </span>
-            {remaining > 0 && !off && (
-              <span className="muted">còn trống {fmtHours(remaining)}</span>
-            )}
+            {remaining > 0 && !off && <span className="muted">còn trống {fmtHours(remaining)}</span>}
           </div>
           <QuotaRail existing={day.hours} planned={0} quota={hpd} />
         </div>
@@ -691,9 +613,7 @@ function DayPanel(props: {
             settings={settings}
             onOpenSettings={onOpenSettings}
             onCancel={() => setMode("idle")}
-            onAdd={(item, subtask) =>
-              setPlan({ items: [item], subtasks: [subtask] })
-            }
+            onAdd={(item, subtask) => setPlan({ items: [item], subtasks: [subtask] })}
           />
         </section>
       )}
@@ -753,12 +673,7 @@ function DayPanel(props: {
       </section>
 
       {plan && (
-        <WriteDialog
-          plan={plan}
-          redmineUrl={settings.redmine_url}
-          onClose={closed}
-          onOpenHistory={onOpenHistory}
-        />
+        <WriteDialog plan={plan} redmineUrl={settings.redmine_url} onClose={closed} onOpenHistory={onOpenHistory} />
       )}
     </aside>
   );
@@ -817,20 +732,10 @@ function DayReport(props: {
         disabled={busy}
         aria-label={`Báo cáo ngày ${fmtDayShort(date)}`}
       />
-      <p className="hint">
-        Mỗi dòng một việc. Việc đã log của ngày này sẽ tự bỏ qua.
-      </p>
+      <p className="hint">Mỗi dòng một việc. Việc đã log của ngày này sẽ tự bỏ qua.</p>
       <div className="row">
-        <button
-          className="btn primary"
-          onClick={f.analyze}
-          disabled={busy || !f.text.trim()}
-        >
-          {ai.running
-            ? "Đang phân tích…"
-            : view
-              ? "Phân tích lại"
-              : "Phân tích bằng AI"}
+        <button className="btn primary" onClick={f.analyze} disabled={busy || !f.text.trim()}>
+          {ai.running ? "Đang phân tích…" : view ? "Phân tích lại" : "Phân tích bằng AI"}
         </button>
         <button
           className="btn"
@@ -844,15 +749,7 @@ function DayReport(props: {
       {fetching && <p className="hint">Đang lấy tin nhắn Google Chat ngày {fmtDayShort(date)}…</p>}
       <AiLog ai={ai} />
 
-      {view && (
-        <ReportResult
-          f={f}
-          settings={settings}
-          compact
-          onWritten={onWritten}
-          onOpenHistory={onOpenHistory}
-        />
-      )}
+      {view && <ReportResult f={f} settings={settings} compact onWritten={onWritten} onOpenHistory={onOpenHistory} />}
 
       {importing && (
         <GchatImport

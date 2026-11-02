@@ -5,7 +5,17 @@ import type { CSSProperties } from "react";
  * out like the content they stand for, so the page does not jump when it
  * arrives.
  */
-export function Skel({ w = "100%", h = 14, r, style }: { w?: number | string; h?: number | string; r?: number; style?: CSSProperties }) {
+export function Skel({
+  w = "100%",
+  h = 14,
+  r,
+  style,
+}: {
+  w?: number | string;
+  h?: number | string;
+  r?: number;
+  style?: CSSProperties;
+}) {
   return <span className="skel" style={{ width: w, height: h, borderRadius: r, ...style }} aria-hidden />;
 }
 

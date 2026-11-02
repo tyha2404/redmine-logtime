@@ -31,7 +31,9 @@ pub async fn run_batch(
     let mut taken: HashSet<u32> = batch
         .ops
         .iter()
-        .filter(|o| matches!(o.payload, OpPayload::CreateTimeEntry(_)) && o.status == OpStatus::Done)
+        .filter(|o| {
+            matches!(o.payload, OpPayload::CreateTimeEntry(_)) && o.status == OpStatus::Done
+        })
         .filter_map(|o| o.result_id)
         .collect();
 

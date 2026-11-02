@@ -73,7 +73,10 @@ pub fn check_plan(plan: &WritePlan, logged: &[(NaiveDate, f64)]) -> Result<()> {
             return bad(format!("Logtime ngày {day} bị lặp trong lô ghi."));
         }
         if !(item.hours.is_finite() && item.hours > 0.0 && item.hours <= MAX_HOURS_PER_DAY) {
-            return bad(format!("Logtime ngày {day} có số giờ không hợp lệ ({}).", item.hours));
+            return bad(format!(
+                "Logtime ngày {day} có số giờ không hợp lệ ({}).",
+                item.hours
+            ));
         }
         match &item.target {
             Target::Issue { issue_id: 0, .. } => {
@@ -139,10 +142,7 @@ pub fn preview(ops: &[OpPayload], plan: &WritePlan, assignee_id: Option<u32>) ->
                 let issue_id = match &i.target {
                     Target::Issue { issue_id, .. } => json!(issue_id),
                     Target::NewSubtask { key } => {
-                        let subject = plan
-                            .subtask(key)
-                            .map(|s| s.subject.as_str())
-                            .unwrap_or(key);
+                        let subject = plan.subtask(key).map(|s| s.subject.as_str()).unwrap_or(key);
                         json!(format!("<id task con \"{subject}\">"))
                     }
                 };
@@ -273,7 +273,10 @@ mod tests {
             assert!(check_err(&p, &[]).contains("số giờ"), "{hours}");
         }
         let mut no_issue = plan();
-        no_issue.items[2].target = Target::Issue { issue_id: 0, label: String::new() };
+        no_issue.items[2].target = Target::Issue {
+            issue_id: 0,
+            label: String::new(),
+        };
         assert!(check_err(&no_issue, &[]).contains("chưa có issue"));
         let mut blank = plan();
         blank.subtasks[0].subject = "  ".into();

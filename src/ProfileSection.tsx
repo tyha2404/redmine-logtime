@@ -35,7 +35,14 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
 
   const saveNotes = async () => {
     const base: Profile = profile ?? {
-      parent_rule: { tracker_ids: [], tracker_names: [], author_ids: [], author_names: [], role_names: [], description: "" },
+      parent_rule: {
+        tracker_ids: [],
+        tracker_names: [],
+        author_ids: [],
+        author_names: [],
+        role_names: [],
+        description: "",
+      },
       subtask_tracker_id: null,
       leave_issue_id: null,
       projects: [],
@@ -93,7 +100,9 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
             )}
           </div>
         ) : (
-          !ai.running && <p className="muted">Chưa phân tích. Lưu cài đặt kết nối rồi bấm phân tích (mất khoảng 1–3 phút).</p>
+          !ai.running && (
+            <p className="muted">Chưa phân tích. Lưu cài đặt kết nối rồi bấm phân tích (mất khoảng 1–3 phút).</p>
+          )
         )}
 
         <div className="card-foot">
@@ -108,7 +117,9 @@ export default function ProfileSection({ settings, trackers, onApply }: Props) {
                 {suggestions.subtask_tracker_id ? `: tracker ${trackerName(suggestions.subtask_tracker_id)}` : ""}
               </button>
             )}
-            {profile?.generated_at && <span className="muted small foot-meta">Phân tích lúc {fmtTimestamp(profile.generated_at)}</span>}
+            {profile?.generated_at && (
+              <span className="muted small foot-meta">Phân tích lúc {fmtTimestamp(profile.generated_at)}</span>
+            )}
           </div>
         </div>
       </section>

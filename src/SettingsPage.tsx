@@ -95,8 +95,14 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   const [busy, setBusy] = useState(false);
 
   const loadLists = () => {
-    api.listActivities().then(setActivities).catch(() => {});
-    api.listTrackers().then(setTrackers).catch(() => {});
+    api
+      .listActivities()
+      .then(setActivities)
+      .catch(() => {});
+    api
+      .listTrackers()
+      .then(setTrackers)
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -143,26 +149,19 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
       </div>
     );
 
-  const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
-    setSettings({ ...settings, [key]: value });
+  const update = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings({ ...settings, [key]: value });
 
   const toggleWorkday = (d: number) =>
     update(
       "workdays",
-      settings.workdays.includes(d)
-        ? settings.workdays.filter((x) => x !== d)
-        : [...settings.workdays, d].sort(),
+      settings.workdays.includes(d) ? settings.workdays.filter((x) => x !== d) : [...settings.workdays, d].sort(),
     );
 
   const testConnection = async () => {
     setBusy(true);
     setConnNotice(null);
     try {
-      const user = await api.testConnection(
-        settings.redmine_url,
-        apiKey.trim() || null,
-        settings.accept_invalid_certs,
-      );
+      const user = await api.testConnection(settings.redmine_url, apiKey.trim() || null, settings.accept_invalid_certs);
       const name = `${user.firstname} ${user.lastname}`.trim();
       setConnNotice({ kind: "ok", text: `Kết nối được. Bạn đang đăng nhập là ${name} (${user.login}).` });
     } catch (e) {
@@ -176,7 +175,10 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
     const { dates, bad } = parseHolidays(holidayText);
     if (bad) {
       setTab("work");
-      setSaveNotice({ kind: "error", text: `Ngày lễ "${bad}" không đúng hoặc không có thật. Dùng 2026-09-02 hoặc 02/09/2026.` });
+      setSaveNotice({
+        kind: "error",
+        text: `Ngày lễ "${bad}" không đúng hoặc không có thật. Dùng 2026-09-02 hoặc 02/09/2026.`,
+      });
       return false;
     }
     const hpd = settings.hours_per_day;
@@ -225,7 +227,9 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   const activeActivities = activities.filter((a) => a.active);
   const leaveActivityIds = new Set(settings.leave_types.flatMap((t) => (t.activity_id ? [t.activity_id] : [])));
   /** Work never defaults to a leave activity. */
-  const workActivities = activeActivities.filter((a) => !leaveActivityIds.has(a.id) || a.id === settings.default_activity_id);
+  const workActivities = activeActivities.filter(
+    (a) => !leaveActivityIds.has(a.id) || a.id === settings.default_activity_id,
+  );
 
   return (
     <div className="settings page-pad">
@@ -269,7 +273,9 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         tabIndex={0}
       >
         <header className="settings-group-head">
-          <h2 className="sr-only" id="settings-connection-title">Tài khoản</h2>
+          <h2 className="sr-only" id="settings-connection-title">
+            Tài khoản
+          </h2>
           <p>Kết nối Redmine để ghi giờ và Google Chat để lấy báo cáo.</p>
         </header>
         <div className="settings-grid">
@@ -334,7 +340,9 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         tabIndex={0}
       >
         <header className="settings-group-head">
-          <h2 className="sr-only" id="settings-work-title">Lịch & nghỉ phép</h2>
+          <h2 className="sr-only" id="settings-work-title">
+            Lịch & nghỉ phép
+          </h2>
           <p>Thiết lập định mức giờ, lịch làm việc và các loại nghỉ của bạn.</p>
         </header>
         <div className="settings-grid">
@@ -396,7 +404,9 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         tabIndex={0}
       >
         <header className="settings-group-head">
-          <h2 className="sr-only" id="settings-integrations-title">Ghi giờ & AI</h2>
+          <h2 className="sr-only" id="settings-integrations-title">
+            Ghi giờ & AI
+          </h2>
           <p>Chọn cách ghi giờ mặc định và hướng dẫn AI tìm đúng công việc.</p>
         </header>
         <div className="settings-grid">
@@ -457,8 +467,8 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
                 onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
               />
               <span>
-                Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập). App tự
-                bật khi cấu hình Claude của bạn bị từ chối API key.
+                Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập).
+                App tự bật khi cấu hình Claude của bạn bị từ chối API key.
               </span>
             </label>
             <div className="card-foot">
@@ -472,12 +482,16 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
                     try {
                       const reply = await api.aiTest();
                       const saved = await api.getSettings();
-                      setSettings((cur) =>
-                        cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
+                      setSettings(
+                        (cur) =>
+                          cur && { ...cur, claude_ignore_user_settings: saved.settings.claude_ignore_user_settings },
                       );
                       // The backend may have flipped this flag on disk; that is not an unsaved edit.
                       setSavedSnapshot((prev) =>
-                        JSON.stringify({ ...JSON.parse(prev), claude_ignore_user_settings: saved.settings.claude_ignore_user_settings }),
+                        JSON.stringify({
+                          ...JSON.parse(prev),
+                          claude_ignore_user_settings: saved.settings.claude_ignore_user_settings,
+                        }),
                       );
                       setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
                     } catch (e) {
@@ -511,15 +525,17 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
         tabIndex={0}
       >
         <header className="settings-group-head">
-          <h2 className="sr-only" id="settings-application-title">Ứng dụng</h2>
+          <h2 className="sr-only" id="settings-application-title">
+            Ứng dụng
+          </h2>
           <p>Điều chỉnh nhắc giờ, khởi động cùng máy và cập nhật ứng dụng.</p>
         </header>
         <div className="settings-grid">
           <section className="card">
             <h3>Nhắc log giờ</h3>
             <p className="hint">
-              Vào ngày làm việc, app gửi thông báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật, đóng cửa sổ chỉ ẩn app
-              xuống {isMac ? "thanh menu" : "khay hệ thống"}; chọn Thoát ở biểu tượng app để tắt hẳn.
+              Vào ngày làm việc, app gửi thông báo nếu hôm nay hoặc tuần này chưa đủ giờ. Khi bật, đóng cửa sổ chỉ ẩn
+              app xuống {isMac ? "thanh menu" : "khay hệ thống"}; chọn Thoát ở biểu tượng app để tắt hẳn.
             </p>
             <div className="reminder-row">
               <label className="check">
@@ -609,7 +625,10 @@ function TaskMemory() {
   const [count, setCount] = useState<number | null>(null);
   const [confirm, setConfirm] = useState(false);
   useEffect(() => {
-    api.memoryCount().then(setCount).catch(() => setCount(null));
+    api
+      .memoryCount()
+      .then(setCount)
+      .catch(() => setCount(null));
   }, []);
   if (count === null) return null;
   return (

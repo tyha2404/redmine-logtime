@@ -1,0 +1,9 @@
+{
+  "editor.formatOnSave": true,
+  "[typescript][typescriptreact][css][json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  }
+}

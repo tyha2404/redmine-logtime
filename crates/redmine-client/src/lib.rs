@@ -138,7 +138,11 @@ impl RedmineClient {
     pub async fn issues_by_ids(&self, ids: &[u32]) -> Result<Vec<Issue>> {
         let mut issues = Vec::new();
         for chunk in ids.chunks(100) {
-            let list = chunk.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let list = chunk
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
             let env: IssuesPage = self
                 .get(
                     "issues.json",
@@ -560,9 +564,11 @@ mod tests {
             .and(query_param("subject", "~công nợ"))
             .and(query_param("status_id", "open"))
             .and(query_param("limit", "20"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(
-                json!({"issues": [issue(4, "Quản lý công nợ")], "total_count": 1}),
-            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(
+                    json!({"issues": [issue(4, "Quản lý công nợ")], "total_count": 1}),
+                ),
+            )
             .mount(&server)
             .await;
         Mock::given(path("/issues.json"))

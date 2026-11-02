@@ -89,7 +89,9 @@ pub fn refresh_soon(app: &AppHandle) {
 }
 
 async fn refresh(app: &AppHandle) {
-    let Some(tray) = app.tray_by_id(ID) else { return };
+    let Some(tray) = app.tray_by_id(ID) else {
+        return;
+    };
     // One at a time, so a slow older read never overwrites a newer one.
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     let _turn = LOCK.get_or_init(|| Mutex::new(())).lock().await;
@@ -146,7 +148,8 @@ impl std::fmt::Display for ReadError {
 async fn read(app: &AppHandle) -> Result<Option<Status>, ReadError> {
     let state = app.state::<AppState>();
     let settings = state.settings();
-    let client = client_for(&state.credentials, &settings, None).map_err(|_| ReadError::NotSetUp)?;
+    let client =
+        client_for(&state.credentials, &settings, None).map_err(|_| ReadError::NotSetUp)?;
     let today = Local::now().date_naive();
     let week = client
         .my_time_entries(week_start(today), today)
@@ -170,7 +173,11 @@ pub fn status(settings: &Settings, today: NaiveDate, entries: &[TimeEntry]) -> S
     let workday = settings.is_workday(today);
 
     let title = if workday {
-        Some(format!("{}/{}", fmt_h(today_hours).trim_end_matches('h'), fmt_h(hpd)))
+        Some(format!(
+            "{}/{}",
+            fmt_h(today_hours).trim_end_matches('h'),
+            fmt_h(hpd)
+        ))
     } else {
         (today_hours > 0.0).then(|| fmt_h(today_hours))
     };
@@ -220,10 +227,28 @@ fn menu(app: &AppHandle, status: Option<&Status>) -> tauri::Result<Menu<Wry>> {
         menu.append(&MenuItem::with_id(app, id, text, true, None::<&str>)?)?;
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(app, "open", "Mở Redmine Logtime", true, None::<&str>)?)?;
-    menu.append(&MenuItem::with_id(app, "refresh", "Làm mới số giờ", true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        "open",
+        "Mở Redmine Logtime",
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        "refresh",
+        "Làm mới số giờ",
+        true,
+        None::<&str>,
+    )?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(app, "quit", "Thoát", true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        "quit",
+        "Thoát",
+        true,
+        None::<&str>,
+    )?)?;
     Ok(menu)
 }
 
@@ -237,11 +262,18 @@ mod tests {
     }
 
     fn entry(day: u32, hours: f64, subject: Option<&str>) -> TimeEntry {
-        let name = |s: &str| IdName { id: 1, name: s.into() };
+        let name = |s: &str| IdName {
+            id: 1,
+            name: s.into(),
+        };
         TimeEntry {
             id: 1,
             project: name("Dự án ABC"),
-            issue: subject.map(|s| IdRef { id: 12, subject: (!s.is_empty()).then(|| s.into()), parent: None }),
+            issue: subject.map(|s| IdRef {
+                id: 12,
+                subject: (!s.is_empty()).then(|| s.into()),
+                parent: None,
+            }),
             user: name("Dev A"),
             activity: name("Development"),
             hours,
@@ -290,7 +322,10 @@ mod tests {
         let s = Settings::default();
         // Saturday 31/10.
         assert_eq!(status(&s, d(31), &[]).title, None);
-        assert_eq!(status(&s, d(31), &[entry(31, 2.0, None)]).title.as_deref(), Some("2h"));
+        assert_eq!(
+            status(&s, d(31), &[entry(31, 2.0, None)]).title.as_deref(),
+            Some("2h")
+        );
     }
 
     #[test]

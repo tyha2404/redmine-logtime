@@ -10,19 +10,13 @@ import { fmtDays, leaveYear, useLeaveEntries, type LeaveBalance, type LeaveDay }
  * A year of leave at a glance: for each kind, the allowance as a row of day
  * tanks (taken, left), then every day off by month.
  */
-export default function LeavePage(props: {
-  settings: Settings;
-  onOpenSettings: () => void;
-}) {
+export default function LeavePage(props: { settings: Settings; onOpenSettings: () => void }) {
   const { settings, onOpenSettings } = props;
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [reloads, setReloads] = useState(0);
   const { entries, error, loading } = useLeaveEntries(year, reloads);
-  const data = useMemo(
-    () => (entries ? leaveYear(settings, year, entries) : null),
-    [entries, settings, year],
-  );
+  const data = useMemo(() => (entries ? leaveYear(settings, year, entries) : null), [entries, settings, year]);
 
   if (settings.leave_types.length === 0) {
     return (
@@ -46,7 +40,12 @@ export default function LeavePage(props: {
         actions={
           <>
             <div className="nav-group" role="group" aria-label="Chọn năm">
-              <button className="nav-btn icon-only" onClick={() => setYear(year - 1)} aria-label="Năm trước" title="Năm trước">
+              <button
+                className="nav-btn icon-only"
+                onClick={() => setYear(year - 1)}
+                aria-label="Năm trước"
+                title="Năm trước"
+              >
                 <Icon name="chevronLeft" />
               </button>
               <span className="nav-btn leave-year" aria-live="polite">
@@ -76,7 +75,6 @@ export default function LeavePage(props: {
         </>
       ) : (
         <>
-
           <div className="leave-balances">
             {data.balances.map((b) => (
               <BalanceCard key={b.type.project_id} b={b} />
@@ -163,7 +161,9 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
                 </span>
                 <span className="leave-span">
                   {d.days >= 1 ? "Cả ngày" : "Nửa ngày"}
-                  {Math.abs(d.hours - d.days * hoursPerDay) > 1e-6 && <span className="muted"> ({fmtHours(d.hours)})</span>}
+                  {Math.abs(d.hours - d.days * hoursPerDay) > 1e-6 && (
+                    <span className="muted"> ({fmtHours(d.hours)})</span>
+                  )}
                 </span>
                 <span className="leave-ref muted">{d.issueId ? `#${d.issueId}` : ""}</span>
               </li>

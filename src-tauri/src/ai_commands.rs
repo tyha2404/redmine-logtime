@@ -29,7 +29,11 @@ const REPORT_KEY: &str = "last_report";
 const MEMORY_KEY: &str = "task_memory";
 
 fn load_memory(state: &AppState) -> CmdResult<Memory> {
-    Ok(state.store.get_json(MEMORY_KEY).map_err(err)?.unwrap_or_default())
+    Ok(state
+        .store
+        .get_json(MEMORY_KEY)
+        .map_err(err)?
+        .unwrap_or_default())
 }
 
 /// Where a report is kept: the report page has one slot, each calendar day
@@ -414,7 +418,10 @@ pub fn memory_count(state: State<'_, AppState>) -> CmdResult<usize> {
 
 #[tauri::command]
 pub fn forget_memory(state: State<'_, AppState>) -> CmdResult<()> {
-    state.store.set_json(MEMORY_KEY, &Memory::default()).map_err(err)
+    state
+        .store
+        .set_json(MEMORY_KEY, &Memory::default())
+        .map_err(err)
 }
 
 /// Checks an analysis against Redmine: drops work already logged, verifies

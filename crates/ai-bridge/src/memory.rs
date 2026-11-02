@@ -68,7 +68,9 @@ pub fn key(text: &str) -> String {
 
 /// "- a", "+ a", "• a", "1. a", "2) a" → "a".
 fn strip_marker(line: &str) -> &str {
-    let line = line.trim_start_matches(['-', '+', '*', '•', '·', '–']).trim_start();
+    let line = line
+        .trim_start_matches(['-', '+', '*', '•', '·', '–'])
+        .trim_start();
     let digits = line.chars().take_while(|c| c.is_ascii_digit()).count();
     if digits > 0 && digits <= 2 {
         let rest = &line[digits..];
@@ -124,10 +126,7 @@ impl Memory {
     pub fn apply(&self, analysis: &mut ReportAnalysis) -> usize {
         let mut n = 0;
         for t in &mut analysis.tasks {
-            let Some(e) = self
-                .find(&t.text)
-                .or_else(|| self.find(&t.subtask_subject))
-            else {
+            let Some(e) = self.find(&t.text).or_else(|| self.find(&t.subtask_subject)) else {
                 continue;
             };
             t.parent_issue_id = Some(e.parent_id);
@@ -171,10 +170,20 @@ const REASON: &str = "Lần trước bạn đã chọn task này.";
 fn looks_like_work(line: &str) -> bool {
     let t = line.trim();
     let lower = format!(" {} ", t.to_lowercase());
-    let numbered_header = t.chars().next().is_some_and(|c| c.is_ascii_digit()) && strip_marker(t) != t;
-    let chat = ["báo cáo", " dạ ", " ạ ", "kế hoạch", "@", " hi ", "chào", "cảm ơn"]
-        .iter()
-        .any(|w| lower.contains(w));
+    let numbered_header =
+        t.chars().next().is_some_and(|c| c.is_ascii_digit()) && strip_marker(t) != t;
+    let chat = [
+        "báo cáo",
+        " dạ ",
+        " ạ ",
+        "kế hoạch",
+        "@",
+        " hi ",
+        "chào",
+        "cảm ơn",
+    ]
+    .iter()
+    .any(|w| lower.contains(w));
     !(numbered_header || t.ends_with(':') || chat)
 }
 
@@ -319,7 +328,11 @@ pub fn quick_analysis(
                 parent_reason: REASON.into(),
                 existing_subtask_id: e.subtask_id,
                 subtask_subject: e.subtask_subject.clone(),
-                comment: if e.comment.is_empty() { e.text.clone() } else { e.comment.clone() },
+                comment: if e.comment.is_empty() {
+                    e.text.clone()
+                } else {
+                    e.comment.clone()
+                },
                 days: days
                     .into_iter()
                     .map(|date| DayWeight { date, weight: 1.0 })
@@ -378,8 +391,14 @@ mod tests {
 
     #[test]
     fn key_ignores_bullets_numbers_brackets_and_progress() {
-        assert_eq!(key("- Sửa feedback công nợ (filter + export) 50%"), "sửa feedback công nợ");
-        assert_eq!(key("2) Tiếp tục sửa feedback công nợ: xong"), "sửa feedback công nợ");
+        assert_eq!(
+            key("- Sửa feedback công nợ (filter + export) 50%"),
+            "sửa feedback công nợ"
+        );
+        assert_eq!(
+            key("2) Tiếp tục sửa feedback công nợ: xong"),
+            "sửa feedback công nợ"
+        );
         assert_eq!(key("1. Davipharm - Salex"), "davipharm salex");
     }
 
@@ -472,9 +491,18 @@ Thứ 5 29/10:
 
     #[test]
     fn quick_analysis_pins_a_calendar_day_and_skips_future_dates() {
-        let a = quick_analysis(&memory(), "Sửa feedback công nợ\n- Review Module Sự kiện", d(29), Some(d(26)))
-            .unwrap();
-        assert!(a.tasks.iter().all(|t| t.days.len() == 1 && t.days[0].date == d(26)));
+        let a = quick_analysis(
+            &memory(),
+            "Sửa feedback công nợ\n- Review Module Sự kiện",
+            d(29),
+            Some(d(26)),
+        )
+        .unwrap();
+        assert!(
+            a.tasks
+                .iter()
+                .all(|t| t.days.len() == 1 && t.days[0].date == d(26))
+        );
         let err = quick_analysis(&memory(), "30/10/2026\n- Sửa feedback công nợ", d(29), None)
             .unwrap_err();
         assert!(err.contains("Không khớp"), "{err}");

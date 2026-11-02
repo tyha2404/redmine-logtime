@@ -173,7 +173,11 @@ function Shell() {
             <BrandMark size={26} />
             <span className="brand-name">Logtime</span>
           </div>
-          {host && <span className="mast-context" data-tauri-drag-region>{host}</span>}
+          {host && (
+            <span className="mast-context" data-tauri-drag-region>
+              {host}
+            </span>
+          )}
         </div>
         <div className="mast-end">
           {update.available && (
@@ -246,12 +250,7 @@ function Shell() {
             onOpenSettings={() => go("settings")}
           />
         )}
-        {page === "leave" && settings && (
-          <LeavePage
-            settings={settings}
-            onOpenSettings={() => go("settings")}
-          />
-        )}
+        {page === "leave" && settings && <LeavePage settings={settings} onOpenSettings={() => go("settings")} />}
         {page === "history" && <HistoryPage />}
         {page === "settings" && (
           <SettingsPage
@@ -279,7 +278,15 @@ function Shell() {
 }
 
 /** Asks what to do with unsaved settings before leaving the page. */
-function UnsavedDialog({ onSave, onDiscard, onStay }: { onSave: () => Promise<void>; onDiscard: () => void; onStay: () => void }) {
+function UnsavedDialog({
+  onSave,
+  onDiscard,
+  onStay,
+}: {
+  onSave: () => Promise<void>;
+  onDiscard: () => void;
+  onStay: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const { close, ...modal } = useModal(onStay, busy);
   return (

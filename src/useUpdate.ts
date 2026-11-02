@@ -35,7 +35,10 @@ function fetchLatest(): Promise<string | null> {
     .then((r) => {
       // 404: the repo has no release yet.
       if (r.status === 404) return null;
-      if (!r.ok) throw new Error(r.status === 403 ? "GitHub tạm giới hạn lượt kiểm tra, thử lại sau." : `GitHub trả lỗi ${r.status}.`);
+      if (!r.ok)
+        throw new Error(
+          r.status === 403 ? "GitHub tạm giới hạn lượt kiểm tra, thử lại sau." : `GitHub trả lỗi ${r.status}.`,
+        );
       return r.json();
     })
     .then((r: { tag_name?: string } | null) => (r?.tag_name ?? "").replace(/^v/, "") || null)
@@ -58,13 +61,31 @@ export function isNewer(a: string, b: string): boolean {
 }
 
 export function useUpdate(): UpdateState {
-  const [state, setState] = useState<UpdateState>({ latest: null, available: false, checking: !!API || MOCK, error: null });
+  const [state, setState] = useState<UpdateState>({
+    latest: null,
+    available: false,
+    checking: !!API || MOCK,
+    error: null,
+  });
 
   useEffect(() => {
     let live = true;
     fetchLatest()
-      .then((latest) => live && setState({ latest, available: !!latest && isNewer(latest, APP_VERSION), checking: false, error: null }))
-      .catch((e) => live && setState({ latest: null, available: false, checking: false, error: e instanceof Error ? e.message : String(e) }));
+      .then(
+        (latest) =>
+          live &&
+          setState({ latest, available: !!latest && isNewer(latest, APP_VERSION), checking: false, error: null }),
+      )
+      .catch(
+        (e) =>
+          live &&
+          setState({
+            latest: null,
+            available: false,
+            checking: false,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+      );
     return () => {
       live = false;
     };

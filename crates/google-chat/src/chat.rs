@@ -97,17 +97,21 @@ impl ChatClient {
                 query.push(("pageToken", t.clone()));
             }
             let page: SpacesPage = self.get("/v1/spaces", &query).await?;
-            out.extend(page.spaces.into_iter().filter_map(|s| match s.space_type.as_str() {
-                "DIRECT_MESSAGE" => None,
-                _ => Some(Space {
-                    display_name: if s.display_name.trim().is_empty() {
-                        "Nhóm chat không tên".into()
-                    } else {
-                        s.display_name
-                    },
-                    name: s.name,
-                }),
-            }));
+            out.extend(
+                page.spaces
+                    .into_iter()
+                    .filter_map(|s| match s.space_type.as_str() {
+                        "DIRECT_MESSAGE" => None,
+                        _ => Some(Space {
+                            display_name: if s.display_name.trim().is_empty() {
+                                "Nhóm chat không tên".into()
+                            } else {
+                                s.display_name
+                            },
+                            name: s.name,
+                        }),
+                    }),
+            );
             token = page.next_page_token.filter(|t| !t.is_empty());
             if token.is_none() {
                 break;
@@ -178,7 +182,9 @@ impl ChatClient {
         let status = res.status();
         let body = res.text().await?;
         match status {
-            s if s.is_success() => serde_json::from_str(&body).map_err(|e| Error::Invalid(e.to_string())),
+            s if s.is_success() => {
+                serde_json::from_str(&body).map_err(|e| Error::Invalid(e.to_string()))
+            }
             StatusCode::UNAUTHORIZED => Err(Error::Revoked),
             StatusCode::FORBIDDEN => Err(Error::Forbidden(error_message(&body))),
             StatusCode::NOT_FOUND => Err(Error::NotFound),
@@ -193,7 +199,10 @@ impl ChatClient {
 /// `spaces/<id>` only, so a stored value cannot reach another API path.
 fn valid_space(space: &str) -> bool {
     space.strip_prefix("spaces/").is_some_and(|id| {
-        !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        !id.is_empty()
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
     })
 }
 
@@ -247,8 +256,17 @@ mod tests {
             .mount(&server)
             .await;
         let spaces = client(&server).await.spaces().await.unwrap();
-        let names: Vec<_> = spaces.iter().map(|s| (s.name.as_str(), s.display_name.as_str())).collect();
-        assert_eq!(names, [("spaces/A", "Nhóm chat không tên"), ("spaces/B", "Team báo cáo")]);
+        let names: Vec<_> = spaces
+            .iter()
+            .map(|s| (s.name.as_str(), s.display_name.as_str()))
+            .collect();
+        assert_eq!(
+            names,
+            [
+                ("spaces/A", "Nhóm chat không tên"),
+                ("spaces/B", "Team báo cáo")
+            ]
+        );
     }
 
     #[tokio::test]
@@ -273,7 +291,11 @@ mod tests {
             .await;
         let from = Utc.with_ymd_and_hms(2026, 10, 25, 17, 0, 0).unwrap();
         let to = Utc.with_ymd_and_hms(2026, 10, 26, 17, 0, 0).unwrap();
-        let got = client(&server).await.my_messages("spaces/S1", "42", from, to).await.unwrap();
+        let got = client(&server)
+            .await
+            .my_messages("spaces/S1", "42", from, to)
+            .await
+            .unwrap();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].name, "spaces/S1/messages/1");
         assert!(got[0].text.starts_with("Thứ 2"));
@@ -300,13 +322,22 @@ mod tests {
             other => panic!("{other:?}"),
         }
         let t = Utc::now();
-        assert!(matches!(c.my_messages("spaces/GONE", "42", t, t).await, Err(Error::NotFound)));
+        assert!(matches!(
+            c.my_messages("spaces/GONE", "42", t, t).await,
+            Err(Error::NotFound)
+        ));
     }
 
     #[test]
     fn space_names_are_validated() {
         assert!(valid_space("spaces/AAAA_b-9"));
-        for bad in ["spaces/", "spaces/../x", "users/me", "spaces/a/messages", "spaces/a?b"] {
+        for bad in [
+            "spaces/",
+            "spaces/../x",
+            "users/me",
+            "spaces/a/messages",
+            "spaces/a?b",
+        ] {
             assert!(!valid_space(bad), "{bad}");
         }
     }

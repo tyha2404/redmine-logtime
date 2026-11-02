@@ -70,7 +70,8 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
       <form className="setup-form" onSubmit={connect} noValidate>
         <h1 className="setup-title">Kết nối Redmine</h1>
         <p className="setup-lede">
-          App đọc logtime của bạn để vẽ lịch tháng. Không có gì được ghi lên Redmine cho tới khi bạn bấm Ghi ngay trong popup xác nhận.
+          App đọc logtime của bạn để vẽ lịch tháng. Không có gì được ghi lên Redmine cho tới khi bạn bấm Ghi ngay trong
+          popup xác nhận.
         </p>
 
         <label className="field">
@@ -104,7 +105,12 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
         </label>
 
         <label className="check">
-          <input type="checkbox" checked={selfSigned} onChange={(e) => setSelfSigned(e.target.checked)} disabled={busy} />
+          <input
+            type="checkbox"
+            checked={selfSigned}
+            onChange={(e) => setSelfSigned(e.target.checked)}
+            disabled={busy}
+          />
           Redmine nội bộ dùng chứng chỉ SSL tự ký
         </label>
 
@@ -113,7 +119,11 @@ export default function SetupPage({ onDone, onOpenSettings }: { onDone: () => vo
           className={`setup-status notice${state.kind === "error" ? " error" : state.kind === "done" ? " ok" : ""}`}
           role={state.kind === "error" ? "alert" : "status"}
         >
-          {state.kind === "error" ? state.text : state.kind === "done" ? `Đã kết nối. Chào ${state.name}, đang mở lịch tháng.` : ""}
+          {state.kind === "error"
+            ? state.text
+            : state.kind === "done"
+              ? `Đã kết nối. Chào ${state.name}, đang mở lịch tháng.`
+              : ""}
         </p>
 
         <div className="setup-actions">

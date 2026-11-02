@@ -188,7 +188,9 @@ impl Credentials {
     }
 
     pub fn get_api_key(&self) -> Result<Option<String>, String> {
-        let s = self.load().map_err(|e| format!("Không đọc được API key: {e}"))?;
+        let s = self
+            .load()
+            .map_err(|e| format!("Không đọc được API key: {e}"))?;
         Ok(s.api_key.filter(|k| !k.trim().is_empty()))
     }
 
@@ -203,7 +205,9 @@ impl Credentials {
     }
 
     pub fn get_google(&self) -> Result<Option<GoogleAuth>, String> {
-        let s = self.load().map_err(|e| format!("Không đọc được đăng nhập Google: {e}"))?;
+        let s = self
+            .load()
+            .map_err(|e| format!("Không đọc được đăng nhập Google: {e}"))?;
         Ok(s.google)
     }
 
@@ -352,8 +356,19 @@ mod tests {
         let creds = Credentials::choose(Some(Box::new(keychain.clone())), file_vault(&dir));
         assert_eq!(creds.storage(), Storage::Keychain);
         assert_eq!(creds.get_api_key().unwrap().as_deref(), Some("old-key"));
-        assert!(!dir.join("credentials.json").exists(), "file removed once moved");
-        assert!(keychain.item.lock().unwrap().as_deref().unwrap().contains("old-key"));
+        assert!(
+            !dir.join("credentials.json").exists(),
+            "file removed once moved"
+        );
+        assert!(
+            keychain
+                .item
+                .lock()
+                .unwrap()
+                .as_deref()
+                .unwrap()
+                .contains("old-key")
+        );
 
         creds.delete_api_key().unwrap();
         assert!(keychain.item.lock().unwrap().is_none());
@@ -363,7 +378,9 @@ mod tests {
     #[test]
     fn a_broken_keychain_keeps_using_the_file() {
         let dir = temp_dir("broken");
-        Credentials::file_only(&dir).set_api_key("file-key").unwrap();
+        Credentials::file_only(&dir)
+            .set_api_key("file-key")
+            .unwrap();
         let keychain = FakeKeychain {
             broken: true,
             ..Default::default()

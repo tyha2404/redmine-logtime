@@ -864,15 +864,26 @@ button.stat:hover {
   font-weight: 500;
 }
 
-
-.s-full { --tone: var(--full); }
-.s-partial { --tone: var(--partial); }
-.s-missing { --tone: var(--missing); }
-.s-over { --tone: var(--over); }
-.s-leave { --tone: var(--leave); }
+.s-full {
+  --tone: var(--full);
+}
+.s-partial {
+  --tone: var(--partial);
+}
+.s-missing {
+  --tone: var(--missing);
+}
+.s-over {
+  --tone: var(--over);
+}
+.s-leave {
+  --tone: var(--leave);
+}
 .s-weekend,
 .s-holiday,
-.s-future { --tone: var(--ink-2); }
+.s-future {
+  --tone: var(--ink-2);
+}
 
 .legend {
   display: flex;
@@ -2326,7 +2337,9 @@ select::-ms-expand {
   border-radius: 16px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line), 0 16px 48px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 16px 48px rgba(0, 0, 0, 0.28);
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
 }
@@ -2456,7 +2469,9 @@ select::-ms-expand {
   padding: 12px;
   border-radius: var(--radius-m);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 12px 32px rgba(0, 0, 0, 0.18);
   animation: pop-in var(--motion-fast) linear;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2654,7 +2669,9 @@ select::-ms-expand {
   padding: 4px;
   border-radius: var(--radius-m);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 12px 32px rgba(0, 0, 0, 0.18);
 }
 .ipick-option {
   display: flex;
@@ -3338,7 +3355,6 @@ dialog.is-closing::backdrop {
   align-items: center;
 }
 
-
 /*
  * One header for every page: title and a line of description on the left,
  * the page's controls on the right, all at one height (36px).
@@ -3465,7 +3481,11 @@ dialog.is-closing::backdrop {
 .card .hint {
   max-width: 72ch;
 }
-.card, .composer, .batch-body, .entry, .write-table td {
+.card,
+.composer,
+.batch-body,
+.entry,
+.write-table td {
   overflow-wrap: anywhere;
 }
 .stat + .stat {
@@ -3520,7 +3540,8 @@ dialog.is-closing::backdrop {
   .stat-progress {
     padding-left: 0;
   }
-  .settings-grid, .cards-skel.settings-grid {
+  .settings-grid,
+  .cards-skel.settings-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .batch-head {
@@ -3567,7 +3588,8 @@ dialog.is-closing::backdrop {
   .guide-mini .rail-item {
     font-size: 9px;
   }
-  .page-pad, .report-page {
+  .page-pad,
+  .report-page {
     padding: 24px 16px 32px;
   }
   .calendar-page {
@@ -3600,13 +3622,15 @@ dialog.is-closing::backdrop {
   .day-tag {
     display: none;
   }
-  .day-hours, .week-logged {
+  .day-hours,
+  .week-logged {
     font-size: 11px;
   }
   .week-sum {
     font-size: 10px;
   }
-  .composer, .card {
+  .composer,
+  .card {
     padding: 20px 16px;
   }
   .composer-tools > .btn:last-child {
@@ -3624,7 +3648,8 @@ dialog.is-closing::backdrop {
     margin-inline: 16px;
     padding: 0 0 16px;
   }
-  .field-grid, .field-pair {
+  .field-grid,
+  .field-pair {
     grid-template-columns: minmax(0, 1fr);
   }
   .rtask-grid {
@@ -3647,7 +3672,8 @@ dialog.is-closing::backdrop {
   .rday-head .rail-bar {
     grid-column: 1 / -1;
   }
-  .setup-actions, .gchat-range-row {
+  .setup-actions,
+  .gchat-range-row {
     flex-wrap: wrap;
   }
   .range-panel {
@@ -3671,4 +3697,3 @@ dialog.is-closing::backdrop {
     max-width: 100%;
   }
 }
-

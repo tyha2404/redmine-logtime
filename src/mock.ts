@@ -27,9 +27,33 @@ let settings: Settings = {
   workdays: [1, 2, 3, 4, 5],
   holidays: ["2026-09-02"],
   leave_types: [
-    { key: "annual", label: "Nghỉ phép năm", project_id: 108, project_name: "Annual Leave", activity_id: 21, verb: "xin nghỉ phép", days_per_year: 12 },
-    { key: "sick", label: "Nghỉ đột xuất", project_id: 109, project_name: "Sick Leave", activity_id: 22, verb: "xin nghỉ đột xuất", days_per_year: 4 },
-    { key: "unpaid", label: "Nghỉ không lương", project_id: 110, project_name: "Unpaid Leave", activity_id: 23, verb: "xin nghỉ không lương", days_per_year: null },
+    {
+      key: "annual",
+      label: "Nghỉ phép năm",
+      project_id: 108,
+      project_name: "Annual Leave",
+      activity_id: 21,
+      verb: "xin nghỉ phép",
+      days_per_year: 12,
+    },
+    {
+      key: "sick",
+      label: "Nghỉ đột xuất",
+      project_id: 109,
+      project_name: "Sick Leave",
+      activity_id: 22,
+      verb: "xin nghỉ đột xuất",
+      days_per_year: 4,
+    },
+    {
+      key: "unpaid",
+      label: "Nghỉ không lương",
+      project_id: 110,
+      project_name: "Unpaid Leave",
+      activity_id: 23,
+      verb: "xin nghỉ không lương",
+      days_per_year: null,
+    },
   ],
   leave_name: "BE - Tên",
   default_activity_id: 9,
@@ -106,14 +130,15 @@ function monthSummary(year: number, month: number) {
   for (let d = 1; d <= last; d++) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     // Like the backend: each entry's issue with its subject.
-    const entries = ENTRIES.filter((e) => e.spent_on === date).map((e) =>
-      {
-        const found = e.issue && ISSUES.find((i) => i.id === e.issue!.id);
-        if (!found) return e;
-        const parent = found.parent && { id: found.parent.id, subject: ISSUES.find((i) => i.id === found.parent!.id)?.subject };
-        return { ...e, issue: { id: found.id, subject: found.subject, parent } };
-      },
-    );
+    const entries = ENTRIES.filter((e) => e.spent_on === date).map((e) => {
+      const found = e.issue && ISSUES.find((i) => i.id === e.issue!.id);
+      if (!found) return e;
+      const parent = found.parent && {
+        id: found.parent.id,
+        subject: ISSUES.find((i) => i.id === found.parent!.id)?.subject,
+      };
+      return { ...e, issue: { id: found.id, subject: found.subject, parent } };
+    });
     const hours = entries.reduce((s, e) => s + e.hours, 0);
     const leave = entries
       .filter((e) => settings.leave_types.some((t) => t.project_id === e.project.id))
@@ -125,7 +150,17 @@ function monthSummary(year: number, month: number) {
     else {
       expected += HPD;
       status =
-        leave >= HPD ? "leave" : hours > HPD ? "over" : hours >= HPD ? "full" : hours > 0 ? "partial" : date > TODAY ? "future" : "missing";
+        leave >= HPD
+          ? "leave"
+          : hours > HPD
+            ? "over"
+            : hours >= HPD
+              ? "full"
+              : hours > 0
+                ? "partial"
+                : date > TODAY
+                  ? "future"
+                  : "missing";
       if (date <= TODAY && hours < HPD) {
         missingHours += HPD - hours;
         missingDays++;
@@ -133,7 +168,15 @@ function monthSummary(year: number, month: number) {
     }
     days.push({ date, status, hours, leave_hours: leave, entries });
   }
-  return { year, month, days, total_hours: total, expected_hours: expected, missing_hours: missingHours, missing_days: missingDays };
+  return {
+    year,
+    month,
+    days,
+    total_hours: total,
+    expected_hours: expected,
+    missing_hours: missingHours,
+    missing_days: missingDays,
+  };
 }
 
 const PROFILE: Profile = {
@@ -199,21 +242,39 @@ const REPORT_VIEW: ReportView = {
   analysis: { period_from: TODAY, period_to: TODAY, leave: [], questions: [], tasks: [] },
   tasks: [
     {
-      task: task("bieu-do", "Lọc theo vùng cho biểu đồ doanh số", 3, 0.88, "Khớp Feature #3 “Báo cáo doanh số theo vùng”.", null, []),
+      task: task(
+        "bieu-do",
+        "Lọc theo vùng cho biểu đồ doanh số",
+        3,
+        0.88,
+        "Khớp Feature #3 “Báo cáo doanh số theo vùng”.",
+        null,
+        [],
+      ),
       parent: brief(3, "Báo cáo doanh số theo vùng", "Feature"),
       existing_subtask: null,
       problems: [],
       duplicates: [{ date: TODAY, reason: "Đã log 5h vào #12 trên Redmine." }],
     },
     {
-      task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [TODAY]),
+      task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [
+        TODAY,
+      ]),
       parent: brief(2, "Module Sự kiện", "Feature"),
       existing_subtask: brief(5, "Review Module Sự kiện", "Task", 2),
       problems: [],
       duplicates: [],
     },
     {
-      task: task("cong-no", "Sửa feedback công nợ", 1, 0.55, "Có thể thuộc Feature #1 “Quản lý công nợ khách hàng”.", 4, [TODAY]),
+      task: task(
+        "cong-no",
+        "Sửa feedback công nợ",
+        1,
+        0.55,
+        "Có thể thuộc Feature #1 “Quản lý công nợ khách hàng”.",
+        4,
+        [TODAY],
+      ),
       parent: brief(1, "Quản lý công nợ khách hàng", "Feature"),
       existing_subtask: brief(4, "[FE] Màn hình danh sách công nợ", "Task", 1),
       problems: ["AI không chắc chắn về task cha này, hãy kiểm tra."],
@@ -238,21 +299,34 @@ const WEEK_VIEW: ReportView = {
   },
   tasks: [
     {
-      task: task("cong-no", "Sửa feedback công nợ", 1, 0.93, "Khớp Feature #1 “Quản lý công nợ khách hàng”.", 4, [iso(27), iso(28)]),
+      task: task("cong-no", "Sửa feedback công nợ", 1, 0.93, "Khớp Feature #1 “Quản lý công nợ khách hàng”.", 4, [
+        iso(27),
+        iso(28),
+      ]),
       parent: brief(1, "Quản lý công nợ khách hàng", "Feature"),
       existing_subtask: brief(4, "[FE] Màn hình danh sách công nợ", "Task", 1),
       problems: [],
       duplicates: [],
     },
     {
-      task: task("bieu-do", "Lọc theo vùng cho biểu đồ doanh số", 3, 0.88, "Khớp Feature #3 “Báo cáo doanh số theo vùng”.", null, [iso(28), iso(29)]),
+      task: task(
+        "bieu-do",
+        "Lọc theo vùng cho biểu đồ doanh số",
+        3,
+        0.88,
+        "Khớp Feature #3 “Báo cáo doanh số theo vùng”.",
+        null,
+        [iso(28), iso(29)],
+      ),
       parent: brief(3, "Báo cáo doanh số theo vùng", "Feature"),
       existing_subtask: null,
       problems: [],
       duplicates: [],
     },
     {
-      task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [iso(29)]),
+      task: task("su-kien", "Review Module Sự kiện", 2, 0.97, "“Module Sự kiện” khớp chính xác Feature #2.", 5, [
+        iso(29),
+      ]),
       parent: brief(2, "Module Sự kiện", "Feature"),
       existing_subtask: brief(5, "Review Module Sự kiện", "Task", 2),
       problems: [],
@@ -276,7 +350,13 @@ const WEEK_VIEW: ReportView = {
 };
 WEEK_VIEW.analysis.tasks = WEEK_VIEW.tasks.map((t) => t.task);
 
-const issue = (id: number, subject: string, tracker: [number, string], parent: number | null = null, mine = false): Issue => ({
+const issue = (
+  id: number,
+  subject: string,
+  tracker: [number, string],
+  parent: number | null = null,
+  mine = false,
+): Issue => ({
   id,
   project: { id: 1, name: "Dự án ABC" },
   tracker: { id: tracker[0], name: tracker[1] },
@@ -322,7 +402,7 @@ async function runOps(batch: Batch, pick: (op: Op) => boolean, fail: (op: Op) =>
       Object.assign(op, { status: "done", result_id: id, error: null });
     } else {
       const p = op.payload;
-      const issueId = p.target.type === "issue" ? p.target.issue_id : created.get(p.target.key) ?? 0;
+      const issueId = p.target.type === "issue" ? p.target.issue_id : (created.get(p.target.key) ?? 0);
       const e = entry(Number(p.date.slice(8)), issueId, p.hours, p.comments);
       ENTRIES.push(e);
       Object.assign(op, { status: "done", result_id: e.id, error: null });
@@ -344,7 +424,10 @@ function planReport(view: ReportView, excluded: string[]): DayPlan[] {
       left -= steps;
       return { task: x.task, date: d.date, hours: steps / 2 };
     });
-    const warnings = d.capacity > 0 && demands.length === 0 ? [`Không có việc nào trong báo cáo cho ngày này, còn trống ${d.capacity}h.`] : [];
+    const warnings =
+      d.capacity > 0 && demands.length === 0
+        ? [`Không có việc nào trong báo cáo cho ngày này, còn trống ${d.capacity}h.`]
+        : [];
     return { ...d, allocations: allocations.filter((a) => a.hours > 0), warnings };
   });
 }
@@ -356,10 +439,47 @@ const BATCHES: Batch[] = [
     label: "3 logtime, 22/10–23/10",
     redmine_url: settings.redmine_url,
     ops: [
-      { id: 21, seq: 0, payload: { op: "create_subtask", ...SUB_1, subject: "[FE] Export Excel công nợ" }, status: "done", result_id: 12, error: null },
-      { id: 22, seq: 1, payload: { op: "create_time_entry", ...item("x1", 22, { type: "new_subtask", key: "sub-1" }, 5, "Export Excel") }, status: "done", result_id: 1201, error: null },
-      { id: 23, seq: 2, payload: { op: "create_time_entry", ...item("x2", 22, { type: "issue", issue_id: 5, label: "#5 Review Module Sự kiện" }, 3, "Review") }, status: "done", result_id: 1202, error: null },
-      { id: 24, seq: 3, payload: { op: "create_time_entry", ...item("x3", 29, { type: "new_subtask", key: "sub-1" }, 5, "Lọc theo vùng") }, status: "failed", result_id: null, error: "Redmine từ chối dữ liệu: Activity cannot be blank" },
+      {
+        id: 21,
+        seq: 0,
+        payload: { op: "create_subtask", ...SUB_1, subject: "[FE] Export Excel công nợ" },
+        status: "done",
+        result_id: 12,
+        error: null,
+      },
+      {
+        id: 22,
+        seq: 1,
+        payload: {
+          op: "create_time_entry",
+          ...item("x1", 22, { type: "new_subtask", key: "sub-1" }, 5, "Export Excel"),
+        },
+        status: "done",
+        result_id: 1201,
+        error: null,
+      },
+      {
+        id: 23,
+        seq: 2,
+        payload: {
+          op: "create_time_entry",
+          ...item("x2", 22, { type: "issue", issue_id: 5, label: "#5 Review Module Sự kiện" }, 3, "Review"),
+        },
+        status: "done",
+        result_id: 1202,
+        error: null,
+      },
+      {
+        id: 24,
+        seq: 3,
+        payload: {
+          op: "create_time_entry",
+          ...item("x3", 29, { type: "new_subtask", key: "sub-1" }, 5, "Lọc theo vùng"),
+        },
+        status: "failed",
+        result_id: null,
+        error: "Redmine từ chối dữ liệu: Activity cannot be blank",
+      },
     ],
   },
   {
@@ -368,7 +488,24 @@ const BATCHES: Batch[] = [
     label: "1 logtime, 21/10",
     redmine_url: settings.redmine_url,
     ops: [
-      { id: 11, seq: 0, payload: { op: "create_time_entry", ...item("y1", 21, { type: "issue", issue_id: 16930, label: "#16930 BE - Tên xin nghỉ phép ngày 21/10/2026" }, 8, "Nghỉ phép năm", "leave") }, status: "undone", result_id: 1100, error: null },
+      {
+        id: 11,
+        seq: 0,
+        payload: {
+          op: "create_time_entry",
+          ...item(
+            "y1",
+            21,
+            { type: "issue", issue_id: 16930, label: "#16930 BE - Tên xin nghỉ phép ngày 21/10/2026" },
+            8,
+            "Nghỉ phép năm",
+            "leave",
+          ),
+        },
+        status: "undone",
+        result_id: 1100,
+        error: null,
+      },
     ],
   },
 ];
@@ -376,36 +513,70 @@ const BATCHES: Batch[] = [
 let fresh = new URLSearchParams(location.search).has("setup");
 
 // ?gchat=0 starts with Google Chat not connected.
-let gchat = new URLSearchParams(location.search).get("gchat") === "0"
-  ? { connected: false, email: null as string | null, client_id: null as string | null }
-  : { connected: true, email: "dev.a@congty.vn", client_id: "123-abc.apps.googleusercontent.com" };
+let gchat =
+  new URLSearchParams(location.search).get("gchat") === "0"
+    ? { connected: false, email: null as string | null, client_id: null as string | null }
+    : { connected: true, email: "dev.a@congty.vn", client_id: "123-abc.apps.googleusercontent.com" };
 
 /** Tasks remembered from earlier writes; `?memory=0` starts empty. */
 let memory: LearnedTask[] =
   new URLSearchParams(location.search).get("memory") === "0"
     ? []
     : [
-        { text: "Sửa feedback công nợ", parent_id: 1, parent_subject: "Quản lý công nợ khách hàng", subtask_id: 4, subtask_subject: "[FE] Màn hình danh sách công nợ", project_hint: "ABC", comment: "" },
-        { text: "Review Module Sự kiện", parent_id: 2, parent_subject: "Module Sự kiện", subtask_id: 5, subtask_subject: "Review Module Sự kiện", project_hint: "ABC", comment: "" },
+        {
+          text: "Sửa feedback công nợ",
+          parent_id: 1,
+          parent_subject: "Quản lý công nợ khách hàng",
+          subtask_id: 4,
+          subtask_subject: "[FE] Màn hình danh sách công nợ",
+          project_hint: "ABC",
+          comment: "",
+        },
+        {
+          text: "Review Module Sự kiện",
+          parent_id: 2,
+          parent_subject: "Module Sự kiện",
+          subtask_id: 5,
+          subtask_subject: "Review Module Sự kiện",
+          project_hint: "ABC",
+          comment: "",
+        },
       ];
 
 const CHAT_MESSAGES = [
-  { name: "spaces/TEAM/messages/1", create_time: "2026-10-26T10:05:00Z", text: "Thứ 2 26/10:\n- Sửa feedback công nợ\n- Review Module Sự kiện" },
-  { name: "spaces/TEAM/messages/2", create_time: "2026-10-27T10:12:00Z", text: "Báo cáo hôm nay:\n- Sửa feedback công nợ (filter + export)" },
+  {
+    name: "spaces/TEAM/messages/1",
+    create_time: "2026-10-26T10:05:00Z",
+    text: "Thứ 2 26/10:\n- Sửa feedback công nợ\n- Review Module Sự kiện",
+  },
+  {
+    name: "spaces/TEAM/messages/2",
+    create_time: "2026-10-27T10:12:00Z",
+    text: "Báo cáo hôm nay:\n- Sửa feedback công nợ (filter + export)",
+  },
   { name: "spaces/TEAM/messages/3", create_time: "2026-10-27T10:20:00Z", text: "Mai em xin nghỉ buổi sáng ạ" },
-  { name: "spaces/TEAM/messages/4", create_time: "2026-10-28T10:01:00Z", text: "Báo cáo hôm nay:\n- [FE] Biểu đồ doanh số theo vùng\n- Review PR module Sự kiện" },
-  { name: "spaces/TEAM/messages/5", create_time: "2026-10-29T09:30:00Z", text: "Báo cáo hôm nay:\n- Review Module Sự kiện\n- Sửa feedback công nợ" },
+  {
+    name: "spaces/TEAM/messages/4",
+    create_time: "2026-10-28T10:01:00Z",
+    text: "Báo cáo hôm nay:\n- [FE] Biểu đồ doanh số theo vùng\n- Review PR module Sự kiện",
+  },
+  {
+    name: "spaces/TEAM/messages/5",
+    create_time: "2026-10-29T09:30:00Z",
+    text: "Báo cáo hôm nay:\n- Review Module Sự kiện\n- Sửa feedback công nợ",
+  },
 ];
 
 /** `?slow=1` stretches every answer, to look at loading states (skeletons). */
 const SLOW = new URLSearchParams(location.search).has("slow") ? 15 : 1;
-const delay = <T,>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms * SLOW));
+const delay = <T>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms * SLOW));
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
   switch (cmd) {
     case "get_settings":
       // ?setup=1 shows the first-run screen of a fresh install.
-      if (fresh) return delay({ settings: { ...settings, redmine_url: "" }, has_api_key: false, secret_storage: "keychain" });
+      if (fresh)
+        return delay({ settings: { ...settings, redmine_url: "" }, has_api_key: false, secret_storage: "keychain" });
       return delay({ settings, has_api_key: true, secret_storage: "keychain" });
     case "save_api_key":
       fresh = false;
@@ -443,7 +614,9 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay(PROFILE);
     case "get_last_report":
       return delay(
-        args.day === TODAY ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW } : { text: "", day: args.day ?? null, view: null },
+        args.day === TODAY
+          ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW }
+          : { text: "", day: args.day ?? null, view: null },
       );
     case "install_update":
       for (const downloaded of [2, 5, 8, 10]) {
@@ -454,18 +627,27 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "open_log_dir":
       return delay(undefined, 50);
     case "quick_report": {
-      if (memory.length === 0) throw "Chưa có việc nào được ghi nhớ. Phân tích bằng AI và ghi lần đầu, app sẽ nhớ cho các lần sau.";
+      if (memory.length === 0)
+        throw "Chưa có việc nào được ghi nhớ. Phân tích bằng AI và ghi lần đầu, app sẽ nhớ cho các lần sau.";
       const known = (t: string) => memory.some((m) => m.text.toLowerCase() === t.toLowerCase());
       const v = structuredClone(WEEK_VIEW);
       v.tasks = v.tasks
         .filter((t) => known(t.task.text))
-        .map((t) => ({ ...t, problems: [], task: { ...t.task, parent_confidence: 1, parent_reason: "Lần trước bạn đã chọn task này." } }));
+        .map((t) => ({
+          ...t,
+          problems: [],
+          task: { ...t.task, parent_confidence: 1, parent_reason: "Lần trước bạn đã chọn task này." },
+        }));
       v.analysis.tasks = v.tasks.map((t) => t.task);
       v.analysis.leave = [];
       v.days = v.days.map((d) => ({ ...d, leave_hours: 0, capacity: Math.max(HPD - d.existing_hours, 0) }));
       const unknown = WEEK_VIEW.tasks.filter((t) => !known(t.task.text)).map((t) => `“${t.task.text}”`);
       v.analysis.questions = [
-        ...(unknown.length ? [`Chưa nhận ra ${unknown.length} dòng (chưa ghi lần nào): ${unknown.join(", ")}. Dùng Phân tích bằng AI cho các việc mới.`] : []),
+        ...(unknown.length
+          ? [
+              `Chưa nhận ra ${unknown.length} dòng (chưa ghi lần nào): ${unknown.join(", ")}. Dùng Phân tích bằng AI cho các việc mới.`,
+            ]
+          : []),
         "Khớp nhanh không ghi nghỉ phép: “T4 28/10 nghỉ buổi sáng”. Dùng Xin nghỉ trên Lịch tháng.",
       ];
       if (args.day) {
@@ -498,14 +680,18 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "leave_parent": {
       const [y, m] = String(args.date).split("-");
       const t = settings.leave_types.find((x) => x.project_id === args.projectId);
-      if (m === "11") throw `Chưa có task cha nghỉ phép tháng ${m}/${y} trong ${t?.project_name}. HR thường tạo vào đầu tháng; khi có rồi thử lại.`;
+      if (m === "11")
+        throw `Chưa có task cha nghỉ phép tháng ${m}/${y} trong ${t?.project_name}. HR thường tạo vào đầu tháng; khi có rồi thử lại.`;
       const names: Record<string, [number, string]> = {
         annual: [15973, "Xin nghỉ phép Tháng"],
         sick: [15974, "Xin nghỉ phép Đột Xuất Tháng"],
         unpaid: [16198, "Xin nghỉ phép KL Tháng"],
       };
       const [id, name] = names[t?.key ?? "annual"];
-      return delay({ id, subject: `${name} ${m}.${y}`, project_id: t?.project_id, project_name: t?.project_name, tracker_id: 5 }, 300);
+      return delay(
+        { id, subject: `${name} ${m}.${y}`, project_id: t?.project_id, project_name: t?.project_name, tracker_id: 5 },
+        300,
+      );
     }
     case "leave_entries": {
       if (args.year !== 2026) return delay([]);
@@ -552,43 +738,82 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       });
     case "search_issues": {
       const q = String(args.query).trim().toLowerCase().replace(/^#/, "");
-      const found = /^\d+$/.test(q) ? ISSUES.filter((i) => String(i.id) === q) : ISSUES.filter((i) => i.subject.toLowerCase().includes(q));
-      return delay(found.filter((i) => i.status.name !== "Closed" || /^\d+$/.test(q)), 350);
+      const found = /^\d+$/.test(q)
+        ? ISSUES.filter((i) => String(i.id) === q)
+        : ISSUES.filter((i) => i.subject.toLowerCase().includes(q));
+      return delay(
+        found.filter((i) => i.status.name !== "Closed" || /^\d+$/.test(q)),
+        350,
+      );
     }
     case "list_children":
-      return delay(ISSUES.filter((i) => i.parent?.id === args.parentId && i.assigned_to), 300);
+      return delay(
+        ISSUES.filter((i) => i.parent?.id === args.parentId && i.assigned_to),
+        300,
+      );
     case "preview_plan": {
       const plan = args.plan as WritePlan;
       return delay([
-        ...plan.subtasks.map((s) => ({ method: "POST", path: "/issues.json", body: { issue: { subject: s.subject, parent_issue_id: s.parent_id } } })),
-        ...plan.items.map((i) => ({ method: "POST", path: "/time_entries.json", body: { time_entry: { spent_on: i.date, hours: i.hours, comments: i.comments } } })),
+        ...plan.subtasks.map((s) => ({
+          method: "POST",
+          path: "/issues.json",
+          body: { issue: { subject: s.subject, parent_issue_id: s.parent_id } },
+        })),
+        ...plan.items.map((i) => ({
+          method: "POST",
+          path: "/time_entries.json",
+          body: { time_entry: { spent_on: i.date, hours: i.hours, comments: i.comments } },
+        })),
       ]);
     }
     case "write_plan": {
       const plan = args.plan as WritePlan;
-      const used = plan.subtasks.filter((s) => plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key));
+      const used = plan.subtasks.filter((s) =>
+        plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key),
+      );
       const payloads: OpPayload[] = [
         ...used.map((s) => ({ op: "create_subtask" as const, ...s })),
-        ...[...plan.items].sort((a, b) => a.date.localeCompare(b.date)).map((i) => ({ op: "create_time_entry" as const, ...i })),
+        ...[...plan.items]
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map((i) => ({ op: "create_time_entry" as const, ...i })),
       ];
       const batch: Batch = {
         id: nextBatch++,
         created_at: new Date().toISOString(),
         label: String(args.label),
         redmine_url: settings.redmine_url,
-        ops: payloads.map((payload, seq) => ({ id: nextOp++, seq, payload, status: "pending", result_id: null, error: null })),
+        ops: payloads.map((payload, seq) => ({
+          id: nextOp++,
+          seq,
+          payload,
+          status: "pending",
+          result_id: null,
+          error: null,
+        })),
       };
       BATCHES.unshift(batch);
       const last = batch.ops.at(-1)!.id;
-      return runOps(batch, () => true, (op) => (failOnce && op.id === last ? "Redmine từ chối dữ liệu: Issue is closed" : null));
+      return runOps(
+        batch,
+        () => true,
+        (op) => (failOnce && op.id === last ? "Redmine từ chối dữ liệu: Issue is closed" : null),
+      );
     }
     case "retry_batch": {
       const batch = BATCHES.find((b) => b.id === args.batchId)!;
-      return runOps(batch, (op) => op.status === "failed", () => null);
+      return runOps(
+        batch,
+        (op) => op.status === "failed",
+        () => null,
+      );
     }
     case "resume_batch": {
       const batch = BATCHES.find((b) => b.id === args.batchId)!;
-      return runOps(batch, (op) => op.status === "pending" || op.status === "running", () => null);
+      return runOps(
+        batch,
+        (op) => op.status === "pending" || op.status === "running",
+        () => null,
+      );
     }
     case "undo_batch": {
       const batch = BATCHES.find((b) => b.id === args.batchId)!;
@@ -651,7 +876,8 @@ export async function mockListen(event: string, cb: EventCallback<unknown>): Pro
 (globalThis as { mockTray?: (a: string) => void }).mockTray = (a) => emit("tray-action", a);
 const trayParam = new URLSearchParams(location.search).get("tray");
 if (trayParam) {
-  const fire = () => (listeners.get("tray-action")?.size ? setTimeout(() => emit("tray-action", trayParam), 600) : setTimeout(fire, 100));
+  const fire = () =>
+    listeners.get("tray-action")?.size ? setTimeout(() => emit("tray-action", trayParam), 600) : setTimeout(fire, 100);
   fire();
 }
 

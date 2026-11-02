@@ -101,12 +101,20 @@ export default function HistoryPage() {
                   </ol>
                   <div className="row">
                     {count("failed") > 0 && !interrupted && (
-                      <button className="btn primary" disabled={busy !== null} onClick={() => act(b.id, api.retryBatch)}>
+                      <button
+                        className="btn primary"
+                        disabled={busy !== null}
+                        onClick={() => act(b.id, api.retryBatch)}
+                      >
                         {busy === b.id ? "Đang ghi…" : `Thử lại ${count("failed")} mục lỗi`}
                       </button>
                     )}
                     {interrupted && (
-                      <button className="btn primary" disabled={busy !== null} onClick={() => act(b.id, api.resumeBatch)}>
+                      <button
+                        className="btn primary"
+                        disabled={busy !== null}
+                        onClick={() => act(b.id, api.resumeBatch)}
+                      >
                         {busy === b.id ? "Đang ghi…" : "Tiếp tục ghi phần còn lại"}
                       </button>
                     )}

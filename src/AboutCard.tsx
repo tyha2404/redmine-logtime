@@ -44,7 +44,9 @@ export default function AboutCard({ update }: { update: UpdateState }) {
         Bản đang dùng <strong>{APP_VERSION}</strong>
       </p>
       {update.checking && <p className="muted about-status">Đang kiểm tra bản mới…</p>}
-      {!update.checking && update.latest && !update.available && <p className="text-ok about-status">Đã là bản mới nhất.</p>}
+      {!update.checking && update.latest && !update.available && (
+        <p className="text-ok about-status">Đã là bản mới nhất.</p>
+      )}
       {update.available && <p className="about-new about-status">Có bản {update.latest}.</p>}
       {update.available && (inTauri || MOCK) && (
         <div className="about-install">

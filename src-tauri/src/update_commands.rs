@@ -29,7 +29,11 @@ pub async fn install_update(app: AppHandle) -> CmdResult<()> {
         .await
         .map_err(|e| fallback(&e))?
         .ok_or("Đang là bản mới nhất có chữ ký cập nhật.")?;
-    log::info!("Cập nhật lên {} từ {}", update.version, update.current_version);
+    log::info!(
+        "Cập nhật lên {} từ {}",
+        update.version,
+        update.current_version
+    );
     let mut downloaded = 0u64;
     update
         .download_and_install(

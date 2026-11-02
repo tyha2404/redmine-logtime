@@ -220,7 +220,11 @@ export default function GchatImport({ onInsert, onClose, onOpenSettings, from: i
             Mở Cài đặt
           </button>
         ) : (
-          <button className="btn primary" disabled={chosen.length === 0} onClick={() => close(() => onInsert(chatBlocks(chosen)))}>
+          <button
+            className="btn primary"
+            disabled={chosen.length === 0}
+            onClick={() => close(() => onInsert(chatBlocks(chosen)))}
+          >
             {chosen.length > 0 ? `Đưa ${chosen.length} tin vào báo cáo` : "Đưa vào báo cáo"}
           </button>
         )}

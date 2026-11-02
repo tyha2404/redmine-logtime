@@ -2,8 +2,8 @@ use chrono::Local;
 use logtime_core::Settings;
 use logtime_core::calendar::{self, MonthSummary};
 use redmine_client::{Activity, ClientOptions, IdRef, Issue, RedmineClient, TimeEntry, User};
-use std::collections::HashMap;
 use serde::Serialize;
+use std::collections::HashMap;
 use tauri::{Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -72,7 +72,11 @@ pub fn save_settings(
     crate::tray::refresh_soon(&app);
     let autostart = app.autolaunch();
     if autostart.is_enabled().unwrap_or(!login) != login {
-        let done = if login { autostart.enable() } else { autostart.disable() };
+        let done = if login {
+            autostart.enable()
+        } else {
+            autostart.disable()
+        };
         done.map_err(|e| format!("Đã lưu, nhưng chưa đổi được việc mở cùng máy: {e}"))?;
     }
     Ok(())
@@ -88,7 +92,11 @@ pub fn open_log_dir(app: tauri::AppHandle) -> CmdResult<()> {
 
 /// Stores the key, or removes it when `api_key` is empty.
 #[tauri::command]
-pub fn save_api_key(app: tauri::AppHandle, state: State<'_, AppState>, api_key: String) -> CmdResult<()> {
+pub fn save_api_key(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    api_key: String,
+) -> CmdResult<()> {
     if api_key.trim().is_empty() {
         state.credentials.delete_api_key()?;
     } else {
@@ -135,7 +143,10 @@ pub async fn month_summary(
     let settings = state.settings();
     let (from, to) = calendar::month_range(year, month).ok_or("Tháng không hợp lệ.")?;
     let client = client_for(&state.credentials, &settings, None)?;
-    let mut entries = client.my_time_entries(from, to).await.map_err(|e| e.to_string())?;
+    let mut entries = client
+        .my_time_entries(from, to)
+        .await
+        .map_err(|e| e.to_string())?;
     add_issue_subjects(&client, &mut entries).await;
     let today = Local::now().date_naive();
     calendar::summarize_month(year, month, entries, &settings, today)
@@ -154,7 +165,10 @@ pub async fn check_tools() -> Vec<tools::ToolStatus> {
 /// calendar can say what was logged. Best effort: the month still shows if a
 /// lookup fails.
 pub(crate) async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
-    let mut ids: Vec<u32> = entries.iter().filter_map(|e| e.issue.as_ref().map(|i| i.id)).collect();
+    let mut ids: Vec<u32> = entries
+        .iter()
+        .filter_map(|e| e.issue.as_ref().map(|i| i.id))
+        .collect();
     ids.sort_unstable();
     ids.dedup();
     if ids.is_empty() {
@@ -181,7 +195,9 @@ pub(crate) async fn add_issue_subjects(client: &RedmineClient, entries: &mut [Ti
         }
     }
     for issue in entries.iter_mut().filter_map(|e| e.issue.as_mut()) {
-        let Some(found) = issues.get(&issue.id) else { continue };
+        let Some(found) = issues.get(&issue.id) else {
+            continue;
+        };
         issue.subject = Some(found.subject.clone());
         issue.parent = found.parent.as_ref().map(|p| {
             Box::new(IdRef {
@@ -194,7 +210,11 @@ pub(crate) async fn add_issue_subjects(client: &RedmineClient, entries: &mut [Ti
 }
 
 pub(crate) fn open_in_browser(url: &str) -> CmdResult<()> {
-    let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
     std::process::Command::new(opener)
         .arg(url)
         .spawn()

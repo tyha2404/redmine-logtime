@@ -2,7 +2,7 @@
 
 # rustup cài cargo vào ~/.cargo/bin; thêm vào PATH phòng khi shell chưa nạp.
 export PATH := $(HOME)/.cargo/bin:$(PATH)
-.PHONY: dev mock test build install uninstall release package-macos
+.PHONY: dev mock test fmt fmt-check build install uninstall release package-macos
 
 dev:
 	npm run tauri dev
@@ -13,6 +13,13 @@ mock:
 
 test:
 	cargo test --workspace && npx tsc --noEmit
+
+# Rust: rustfmt defaults. TypeScript/CSS: Prettier (.prettierrc.json).
+fmt:
+	cargo fmt --all && npx prettier --write src
+
+fmt-check:
+	cargo fmt --all --check && npx prettier --check src
 
 build:
 	./scripts/install.sh --build-only

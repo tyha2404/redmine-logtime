@@ -69,7 +69,9 @@ export default function LeaveSettings(props: {
                   placeholder="—"
                   value={allowanceOf(t) ?? ""}
                   onChange={(e) =>
-                    patchType(t.project_id, { days_per_year: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })
+                    patchType(t.project_id, {
+                      days_per_year: e.target.value === "" ? null : Math.max(0, Number(e.target.value)),
+                    })
                   }
                   aria-label={`Số ngày ${t.label.toLowerCase()} mỗi năm`}
                 />
@@ -78,7 +80,9 @@ export default function LeaveSettings(props: {
               <select
                 aria-label={`Hoạt động khi log ${t.label.toLowerCase()}`}
                 value={t.activity_id ?? ""}
-                onChange={(e) => patchType(t.project_id, { activity_id: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) =>
+                  patchType(t.project_id, { activity_id: e.target.value ? Number(e.target.value) : null })
+                }
                 disabled={activities.length === 0}
               >
                 <option value="">Hoạt động mặc định</option>
@@ -100,9 +104,7 @@ export default function LeaveSettings(props: {
           value={settings.leave_name}
           onChange={(e) => onChange({ leave_name: e.target.value })}
         />
-        {types[0] && (
-          <small className="muted">Ví dụ: {leaveSubject(settings, types[0], todayIso(), "full")}</small>
-        )}
+        {types[0] && <small className="muted">Ví dụ: {leaveSubject(settings, types[0], todayIso(), "full")}</small>}
       </label>
 
       <div className="card-foot">

@@ -132,8 +132,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     store.reset_failed(id)?;
     let retried = exec::run_batch(&store, &client, id, &url, me.id, &mut |_| {}).await?;
     assert_eq!(retried.ops[0].status, OpStatus::Done);
-    assert_eq!(retried.ops[0].result_id, Some(saved.id), "must adopt the saved entry");
-    assert_eq!(client.my_time_entries(date, date).await?.len(), before, "no duplicate");
+    assert_eq!(
+        retried.ops[0].result_id,
+        Some(saved.id),
+        "must adopt the saved entry"
+    );
+    assert_eq!(
+        client.my_time_entries(date, date).await?.len(),
+        before,
+        "no duplicate"
+    );
     exec::undo_batch(&store, &client, id, &url, &mut |_| {}).await?;
     println!("OK: thử lại sau lỗi không chắc chắn nhận entry đã có, không ghi trùng");
 

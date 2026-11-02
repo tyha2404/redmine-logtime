@@ -46,7 +46,8 @@ export default function LeaveForm(props: {
   const { entries } = useLeaveEntries(year);
   const blocked = useMemo(() => whyNoLeave(settings, date, entries, span), [settings, date, entries, span]);
   const balance = useMemo(
-    () => (entries && type ? leaveYear(settings, year, entries).balances.find((b) => b.type.key === type.key) : undefined),
+    () =>
+      entries && type ? leaveYear(settings, year, entries).balances.find((b) => b.type.key === type.key) : undefined,
     [entries, settings, year, type],
   );
 
@@ -117,7 +118,9 @@ export default function LeaveForm(props: {
       </div>
 
       {balance && balance.left !== null && (
-        <p className={`leave-balance-line${balance.left - daysOf(leaveHours(settings, span), settings.hours_per_day) < 0 ? " is-over" : ""}`}>
+        <p
+          className={`leave-balance-line${balance.left - daysOf(leaveHours(settings, span), settings.hours_per_day) < 0 ? " is-over" : ""}`}
+        >
           {balance.left - daysOf(leaveHours(settings, span), settings.hours_per_day) < 0
             ? `${type.label} ${year} còn ${fmtDays(Math.max(balance.left, 0))} ngày; thêm ngày này sẽ vượt ${fmtDays(
                 -(balance.left - daysOf(leaveHours(settings, span), settings.hours_per_day)),
@@ -185,12 +188,7 @@ const DAY_NAMES = ["Chủ nhật", "Thứ bảy"];
  * not workdays need none, and a day holds at most one workday of leave,
  * counting what is already on Redmine.
  */
-function whyNoLeave(
-  settings: Settings,
-  date: string,
-  entries: TimeEntry[] | null,
-  span: LeaveSpan,
-): string | null {
+function whyNoLeave(settings: Settings, date: string, entries: TimeEntry[] | null, span: LeaveSpan): string | null {
   const wd = parseIso(date).getDay();
   if (settings.holidays.includes(date)) return `${fmtDayShort(date)} là ngày lễ, không cần xin nghỉ.`;
   if (!settings.workdays.includes(((wd + 6) % 7) + 1)) {

@@ -11,7 +11,8 @@ type Phase =
 /** "3 logtime, 26/10–28/10": the batch name in the history. */
 export function batchLabel(plan: WritePlan): string {
   const dates = plan.items.map((i) => i.date).sort();
-  const span = dates[0] === dates.at(-1) ? fmtDayShort(dates[0]) : `${fmtDayShort(dates[0])}–${fmtDayShort(dates.at(-1)!)}`;
+  const span =
+    dates[0] === dates.at(-1) ? fmtDayShort(dates[0]) : `${fmtDayShort(dates[0])}–${fmtDayShort(dates.at(-1)!)}`;
   return `${plan.items.length} logtime, ${span}`;
 }
 
@@ -231,7 +232,8 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                   Xem lịch sử ghi
                 </button>
               )}
-              {ok > 0 && !phase.undone &&
+              {ok > 0 &&
+                !phase.undone &&
                 (confirmUndo ? (
                   <button
                     className="btn danger-solid"
@@ -248,7 +250,10 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                   </button>
                 ))}
               {failed > 0 && !phase.undone && (
-                <button className="btn" onClick={() => run("retry", phase.batch.ops, () => api.retryBatch(phase.batch.id))}>
+                <button
+                  className="btn"
+                  onClick={() => run("retry", phase.batch.ops, () => api.retryBatch(phase.batch.id))}
+                >
                   Thử lại phần lỗi
                 </button>
               )}

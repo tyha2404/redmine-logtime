@@ -20,8 +20,12 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: swatinem/rust-cache@v2
       - run: npm ci --no-audit --no-fund
+      - name: Định dạng code (sửa bằng make fmt)
+        run: cargo fmt --all --check && npx prettier --check src
       - run: npx tsc --noEmit
       - run: cargo test --workspace
       - name: Cú pháp script

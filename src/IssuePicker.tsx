@@ -113,7 +113,13 @@ export default function IssuePicker({ value, onPick, label, disabled }: Props) {
           role="combobox"
         />
       ) : (
-        <button type="button" className="ipick-value" onClick={() => setOpen(true)} disabled={disabled} aria-label={`${label}: đổi`}>
+        <button
+          type="button"
+          className="ipick-value"
+          onClick={() => setOpen(true)}
+          disabled={disabled}
+          aria-label={`${label}: đổi`}
+        >
           {value ? (
             <>
               <span className="ipick-id">#{value.id}</span>
@@ -129,7 +135,12 @@ export default function IssuePicker({ value, onPick, label, disabled }: Props) {
       )}
 
       {open && (q.trim() || error) && (
-        <div className={`ipick-pop${closing ? " is-closing" : ""}`} id="ipick-list" role="listbox" aria-label="Issue tìm được">
+        <div
+          className={`ipick-pop${closing ? " is-closing" : ""}`}
+          id="ipick-list"
+          role="listbox"
+          aria-label="Issue tìm được"
+        >
           {error ? (
             <p className="ipick-note text-missing">{error}</p>
           ) : results === null ? (

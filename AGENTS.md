@@ -20,13 +20,14 @@ Use Node 22 (matching CI), stable Rust, and the platform dependencies in [docs/d
 - `make dev`: launch the desktop app with hot reload.
 - `make mock`: run the browser UI with sample data at `http://localhost:1430/?page=calendar`.
 - `make test`: run Rust workspace tests and TypeScript type checking.
+- `make fmt`: format Rust and frontend code (`make fmt-check` to check only).
 - `npm run build`: type-check and build frontend assets.
 - `make build`: build the desktop app without installing it.
 - `cargo test -p logtime-engine`: run tests for one crate.
 
 ## Coding Style & Naming Conventions
 
-Match existing code: TypeScript uses two-space indentation, double quotes, and semicolons; Rust uses four-space indentation and standard rustfmt conventions. Use PascalCase for React component files, `useCamelCase` for hooks, and snake_case for Rust modules and functions. Keep filenames in English. TypeScript strict checking is enabled; no dedicated frontend formatter or lint command is configured.
+Match existing code: TypeScript uses two-space indentation, double quotes, and semicolons; Rust uses four-space indentation and standard rustfmt conventions. Use PascalCase for React component files, `useCamelCase` for hooks, and snake_case for Rust modules and functions. Keep filenames in English. TypeScript strict checking is enabled. Format with `make fmt` (rustfmt defaults for Rust, Prettier with `printWidth` 120 for `src/`); `make fmt-check` only checks. No lint command is configured.
 
 ## Testing Guidelines
 

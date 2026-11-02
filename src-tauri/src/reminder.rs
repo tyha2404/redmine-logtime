@@ -41,7 +41,13 @@ pub fn week_start(date: NaiveDate) -> NaiveDate {
 /// included): today's, and the week's workdays up to today.
 pub fn shortfall(settings: &Settings, today: NaiveDate, logged: &[(NaiveDate, f64)]) -> (f64, f64) {
     let hpd = settings.hours_per_day;
-    let on = |d: NaiveDate| logged.iter().filter(|(x, _)| *x == d).map(|(_, h)| h).sum::<f64>();
+    let on = |d: NaiveDate| {
+        logged
+            .iter()
+            .filter(|(x, _)| *x == d)
+            .map(|(_, h)| h)
+            .sum::<f64>()
+    };
     let today_missing = if settings.is_workday(today) {
         (hpd - on(today)).max(0.0)
     } else {
@@ -63,13 +69,27 @@ pub fn fmt_h(h: f64) -> String {
 
 /// Title and body of the notification, or None when nothing is missing.
 /// `always` gives an answer even then (the tray's "check now").
-pub fn message(settings: &Settings, today_missing: f64, week_missing: f64, always: bool) -> Option<(String, String)> {
+pub fn message(
+    settings: &Settings,
+    today_missing: f64,
+    week_missing: f64,
+    always: bool,
+) -> Option<(String, String)> {
     let hpd = settings.hours_per_day;
     if today_missing < EPS && week_missing < EPS {
-        return always.then(|| ("Đã log đủ giờ".into(), format!("Hôm nay và cả tuần đều đủ {}.", fmt_h(hpd))));
+        return always.then(|| {
+            (
+                "Đã log đủ giờ".into(),
+                format!("Hôm nay và cả tuần đều đủ {}.", fmt_h(hpd)),
+            )
+        });
     }
     let mut body = if today_missing > EPS {
-        format!("Hôm nay mới log {} trên {}.", fmt_h(hpd - today_missing), fmt_h(hpd))
+        format!(
+            "Hôm nay mới log {} trên {}.",
+            fmt_h(hpd - today_missing),
+            fmt_h(hpd)
+        )
     } else {
         "Hôm nay đã đủ giờ.".to_string()
     };
@@ -147,11 +167,20 @@ mod tests {
         assert!(due(&s, at(30, 9, 0).with_hour_min(17, 45), Some(d(29))));
         // Saturday 31/10 and a holiday are skipped.
         assert!(!due(&s, at(31, 18, 0), None));
-        let holiday = Settings { holidays: vec![d(29)], ..Settings::default() };
+        let holiday = Settings {
+            holidays: vec![d(29)],
+            ..Settings::default()
+        };
         assert!(!due(&holiday, at(29, 18, 0), None));
-        let off = Settings { reminder_enabled: false, ..Settings::default() };
+        let off = Settings {
+            reminder_enabled: false,
+            ..Settings::default()
+        };
         assert!(!due(&off, at(29, 18, 0), None));
-        let bad = Settings { reminder_time: "5pm".into(), ..Settings::default() };
+        let bad = Settings {
+            reminder_time: "5pm".into(),
+            ..Settings::default()
+        };
         assert!(!due(&bad, at(29, 18, 0), None));
     }
 
@@ -159,7 +188,13 @@ mod tests {
     fn shortfall_counts_today_and_the_week_so_far() {
         let s = Settings::default();
         // Week of Mon 26/10: Mon 8h, Tue 4h + 4h leave, Wed 5h, Thu 3h (today).
-        let logged = [(d(26), 8.0), (d(27), 4.0), (d(27), 4.0), (d(28), 5.0), (d(29), 3.0)];
+        let logged = [
+            (d(26), 8.0),
+            (d(27), 4.0),
+            (d(27), 4.0),
+            (d(28), 5.0),
+            (d(29), 3.0),
+        ];
         assert_eq!(shortfall(&s, d(29), &logged), (5.0, 8.0));
         assert_eq!(week_start(d(29)), d(26));
         // Saturday: nothing is due today; the week still counts Mon–Fri.
@@ -171,7 +206,10 @@ mod tests {
         let s = Settings::default();
         let (title, body) = message(&s, 5.0, 8.0, false).unwrap();
         assert_eq!(title, "Chưa log đủ giờ");
-        assert_eq!(body, "Hôm nay mới log 3h trên 8h. Tuần này còn thiếu 8h. Mở app để ghi.");
+        assert_eq!(
+            body,
+            "Hôm nay mới log 3h trên 8h. Tuần này còn thiếu 8h. Mở app để ghi."
+        );
         let (_, body) = message(&s, 0.0, 2.5, false).unwrap();
         assert!(body.starts_with("Hôm nay đã đủ giờ. Tuần này còn thiếu 2.5h."));
         assert!(message(&s, 0.0, 0.0, false).is_none());
