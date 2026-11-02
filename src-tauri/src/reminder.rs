@@ -63,7 +63,8 @@ pub fn shortfall(settings: &Settings, today: NaiveDate, logged: &[(NaiveDate, f6
 }
 
 pub fn fmt_h(h: f64) -> String {
-    let s = format!("{h:.2}");
+    // `+ 0.0` turns -0.0 (the sum of no hours) into 0.0, which prints "0".
+    let s = format!("{:.2}", h + 0.0);
     s.trim_end_matches('0').trim_end_matches('.').to_string() + "h"
 }
 
@@ -199,6 +200,14 @@ mod tests {
         assert_eq!(week_start(d(29)), d(26));
         // Saturday: nothing is due today; the week still counts Mon–Fri.
         assert_eq!(shortfall(&s, d(31), &logged).0, 0.0);
+    }
+
+    #[test]
+    fn hours_print_without_a_minus_zero() {
+        let none: f64 = std::iter::empty::<f64>().sum();
+        assert_eq!(fmt_h(none), "0h");
+        assert_eq!(fmt_h(2.5), "2.5h");
+        assert_eq!(fmt_h(8.0), "8h");
     }
 
     #[test]

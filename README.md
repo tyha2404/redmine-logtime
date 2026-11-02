@@ -68,13 +68,13 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Cài đặt nhắc log giờ](docs/images/settings-reminder.png)
 
-**Biểu tượng trên thanh menu/khay:** hiện số giờ hôm nay (ví dụ `5/8h`). Menu cho xem giờ cả tuần và các mục đã log hôm nay, kèm lối tắt **Ghi logtime hôm nay…**, **Khớp nhanh hôm nay từ Google Chat**, **Xin nghỉ…** và **Lịch sử ghi**. Lối tắt chỉ mở app ở đúng chỗ; app vẫn hỏi xác nhận trước khi ghi.
+**Biểu tượng trên thanh menu/khay:** menu cho xem giờ hôm nay và trong tuần, có **Ghi logtime hôm nay…** và **Khớp nhanh từ Google Chat**, mở app ở ngày hôm nay. App vẫn hỏi xác nhận trước khi ghi.
 
 **Google Chat:** cần Client ID/secret từ admin công ty ([hướng dẫn admin](docs/development.md#google-chat)), nhập ở **Cài đặt → Tài khoản → Google Chat → Kết nối Google**. App chỉ đọc tin bạn gửi.
 
 ## Cập nhật, gỡ cài đặt
 
-- **Cập nhật:** khi biểu tượng tải xuống ở góc trên có chấm đỏ, bấm vào (hoặc **Cài đặt → Ứng dụng → Phiên bản**) → **Cập nhật lên …**. Nếu không được, chạy lại lệnh cài đặt.
+- **Cập nhật:** app tự kiểm tra bản mới khi mở và vài giờ một lần; muốn kiểm tra ngay thì bấm **Kiểm tra bản cập nhật** ở **Cài đặt → Ứng dụng → Phiên bản**. Khi có bản mới, bấm biểu tượng tải xuống có chấm đỏ ở góc trên → **Cập nhật và khởi động lại**. Nếu không được, chạy lại lệnh cài đặt.
 - **Gỡ:** `curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall`. Cài đặt và API key vẫn giữ trên máy; logtime trên Redmine không bị xoá.
 
 ## Khi gặp lỗi

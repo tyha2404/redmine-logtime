@@ -198,7 +198,14 @@ export interface Batch {
   ops: Op[];
 }
 
-export type TrayAction = "today" | "quick" | "leave" | "history";
+export type TrayAction = "today" | "quick";
+
+/** A newer signed release this build can install itself. */
+export interface UpdateInfo {
+  version: string;
+  current_version: string;
+  notes: string | null;
+}
 
 export interface ProgressEvent {
   batch_id: number;
@@ -387,6 +394,7 @@ export const api = {
   onAiProgress: (cb: (p: AiProgress) => void): Promise<UnlistenFn> =>
     listen<AiProgress>("ai-progress", (e) => cb(e.payload)),
   /** Downloads and installs the newest signed release, then restarts. */
+  checkUpdate: () => invoke<UpdateInfo | null>("check_update"),
   installUpdate: () => invoke<void>("install_update"),
   /** A shortcut picked in the menu bar / tray menu (`src-tauri/src/tray.rs`). */
   onTrayAction: (cb: (action: TrayAction) => void): Promise<UnlistenFn> =>

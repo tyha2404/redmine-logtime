@@ -186,6 +186,8 @@ make release VERSION=0.2.0
 git push --follow-tags
 ```
 
+Muốn có mục **Có gì mới** trong hộp cập nhật của app và trên GitHub Release, viết ghi chú (tiếng Việt, mỗi dòng một ý) vào một file ngoài repo rồi truyền vào: `NOTES_FILE=/tmp/ghi-chu.md make release VERSION=0.2.0`. Ghi chú được lưu trong tag và CI chép vào `latest.json`.
+
 Lệnh `make release` đồng bộ phiên bản npm, Tauri và Cargo, tạo commit cùng tag `v0.2.0`. Push tag kích hoạt [release.yml](../.github/workflows/release.yml), tạo GitHub Release gồm:
 
 - `redmine-logtime_X.Y.Z_amd64.deb`: Ubuntu, build trên 22.04.

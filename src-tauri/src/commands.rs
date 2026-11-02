@@ -164,7 +164,7 @@ pub async fn check_tools() -> Vec<tools::ToolStatus> {
 /// parent task (one request per 100 issues, plus one for the parents) so the
 /// calendar can say what was logged. Best effort: the month still shows if a
 /// lookup fails.
-pub(crate) async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
+async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
     let mut ids: Vec<u32> = entries
         .iter()
         .filter_map(|e| e.issue.as_ref().map(|i| i.id))

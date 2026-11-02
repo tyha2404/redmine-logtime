@@ -86,9 +86,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp scripts/install.sh assets/install.sh
+          # "Có gì mới": phần thân của tag (NOTES_FILE khi chạy release.sh).
+          # checkout không giữ nội dung tag có chú thích, nên lấy lại tag.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          WHATS_NEW="$(git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME")"
           # latest.json cho cập nhật trong app, khi các file đã được ký.
-          scripts/ci/latest-json.sh "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" assets
-          cat > notes.md <<NOTES
+          NOTES="$WHATS_NEW" scripts/ci/latest-json.sh "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" assets
+          if [ -n "$WHATS_NEW" ]; then printf '## Có gì mới\n\n%s\n\n' "$WHATS_NEW" > notes.md; else : > notes.md; fi
+          cat >> notes.md <<NOTES
           Cài hoặc cập nhật trên macOS và Ubuntu/Debian:
 
           \`\`\`bash

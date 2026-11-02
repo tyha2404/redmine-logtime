@@ -2,6 +2,7 @@
 # Tạo latest.json cho cập nhật trong app (tauri-plugin-updater) từ các file
 # đã ký trong thư mục phát hành. Không có chữ ký thì không tạo gì.
 #   scripts/ci/latest-json.sh v0.2.0 owner/repo assets
+# NOTES (tuỳ chọn): mục "Có gì mới" hiện trong hộp cập nhật của app.
 set -euo pipefail
 
 TAG="$1" REPO="$2" DIR="$3"
@@ -35,7 +36,7 @@ add(deb, "linux-x86_64-deb", "linux-x86_64")
 json.dump(
     {
         "version": tag.lstrip("v"),
-        "notes": f"Redmine Logtime {tag.lstrip('v')}",
+        "notes": os.environ.get("NOTES", "").strip(),
         "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "platforms": platforms,
     },

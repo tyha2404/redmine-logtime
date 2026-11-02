@@ -2047,6 +2047,10 @@ select::-ms-expand {
   font-size: 15px;
 }
 .about-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   margin: 2px 0 14px;
   font-size: 13px;
 }
@@ -2361,6 +2365,40 @@ select::-ms-expand {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 20px;
+}
+
+/* A new version: what's new, then download progress. */
+.update-dialog {
+  width: min(480px, calc(100vw - 32px));
+}
+.update-notes {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+}
+.update-notes h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.update-notes p {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-line;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.update-progress {
+  margin-top: 16px;
+}
+.update-progress .stat-bar {
+  height: 6px;
+}
+.update-progress .stat-bar > span {
+  background: var(--accent);
+}
+.update-progress .hint {
+  margin: 6px 0 0;
 }
 
 /* Picking report messages from Google Chat. */

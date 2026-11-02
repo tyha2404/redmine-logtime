@@ -9,7 +9,8 @@ import ReportPage from "./ReportPage";
 import SettingsPage, { type SettingsHandle } from "./SettingsPage";
 import SetupPage from "./SetupPage";
 import { PageSkeleton } from "./Skeleton";
-import { ToastProvider } from "./toast";
+import { ToastProvider, useToast } from "./toast";
+import UpdateDialog from "./UpdateDialog";
 import { useModal } from "./useModal";
 import { useUpdate } from "./useUpdate";
 
@@ -63,6 +64,8 @@ function Shell() {
   const [guide, setGuide] = useState<Guide>(guideForWidth);
   const [me, setMe] = useState<string | null>(null);
   const update = useUpdate();
+  const [showUpdate, setShowUpdate] = useState(false);
+  const toast = useToast();
   const settingsPage = useRef<SettingsHandle>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   /** Where the user asked to go while Settings had unsaved changes. */
@@ -122,12 +125,26 @@ function Shell() {
     [page, settingsDirty, navigate],
   );
 
+  const openAbout = () => {
+    go("settings");
+    setSettingsFocus("about");
+  };
+  /** The update dialog when this build can install the new version; the install command otherwise. */
+  const offerUpdate = () => (update.canInstall ? setShowUpdate(true) : openAbout());
+
+  // Like an editor: a found update is announced once, then stays as the dot in the masthead.
+  const announced = useRef<string | null>(null);
+  useEffect(() => {
+    if (!update.available || !update.canInstall || !update.latest || announced.current === update.latest) return;
+    announced.current = update.latest;
+    toast(`Có bản mới ${update.latest}.`, { action: { label: "Cập nhật", run: () => setShowUpdate(true) } });
+  }, [update.available, update.canInstall, update.latest, toast]);
+
   // Menu bar / tray shortcuts. Before setup is done they only show the window.
   const onTray = useRef<(a: TrayAction) => void>(() => {});
   const askCount = useRef(0);
   onTray.current = (action) => {
     if (page === "setup" || page === null) return;
-    if (action === "leave" || action === "history") return go(action);
     go("calendar");
     setDayAsk({ panel: action === "quick" ? "quick" : "report", n: ++askCount.current });
   };
@@ -183,12 +200,9 @@ function Shell() {
           {update.available && (
             <button
               className="mast-btn has-dot"
-              title={`Có bản ${update.latest}, xem cách cập nhật`}
-              aria-label={`Có bản ${update.latest}, xem cách cập nhật`}
-              onClick={() => {
-                go("settings");
-                setSettingsFocus("about");
-              }}
+              title={`Có bản ${update.latest}, ${update.canInstall ? "bấm để cập nhật" : "xem cách cập nhật"}`}
+              aria-label={`Có bản ${update.latest}, ${update.canInstall ? "bấm để cập nhật" : "xem cách cập nhật"}`}
+              onClick={offerUpdate}
             >
               <Icon name="download" size={22} />
             </button>
@@ -262,6 +276,8 @@ function Shell() {
           />
         )}
       </main>
+
+      {showUpdate && <UpdateDialog update={update} onClose={() => setShowUpdate(false)} />}
 
       {leaveTo && (
         <UnsavedDialog

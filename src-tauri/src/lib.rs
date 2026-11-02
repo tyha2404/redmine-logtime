@@ -46,6 +46,7 @@ pub fn run() {
             let config_dir = app.path().app_config_dir()?;
             let data_dir = app.path().app_data_dir()?;
             app.manage(state::AppState::load(config_dir, data_dir)?);
+            app.manage(update_commands::PendingUpdate::default());
             log::info!("Redmine Logtime {} khởi động", app.package_info().version);
 
             // Without a tray (Linux lacking AppIndicator) the app still runs;
@@ -112,6 +113,7 @@ pub fn run() {
             gchat_commands::gchat_disconnect,
             gchat_commands::gchat_spaces,
             gchat_commands::gchat_messages,
+            update_commands::check_update,
             update_commands::install_update,
         ])
         .build(tauri::generate_context!())

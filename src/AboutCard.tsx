@@ -1,30 +1,18 @@
 import { useState } from "react";
 import { api, errorText } from "./api";
-import { inTauri } from "./platform";
-import { APP_VERSION, INSTALL_COMMAND, type UpdateState } from "./useUpdate";
+import { pad } from "./fmt";
+import { APP_VERSION, INSTALL_COMMAND, type Update } from "./useUpdate";
 
-const MOCK = import.meta.env.VITE_MOCK === "1";
+function clock(ms: number): string {
+  const d = new Date(ms);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /** This build's version, whether a newer one is out, and how to get it. */
-export default function AboutCard({ update }: { update: UpdateState }) {
+export default function AboutCard({ update }: { update: Update }) {
   const [copied, setCopied] = useState(false);
-  /** Download progress 0–1 while installing, or null. */
-  const [installing, setInstalling] = useState<number | null>(null);
-  const [installError, setInstallError] = useState<string | null>(null);
-
-  const install = async () => {
-    setInstallError(null);
-    setInstalling(0);
-    const unlisten = await api.onUpdateProgress((p) => setInstalling(p.total ? p.downloaded / p.total : 0));
-    try {
-      await api.installUpdate(); // restarts the app when it succeeds
-    } catch (e) {
-      setInstallError(errorText(e));
-      setInstalling(null);
-    } finally {
-      unlisten();
-    }
-  };
+  const [logError, setLogError] = useState<string | null>(null);
+  const { installing } = update;
 
   const copy = async () => {
     if (!INSTALL_COMMAND) return;
@@ -43,20 +31,29 @@ export default function AboutCard({ update }: { update: UpdateState }) {
       <p className="about-version">
         Bản đang dùng <strong>{APP_VERSION}</strong>
       </p>
-      {update.checking && <p className="muted about-status">Đang kiểm tra bản mới…</p>}
-      {!update.checking && update.latest && !update.available && (
-        <p className="text-ok about-status">Đã là bản mới nhất.</p>
-      )}
-      {update.available && <p className="about-new about-status">Có bản {update.latest}.</p>}
-      {update.available && (inTauri || MOCK) && (
+      <div className="about-status">
+        {update.checking ? (
+          <span className="muted">Đang kiểm tra bản mới…</span>
+        ) : update.available ? (
+          <span className="about-new">Có bản {update.latest}.</span>
+        ) : update.latest ? (
+          <span className="text-ok">Đã là bản mới nhất.</span>
+        ) : null}
+        {update.checkedAt && !update.checking && <span className="muted">Kiểm tra lúc {clock(update.checkedAt)}</span>}
+        <button className="btn small" onClick={() => update.check()} disabled={update.checking || installing !== null}>
+          Kiểm tra bản cập nhật
+        </button>
+      </div>
+      {update.available && update.canInstall && (
         <div className="about-install">
-          <button className="btn primary" onClick={install} disabled={installing !== null}>
+          <button className="btn primary" onClick={update.install} disabled={installing !== null}>
             {installing === null ? `Cập nhật lên ${update.latest}` : `Đang tải ${Math.round(installing * 100)}%…`}
           </button>
           <p className="hint">App tự khởi động lại; cài đặt và đăng nhập được giữ nguyên.</p>
         </div>
       )}
-      {installError && <p className="notice error">{installError}</p>}
+      {update.installError && <p className="notice error">{update.installError}</p>}
+      {logError && <p className="notice error">{logError}</p>}
 
       {INSTALL_COMMAND ? (
         <>
@@ -80,7 +77,7 @@ export default function AboutCard({ update }: { update: UpdateState }) {
       )}
       <p className="hint about-logs">
         Gặp lỗi?{" "}
-        <button className="link" onClick={() => api.openLogDir().catch((e) => setInstallError(errorText(e)))}>
+        <button className="link" onClick={() => api.openLogDir().catch((e) => setLogError(errorText(e)))}>
           Mở thư mục log
         </button>{" "}
         và gửi kèm file log khi báo lỗi. Log không chứa API key hay mật khẩu.

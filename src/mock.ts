@@ -568,6 +568,9 @@ const CHAT_MESSAGES = [
 ];
 
 /** `?slow=1` stretches every answer, to look at loading states (skeletons). */
+/** `&update=1`: a newer release is out and installable. */
+const MOCK_UPDATE = new URLSearchParams(location.search).has("update");
+
 const SLOW = new URLSearchParams(location.search).has("slow") ? 15 : 1;
 const delay = <T>(v: T, ms = 120) => new Promise<T>((r) => setTimeout(() => r(v), ms * SLOW));
 
@@ -617,6 +620,18 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         args.day === TODAY
           ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW }
           : { text: "", day: args.day ?? null, view: null },
+      );
+    case "check_update":
+      return delay(
+        MOCK_UPDATE
+          ? {
+              version: "0.4.0",
+              current_version: __APP_VERSION__,
+              notes:
+                "- Thanh menu hiện số giờ hôm nay và lối tắt ghi logtime\n- Kiểm tra và cập nhật ngay trong app\n- Sửa lỗi chia giờ khi có ngày nghỉ nửa buổi",
+            }
+          : null,
+        600,
       );
     case "install_update":
       for (const downloaded of [2, 5, 8, 10]) {
@@ -871,7 +886,7 @@ export async function mockListen(event: string, cb: EventCallback<unknown>): Pro
   return () => listeners.get(event)?.delete(cb);
 }
 
-// Menu bar / tray shortcuts: &tray=today|quick|leave|history fires one once
+// Menu bar / tray shortcuts: &tray=today|quick fires one once
 // the app listens; mockTray("quick") in the console fires one any time.
 (globalThis as { mockTray?: (a: string) => void }).mockTray = (a) => emit("tray-action", a);
 const trayParam = new URLSearchParams(location.search).get("tray");

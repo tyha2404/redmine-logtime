@@ -15,7 +15,8 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - Real OS keychain round trip (throwaway item): `cargo test -p redmine-logtime real_keychain -- --ignored`.
 - Mock flag `&slow=1` makes every mock answer ~15× slower, to see the loading skeletons.
 - Mock flag `&memory=0` starts with no remembered tasks (Khớp nhanh then explains why it cannot match).
-- Mock flag `&tray=today|quick|leave|history` fires that menu bar / tray shortcut once the app is up; `mockTray("quick")` in the console fires one any time.
+- Mock flag `&update=1` makes a newer, installable release (0.4.0) available, to see the update toast and dialog.
+- Mock flag `&tray=today|quick` fires that menu bar / tray shortcut once the app is up; `mockTray("quick")` in the console fires one any time.
 
 ## Architecture
 
@@ -55,9 +56,9 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 ### Other pieces
 
 - **Desktop shell (`src-tauri/src/lib.rs`).** Plugins: log (file in the OS log dir), notification, autostart (`--hidden` starts in the tray), updater. The main window starts hidden and is shown in `setup`. With `reminder_enabled`, closing the window hides it to the tray (only if the tray exists). `reminder.rs` checks once a minute and notifies on workdays after `reminder_time` when today or the week is short.
-- **Menu bar / tray (`tray.rs`).** Shows today's hours beside the icon and in the menu, refreshed every 15 minutes and after writes, undo and settings changes. Its shortcuts only emit `tray-action` to the window; `App.tsx` opens the page, and "today"/"quick" go to today's `DayPanel` (quick fetches the day's messages from the remembered Google Chat group, or opens `GchatImport` for that day). It never writes.
+- **Menu bar / tray (`tray.rs`).** Shows today's and the week's hours as one status line in the menu (only the icon in the bar), refreshed every 5 minutes and after writes, undo and settings changes. Its shortcuts only emit `tray-action` to the window; `App.tsx` opens the page, and "today"/"quick" go to today's `DayPanel` (quick fetches the day's messages from the remembered Google Chat group, or opens `GchatImport` for that day). It never writes.
 - **Credentials (`secrets.rs`).** One JSON item in the OS keychain via `keyring`; falls back to `credentials.json` (0600) when the keychain fails, and migrates an old file into the keychain.
-- **In-app update (`update_commands.rs`).** `install_update` reads `latest.json` from the latest GitHub release (signed by `scripts/ci/sign-update.sh` and `latest-json.sh` in `release.yml` when the `TAURI_SIGNING_PRIVATE_KEY` secret is set); otherwise the About card falls back to the install command.
+- **In-app update (`update_commands.rs`, `src/useUpdate.ts`).** `check_update` reads `latest.json` from the latest GitHub release (signed by `scripts/ci/sign-update.sh` and `latest-json.sh` in `release.yml` when the `TAURI_SIGNING_PRIVATE_KEY` secret is set; its notes are the tag body from `NOTES_FILE`) and keeps the found `Update`; `install_update` installs it and restarts, refusing while a write or Claude run is busy. `useUpdate` (one instance in `App.tsx`) checks at start, every 6 hours and on demand (About card). An installable update shows a toast once and `UpdateDialog` from the masthead dot; when the updater cannot run here, it falls back to the GitHub release list and the About card's install command.
 
 - **Calendar day panel.** `month_summary` fills each entry's issue subject and parent task (`RedmineClient::issues_by_ids`, best effort), so `DayPanel` can show project › parent › task. A day with `hours >= hours_per_day` is read-only: no report, add or leave actions.
 - **Redmine profile.** "Phân tích cấu trúc Redmine" (`discover_profile`, `ai-bridge::profile`) writes `redmine-profile.md`. It is passed to mcp-redmine as request instructions, to improve parent-task matching.

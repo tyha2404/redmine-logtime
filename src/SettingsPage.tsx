@@ -7,7 +7,7 @@ import LeaveSettings from "./LeaveSettings";
 import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
 import PageHeader from "./PageHeader";
-import type { UpdateState } from "./useUpdate";
+import type { Update } from "./useUpdate";
 
 const WEEKDAYS: [number, string][] = [
   [1, "T2"],
@@ -69,7 +69,7 @@ interface Props {
   onSaved: () => void;
   /** Called whenever the form starts or stops differing from what is saved. */
   onDirtyChange?: (dirty: boolean) => void;
-  update: UpdateState;
+  update: Update;
   /** Scroll to a section once loaded, e.g. "about" from the rail's update notice. */
   focus?: "about" | null;
 }
