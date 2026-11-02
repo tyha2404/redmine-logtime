@@ -85,7 +85,7 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         </button>
         <button
           className="btn"
-          onClick={f.quick}
+          onClick={() => f.quick()}
           disabled={ai.running || !f.text.trim()}
           title="Không dùng AI: khớp các dòng với những việc bạn đã ghi trước đây"
         >

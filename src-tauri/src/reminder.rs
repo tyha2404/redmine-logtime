@@ -56,7 +56,7 @@ pub fn shortfall(settings: &Settings, today: NaiveDate, logged: &[(NaiveDate, f6
     (today_missing, week_missing)
 }
 
-fn fmt_h(h: f64) -> String {
+pub fn fmt_h(h: f64) -> String {
     let s = format!("{h:.2}");
     s.trim_end_matches('0').trim_end_matches('.').to_string() + "h"
 }

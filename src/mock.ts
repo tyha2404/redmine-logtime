@@ -394,6 +394,7 @@ const CHAT_MESSAGES = [
   { name: "spaces/TEAM/messages/2", create_time: "2026-10-27T10:12:00Z", text: "Báo cáo hôm nay:\n- Sửa feedback công nợ (filter + export)" },
   { name: "spaces/TEAM/messages/3", create_time: "2026-10-27T10:20:00Z", text: "Mai em xin nghỉ buổi sáng ạ" },
   { name: "spaces/TEAM/messages/4", create_time: "2026-10-28T10:01:00Z", text: "Báo cáo hôm nay:\n- [FE] Biểu đồ doanh số theo vùng\n- Review PR module Sự kiện" },
+  { name: "spaces/TEAM/messages/5", create_time: "2026-10-29T09:30:00Z", text: "Báo cáo hôm nay:\n- Review Module Sự kiện\n- Sửa feedback công nợ" },
 ];
 
 /** `?slow=1` stretches every answer, to look at loading states (skeletons). */
@@ -643,6 +644,15 @@ export async function mockListen(event: string, cb: EventCallback<unknown>): Pro
   if (!listeners.has(event)) listeners.set(event, new Set());
   listeners.get(event)!.add(cb);
   return () => listeners.get(event)?.delete(cb);
+}
+
+// Menu bar / tray shortcuts: &tray=today|quick|leave|history fires one once
+// the app listens; mockTray("quick") in the console fires one any time.
+(globalThis as { mockTray?: (a: string) => void }).mockTray = (a) => emit("tray-action", a);
+const trayParam = new URLSearchParams(location.search).get("tray");
+if (trayParam) {
+  const fire = () => (listeners.get("tray-action")?.size ? setTimeout(() => emit("tray-action", trayParam), 600) : setTimeout(fire, 100));
+  fire();
 }
 
 // Pin "today" so screenshots are stable.

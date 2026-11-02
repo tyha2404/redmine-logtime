@@ -8,6 +8,7 @@ import {
 } from "react";
 import AddEntryForm from "./AddEntryForm";
 import AiLog from "./AiLog";
+import GchatImport, { appendBlocks, dayChatBlocks } from "./GchatImport";
 import { CalendarSkeleton, PanelSkeleton, Skel } from "./Skeleton";
 import LeaveForm from "./LeaveForm";
 import {
@@ -52,6 +53,9 @@ export const STATUS_LABEL: Record<DayStatus, string> = {
 
 const LEGEND: DayStatus[] = ["full", "partial", "missing", "over", "leave"];
 
+/** A request from the tray: open today's panel, or quick-match today's Google Chat messages. */
+export type DayAsk = { panel: "report" | "quick"; n: number };
+
 interface Props {
   settings: Settings;
   onOpenSettings: () => void;
@@ -59,6 +63,9 @@ interface Props {
   /** Opens the report page (one or several days). */
   onOpenReport: () => void;
   onOpenLeave: () => void;
+  ask: DayAsk | null;
+  /** The panel has acted on `ask`. */
+  onAskTaken: () => void;
 }
 
 export default function CalendarPage({
@@ -67,6 +74,8 @@ export default function CalendarPage({
   onOpenHistory,
   onOpenReport,
   onOpenLeave,
+  ask,
+  onAskTaken,
 }: Props) {
   const now = new Date();
   const [ym, setYm] = useState({
@@ -107,6 +116,13 @@ export default function CalendarPage({
     setYm({ year: now.getFullYear(), month: now.getMonth() + 1 });
     setSelected(todayIso());
   };
+
+  // A tray request jumps to today; today's panel acts on it, then it is cleared.
+  useEffect(() => {
+    if (ask) goToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask?.n]);
+  const openAsk = ask && selected === todayIso() ? ask : null;
 
   // Arrow keys move the selection like a desktop calendar; crossing the
   // month edge flips the month.
@@ -253,6 +269,8 @@ export default function CalendarPage({
           onOpenSettings={onOpenSettings}
           onOpenHistory={onOpenHistory}
           onWritten={load}
+          ask={openAsk}
+          onAskTaken={onAskTaken}
         />
       )}
     </div>
@@ -560,8 +578,10 @@ function DayPanel(props: {
   onOpenHistory: () => void;
   /** After something was written: reload the month. */
   onWritten: () => void;
+  ask: DayAsk | null;
+  onAskTaken: () => void;
 }) {
-  const { day, settings, onOpenSettings, onOpenHistory, onWritten } = props;
+  const { day, settings, onOpenSettings, onOpenHistory, onWritten, ask, onAskTaken } = props;
   const toast = useToast();
   const [mode, setMode] = useState<PanelMode>(() =>
     // Browser mock mode can open a composer directly: ?panel=report
@@ -572,6 +592,20 @@ function DayPanel(props: {
   );
   /** A form's entries waiting for "Ghi ngay" in the confirmation dialog. */
   const [plan, setPlan] = useState<WritePlan | null>(null);
+  /** The tray's quick-match request being run (remounts the report on each). */
+  const [quickRun, setQuickRun] = useState(0);
+
+  useEffect(() => {
+    if (!ask || !day) return;
+    onAskTaken();
+    if (day.hours >= settings.hours_per_day) {
+      toast(`Ngày ${fmtDayShort(day.date)} đã log đủ giờ.`);
+      return;
+    }
+    setMode("report");
+    if (ask.panel === "quick") setQuickRun(ask.n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask?.n, !!day]);
 
   if (!day) {
     return (
@@ -621,11 +655,14 @@ function DayPanel(props: {
 
       {!locked && mode === "report" && (
         <DayReport
+          key={quickRun}
           date={day.date}
           settings={settings}
+          autoQuick={quickRun > 0}
           onClose={() => setMode("idle")}
           onWritten={onWritten}
           onOpenHistory={onOpenHistory}
+          onOpenSettings={onOpenSettings}
         />
       )}
 
@@ -734,16 +771,40 @@ function DayReport(props: {
   onClose: () => void;
   onWritten: () => void;
   onOpenHistory: () => void;
+  onOpenSettings: () => void;
+  /** Opened from the tray: fetch the day's Google Chat messages and quick-match them. */
+  autoQuick?: boolean;
 }) {
-  const { date, settings, onClose, onWritten, onOpenHistory } = props;
+  const { date, settings, autoQuick, onClose, onWritten, onOpenHistory, onOpenSettings } = props;
   const f = useReportFlow(date, settings);
   const { ai, view } = f;
+  const [fetching, setFetching] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const started = useRef(false);
+
+  const quickWith = (blocks: string[]) => {
+    const { text } = appendBlocks(f.text, blocks);
+    f.setText(text);
+    f.quick(text);
+  };
+
+  // From the remembered group without asking; the picker when that cannot run.
+  useEffect(() => {
+    if (!autoQuick || !f.restored || started.current) return;
+    started.current = true;
+    setFetching(true);
+    dayChatBlocks(date)
+      .then((blocks) => (blocks ? quickWith(blocks) : setImporting(true)))
+      .finally(() => setFetching(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoQuick, f.restored]);
+  const busy = ai.running || fetching;
 
   return (
     <section className="panel-block day-report">
       <header className="block-head">
         <h3>Báo cáo ngày {fmtDayShort(date)}</h3>
-        <button className="link" onClick={onClose} disabled={ai.running}>
+        <button className="link" onClick={onClose} disabled={busy}>
           Đóng
         </button>
       </header>
@@ -753,7 +814,7 @@ function DayReport(props: {
         value={f.text}
         onChange={(e) => f.setText(e.target.value)}
         placeholder={"- Sửa feedback công nợ\n- Review Module Sự kiện"}
-        disabled={ai.running}
+        disabled={busy}
         aria-label={`Báo cáo ngày ${fmtDayShort(date)}`}
       />
       <p className="hint">
@@ -763,7 +824,7 @@ function DayReport(props: {
         <button
           className="btn primary"
           onClick={f.analyze}
-          disabled={ai.running || !f.text.trim()}
+          disabled={busy || !f.text.trim()}
         >
           {ai.running
             ? "Đang phân tích…"
@@ -773,13 +834,14 @@ function DayReport(props: {
         </button>
         <button
           className="btn"
-          onClick={f.quick}
-          disabled={ai.running || !f.text.trim()}
+          onClick={() => f.quick()}
+          disabled={busy || !f.text.trim()}
           title="Không dùng AI: khớp các dòng với những việc bạn đã ghi trước đây"
         >
           Khớp nhanh
         </button>
       </div>
+      {fetching && <p className="hint">Đang lấy tin nhắn Google Chat ngày {fmtDayShort(date)}…</p>}
       <AiLog ai={ai} />
 
       {view && (
@@ -789,6 +851,22 @@ function DayReport(props: {
           compact
           onWritten={onWritten}
           onOpenHistory={onOpenHistory}
+        />
+      )}
+
+      {importing && (
+        <GchatImport
+          from={date}
+          to={date}
+          onClose={() => setImporting(false)}
+          onOpenSettings={() => {
+            setImporting(false);
+            onOpenSettings();
+          }}
+          onInsert={(blocks) => {
+            setImporting(false);
+            quickWith(blocks);
+          }}
         />
       )}
     </section>

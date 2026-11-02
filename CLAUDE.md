@@ -15,6 +15,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - Real OS keychain round trip (throwaway item): `cargo test -p redmine-logtime real_keychain -- --ignored`.
 - Mock flag `&slow=1` makes every mock answer ~15× slower, to see the loading skeletons.
 - Mock flag `&memory=0` starts with no remembered tasks (Khớp nhanh then explains why it cannot match).
+- Mock flag `&tray=today|quick|leave|history` fires that menu bar / tray shortcut once the app is up; `mockTray("quick")` in the console fires one any time.
 
 ## Architecture
 
@@ -54,6 +55,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 ### Other pieces
 
 - **Desktop shell (`src-tauri/src/lib.rs`).** Plugins: log (file in the OS log dir), notification, autostart (`--hidden` starts in the tray), updater. The main window starts hidden and is shown in `setup`. With `reminder_enabled`, closing the window hides it to the tray (only if the tray exists). `reminder.rs` checks once a minute and notifies on workdays after `reminder_time` when today or the week is short.
+- **Menu bar / tray (`tray.rs`).** Shows today's hours beside the icon and in the menu, refreshed every 15 minutes and after writes, undo and settings changes. Its shortcuts only emit `tray-action` to the window; `App.tsx` opens the page, and "today"/"quick" go to today's `DayPanel` (quick fetches the day's messages from the remembered Google Chat group, or opens `GchatImport` for that day). It never writes.
 - **Credentials (`secrets.rs`).** One JSON item in the OS keychain via `keyring`; falls back to `credentials.json` (0600) when the keychain fails, and migrates an old file into the keychain.
 - **In-app update (`update_commands.rs`).** `install_update` reads `latest.json` from the latest GitHub release (signed by `scripts/ci/sign-update.sh` and `latest-json.sh` in `release.yml` when the `TAURI_SIGNING_PRIVATE_KEY` secret is set); otherwise the About card falls back to the install command.
 

@@ -74,6 +74,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const asked = useRef(new Set<number>());
   /** Unticked entries (task and date, or a day off), by item id. */
   const [off, setOff] = useState<Set<string>>(new Set());
+  /** The last report for this slot has been restored into `text`. */
+  const [restored, setRestored] = useState(false);
 
   const adopt = useCallback((v: ReportView | null) => {
     setView(v);
@@ -100,11 +102,15 @@ export function useReportFlow(day: string | null, settings: Settings) {
   // Restore what was last typed and analysed for this slot.
   useEffect(() => {
     let live = true;
-    api.getLastReport(day).then((r) => {
-      if (!live) return;
-      setText(r.text);
-      adopt(r.view);
-    });
+    api
+      .getLastReport(day)
+      .then((r) => {
+        if (!live) return;
+        setText(r.text);
+        adopt(r.view);
+      })
+      .catch(() => {})
+      .finally(() => live && setRestored(true));
     api.getProfile().then((p) => live && setProfile(p));
     return () => {
       live = false;
@@ -160,10 +166,10 @@ export function useReportFlow(day: string | null, settings: Settings) {
     if (v) adopt(v);
   };
 
-  /** Matches the report against tasks written before, without Claude. */
-  const quick = async () => {
+  /** Matches the report (or `src`, just set as the text) against tasks written before, without Claude. */
+  const quick = async (src: string = text) => {
     setNotice(null);
-    const v = await ai.run(() => api.quickReport(text, day), "Đang khớp với việc đã ghi trước đây");
+    const v = await ai.run(() => api.quickReport(src, day), "Đang khớp với việc đã ghi trước đây");
     if (v) adopt(v);
   };
 
@@ -359,6 +365,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
     ai,
     text,
     setText,
+    restored,
     view,
     tasks,
     choices,

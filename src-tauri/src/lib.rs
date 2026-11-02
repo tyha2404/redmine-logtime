@@ -7,10 +7,9 @@ mod reminder;
 mod secrets;
 mod state;
 mod tools;
+mod tray;
 mod update_commands;
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
@@ -51,7 +50,7 @@ pub fn run() {
 
             // Without a tray (Linux lacking AppIndicator) the app still runs;
             // closing the window then quits instead of hiding.
-            if let Err(e) = tray(app.handle()) {
+            if let Err(e) = tray::create(app.handle()) {
                 log::warn!("Không tạo được biểu tượng ở thanh menu/khay: {e}");
             }
             reminder::start(app.handle().clone());
@@ -65,7 +64,7 @@ pub fn run() {
             // in the menu bar / tray to remind at the end of the day.
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let state = window.state::<state::AppState>();
-                let has_tray = window.app_handle().tray_by_id("main").is_some();
+                let has_tray = tray::exists(window.app_handle());
                 if has_tray && state.settings().reminder_enabled {
                     api.prevent_close();
                     let _ = window.hide();
@@ -129,49 +128,10 @@ pub fn run() {
     });
 }
 
-fn show_main(app: &AppHandle) {
+pub(crate) fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
-}
-
-/// Menu bar / tray icon: open the window, check today's hours, quit.
-fn tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Mở Redmine Logtime", true, None::<&str>)?;
-    let check = MenuItem::with_id(app, "check", "Kiểm tra giờ hôm nay", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Thoát", true, None::<&str>)?;
-    let sep = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&open, &check, &sep, &quit])?;
-    let mut builder = TrayIconBuilder::with_id("main")
-        .tooltip("Redmine Logtime")
-        .menu(&menu)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "open" => show_main(app),
-            "check" => {
-                let app = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = reminder::check(&app, true).await {
-                        log::warn!("Kiểm tra giờ thất bại: {e}");
-                        show_main(&app);
-                    }
-                });
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        });
-    // macOS: a one-colour template icon that follows the menu bar's light or
-    // dark look. Elsewhere the coloured app icon (Ubuntu's top bar is dark).
-    #[cfg(target_os = "macos")]
-    {
-        let glyph = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
-        builder = builder.icon(glyph).icon_as_template(true);
-    }
-    #[cfg(not(target_os = "macos"))]
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
-    builder.build(app)?;
-    Ok(())
 }

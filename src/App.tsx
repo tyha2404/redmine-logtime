@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Settings } from "./api";
-import CalendarPage from "./CalendarPage";
+import { api, type Settings, type TrayAction } from "./api";
+import CalendarPage, { type DayAsk } from "./CalendarPage";
 import HistoryPage from "./HistoryPage";
 import LeavePage from "./LeavePage";
 import { Icon, BrandMark, type IconName } from "./icons";
@@ -59,6 +59,7 @@ function Shell() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsFocus, setSettingsFocus] = useState<"about" | null>(null);
   const [reportFocus, setReportFocus] = useState(false);
+  const [dayAsk, setDayAsk] = useState<DayAsk | null>(null);
   const [guide, setGuide] = useState<Guide>(guideForWidth);
   const [me, setMe] = useState<string | null>(null);
   const update = useUpdate();
@@ -120,6 +121,22 @@ function Shell() {
     },
     [page, settingsDirty, navigate],
   );
+
+  // Menu bar / tray shortcuts. Before setup is done they only show the window.
+  const onTray = useRef<(a: TrayAction) => void>(() => {});
+  const askCount = useRef(0);
+  onTray.current = (action) => {
+    if (page === "setup" || page === null) return;
+    if (action === "leave" || action === "history") return go(action);
+    go("calendar");
+    setDayAsk({ panel: action === "quick" ? "quick" : "report", n: ++askCount.current });
+  };
+  useEffect(() => {
+    const off = api.onTrayAction((a) => onTray.current(a));
+    return () => {
+      off.then((f) => f());
+    };
+  }, []);
 
   const leave = (target: Page) => {
     setLeaveTo(null);
@@ -217,6 +234,8 @@ function Shell() {
               setReportFocus(true);
             }}
             onOpenLeave={() => go("leave")}
+            ask={dayAsk}
+            onAskTaken={() => setDayAsk(null)}
           />
         )}
         {page === "review" && settings && (

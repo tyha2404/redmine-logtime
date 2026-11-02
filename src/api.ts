@@ -90,7 +90,11 @@ export interface TimeEntry {
   id: number;
   project: IdName;
   /** `subject` is filled in by the app (Redmine sends only the id). */
-  issue: { id: number; subject?: string | null; parent?: { id: number; subject?: string | null } | null } | null;
+  issue: {
+    id: number;
+    subject?: string | null;
+    parent?: { id: number; subject?: string | null } | null;
+  } | null;
   user: IdName;
   activity: IdName;
   hours: number;
@@ -206,6 +210,8 @@ export interface Batch {
   ops: Op[];
 }
 
+export type TrayAction = "today" | "quick" | "leave" | "history";
+
 export interface ProgressEvent {
   batch_id: number;
   op: Op;
@@ -282,7 +288,11 @@ export interface ReportView {
   analysis: {
     period_from: string;
     period_to: string;
-    leave: { date: string; hours: number; kind?: "annual" | "sick" | "unpaid" | null }[];
+    leave: {
+      date: string;
+      hours: number;
+      kind?: "annual" | "sick" | "unpaid" | null;
+    }[];
     questions: string[];
     tasks: ReportTask[];
   };
@@ -340,21 +350,28 @@ export function issueBrief(i: Issue): IssueBrief {
 // Tauri maps camelCase invoke keys onto snake_case Rust parameters.
 export const api = {
   getSettings: () => invoke<SettingsView>("get_settings"),
-  saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
+  saveSettings: (settings: Settings) =>
+    invoke<void>("save_settings", { settings }),
   saveApiKey: (apiKey: string) => invoke<void>("save_api_key", { apiKey }),
-  testConnection: (redmineUrl: string, apiKey: string | null, acceptInvalidCerts: boolean) =>
+  testConnection: (
+    redmineUrl: string,
+    apiKey: string | null,
+    acceptInvalidCerts: boolean,
+  ) =>
     invoke<User>("test_connection", { redmineUrl, apiKey, acceptInvalidCerts }),
   listActivities: () => invoke<Activity[]>("list_activities"),
   listTrackers: () => invoke<Tracker[]>("list_trackers"),
   lookupIssue: (id: number) => invoke<Issue>("lookup_issue", { id }),
   searchIssues: (query: string) => invoke<Issue[]>("search_issues", { query }),
-  listChildren: (parentId: number) => invoke<Issue[]>("list_children", { parentId }),
+  listChildren: (parentId: number) =>
+    invoke<Issue[]>("list_children", { parentId }),
   monthSummary: (year: number, month: number) =>
     invoke<MonthSummary>("month_summary", { year, month }),
   checkTools: () => invoke<ToolStatus[]>("check_tools"),
 
   previewPlan: (plan: WritePlan) => invoke<ApiCall[]>("preview_plan", { plan }),
-  writePlan: (plan: WritePlan, label: string) => invoke<Batch>("write_plan", { plan, label }),
+  writePlan: (plan: WritePlan, label: string) =>
+    invoke<Batch>("write_plan", { plan, label }),
   retryBatch: (batchId: number) => invoke<Batch>("retry_batch", { batchId }),
   resumeBatch: (batchId: number) => invoke<Batch>("resume_batch", { batchId }),
   undoBatch: (batchId: number) => invoke<Batch>("undo_batch", { batchId }),
@@ -368,15 +385,26 @@ export const api = {
   saveProfile: (profile: Profile) => invoke<void>("save_profile", { profile }),
   discoverProfile: () => invoke<Profile>("discover_profile"),
   getLastReport: (day: string | null) =>
-    invoke<{ text: string; day: string | null; view: ReportView | null }>("get_last_report", { day }),
-  discoverLeave: () => invoke<{ types: LeaveType[]; name: string | null }>("discover_leave"),
-  leaveEntries: (year: number) => invoke<TimeEntry[]>("leave_entries", { year }),
-  leaveParent: (projectId: number, date: string) => invoke<LeaveParent>("leave_parent", { projectId, date }),
-  clearLastReport: (day: string | null) => invoke<void>("clear_last_report", { day }),
-  analyzeReport: (text: string, day: string | null) => invoke<ReportView>("analyze_report", { text, day }),
-  planReport: (view: ReportView, excluded: string[]) => invoke<DayPlan[]>("plan_report", { view, excluded }),
-  quickReport: (text: string, day: string | null) => invoke<ReportView>("quick_report", { text, day }),
-  rememberTasks: (tasks: LearnedTask[]) => invoke<number>("remember_tasks", { tasks }),
+    invoke<{ text: string; day: string | null; view: ReportView | null }>(
+      "get_last_report",
+      { day },
+    ),
+  discoverLeave: () =>
+    invoke<{ types: LeaveType[]; name: string | null }>("discover_leave"),
+  leaveEntries: (year: number) =>
+    invoke<TimeEntry[]>("leave_entries", { year }),
+  leaveParent: (projectId: number, date: string) =>
+    invoke<LeaveParent>("leave_parent", { projectId, date }),
+  clearLastReport: (day: string | null) =>
+    invoke<void>("clear_last_report", { day }),
+  analyzeReport: (text: string, day: string | null) =>
+    invoke<ReportView>("analyze_report", { text, day }),
+  planReport: (view: ReportView, excluded: string[]) =>
+    invoke<DayPlan[]>("plan_report", { view, excluded }),
+  quickReport: (text: string, day: string | null) =>
+    invoke<ReportView>("quick_report", { text, day }),
+  rememberTasks: (tasks: LearnedTask[]) =>
+    invoke<number>("remember_tasks", { tasks }),
   memoryCount: () => invoke<number>("memory_count"),
   forgetMemory: () => invoke<void>("forget_memory"),
   gchatStatus: () => invoke<GchatStatus>("gchat_status"),
@@ -391,8 +419,17 @@ export const api = {
     listen<AiProgress>("ai-progress", (e) => cb(e.payload)),
   /** Downloads and installs the newest signed release, then restarts. */
   installUpdate: () => invoke<void>("install_update"),
-  onUpdateProgress: (cb: (p: { downloaded: number; total: number | null }) => void): Promise<UnlistenFn> =>
-    listen<{ downloaded: number; total: number | null }>("update-progress", (e) => cb(e.payload)),
+  /** A shortcut picked in the menu bar / tray menu (`src-tauri/src/tray.rs`). */
+  onTrayAction: (cb: (action: TrayAction) => void): Promise<UnlistenFn> =>
+    listen<TrayAction>("tray-action", (e) => cb(e.payload)),
+
+  onUpdateProgress: (
+    cb: (p: { downloaded: number; total: number | null }) => void,
+  ): Promise<UnlistenFn> =>
+    listen<{ downloaded: number; total: number | null }>(
+      "update-progress",
+      (e) => cb(e.payload),
+    ),
   openLogDir: () => invoke<void>("open_log_dir"),
 };
 
@@ -401,5 +438,8 @@ export function errorText(e: unknown): string {
 }
 
 export function newId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  );
 }

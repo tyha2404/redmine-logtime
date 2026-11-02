@@ -68,6 +68,8 @@ pub fn save_settings(
     state
         .save_settings(settings)
         .map_err(|e| format!("Không lưu được cài đặt: {e}"))?;
+    // Hours per day, workdays or the Redmine account may have changed.
+    crate::tray::refresh_soon(&app);
     let autostart = app.autolaunch();
     if autostart.is_enabled().unwrap_or(!login) != login {
         let done = if login { autostart.enable() } else { autostart.disable() };
@@ -86,12 +88,14 @@ pub fn open_log_dir(app: tauri::AppHandle) -> CmdResult<()> {
 
 /// Stores the key, or removes it when `api_key` is empty.
 #[tauri::command]
-pub fn save_api_key(state: State<'_, AppState>, api_key: String) -> CmdResult<()> {
+pub fn save_api_key(app: tauri::AppHandle, state: State<'_, AppState>, api_key: String) -> CmdResult<()> {
     if api_key.trim().is_empty() {
-        state.credentials.delete_api_key()
+        state.credentials.delete_api_key()?;
     } else {
-        state.credentials.set_api_key(&api_key)
+        state.credentials.set_api_key(&api_key)?;
     }
+    crate::tray::refresh_soon(&app);
+    Ok(())
 }
 
 /// Checks a URL/key pair before saving. Falls back to the stored key when
@@ -149,7 +153,7 @@ pub async fn check_tools() -> Vec<tools::ToolStatus> {
 /// parent task (one request per 100 issues, plus one for the parents) so the
 /// calendar can say what was logged. Best effort: the month still shows if a
 /// lookup fails.
-async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
+pub(crate) async fn add_issue_subjects(client: &RedmineClient, entries: &mut [TimeEntry]) {
     let mut ids: Vec<u32> = entries.iter().filter_map(|e| e.issue.as_ref().map(|i| i.id)).collect();
     ids.sort_unstable();
     ids.dedup();

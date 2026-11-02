@@ -51,24 +51,45 @@ export function appendBlocks(text: string, blocks: string[]): { text: string; ad
   return { text: text.trim() ? `${text.trimEnd()}\n\n${joined}` : joined, added: fresh.length };
 }
 
+/**
+ * The user's messages on one day from the remembered group, for the tray's
+ * quick match. Null when that cannot run silently (not connected, no group
+ * picked yet, no message): the caller opens the dialog instead.
+ */
+export async function dayChatBlocks(date: string): Promise<string[] | null> {
+  const space = remembered();
+  if (!space) return null;
+  try {
+    if (!(await api.gchatStatus()).connected) return null;
+    const list = await api.gchatMessages(space, date, date);
+    return list.length > 0 ? chatBlocks(list) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface Props {
   onInsert: (blocks: string[]) => void;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** First range shown; the last 7 days otherwise. */
+  from?: string;
+  to?: string;
 }
 
 /** Picks the user's own report messages from a Google Chat group. */
-export default function GchatImport({ onInsert, onClose, onOpenSettings }: Props) {
+export default function GchatImport({ onInsert, onClose, onOpenSettings, from: initialFrom, to: initialTo }: Props) {
   const { close, ...modal } = useModal(onClose);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [spaces, setSpaces] = useState<ChatSpace[] | null>(null);
   const [space, setSpace] = useState(remembered);
   const [from, setFrom] = useState(() => {
+    if (initialFrom) return initialFrom;
     const d = parseIso(todayIso());
     d.setDate(d.getDate() - 6);
     return isoOf(d);
   });
-  const [to, setTo] = useState(todayIso);
+  const [to, setTo] = useState(() => initialTo ?? todayIso());
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);

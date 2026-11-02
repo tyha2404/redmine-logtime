@@ -68,6 +68,8 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Cài đặt nhắc log giờ](docs/images/settings-reminder.png)
 
+**Biểu tượng trên thanh menu/khay:** hiện số giờ hôm nay (ví dụ `5/8h`). Menu cho xem giờ cả tuần và các mục đã log hôm nay, kèm lối tắt **Ghi logtime hôm nay…**, **Khớp nhanh hôm nay từ Google Chat**, **Xin nghỉ…** và **Lịch sử ghi**. Lối tắt chỉ mở app ở đúng chỗ; app vẫn hỏi xác nhận trước khi ghi.
+
 **Google Chat:** cần Client ID/secret từ admin công ty ([hướng dẫn admin](docs/development.md#google-chat)), nhập ở **Cài đặt → Tài khoản → Google Chat → Kết nối Google**. App chỉ đọc tin bạn gửi.
 
 ## Cập nhật, gỡ cài đặt

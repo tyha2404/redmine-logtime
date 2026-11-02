@@ -169,8 +169,10 @@ async fn run(
             },
         );
     })
-    .await
-    .map_err(|e| {
+    .await;
+    // Some ops may have reached Redmine even when the batch stopped.
+    crate::tray::refresh_soon(app);
+    let batch = batch.map_err(|e| {
         log::error!("Lô {batch_id} dừng: {e}");
         err(e)
     })?;
@@ -195,7 +197,7 @@ pub async fn undo_batch(
     let _guard = state.begin_execution().ok_or(BUSY)?;
     let settings = state.settings();
     let client = client_for(&state.credentials, &settings, None)?;
-    exec::undo_batch(
+    let batch = exec::undo_batch(
         &state.store,
         &client,
         batch_id,
@@ -210,8 +212,9 @@ pub async fn undo_batch(
             );
         },
     )
-    .await
-    .map_err(err)
+    .await;
+    crate::tray::refresh_soon(&app);
+    batch.map_err(err)
 }
 
 #[tauri::command]
