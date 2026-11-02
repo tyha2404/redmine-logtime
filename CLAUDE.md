@@ -57,6 +57,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - **Credentials (`secrets.rs`).** One JSON item in the OS keychain via `keyring`; falls back to `credentials.json` (0600) when the keychain fails, and migrates an old file into the keychain.
 - **In-app update (`update_commands.rs`).** `install_update` reads `latest.json` from the latest GitHub release (signed by `scripts/ci/sign-update.sh` and `latest-json.sh` in `release.yml` when the `TAURI_SIGNING_PRIVATE_KEY` secret is set); otherwise the About card falls back to the install command.
 
+- **Calendar day panel.** `month_summary` fills each entry's issue subject and parent task (`RedmineClient::issues_by_ids`, best effort), so `DayPanel` can show project › parent › task. A day with `hours >= hours_per_day` is read-only: no report, add or leave actions.
 - **Redmine profile.** "Phân tích cấu trúc Redmine" (`discover_profile`, `ai-bridge::profile`) writes `redmine-profile.md`. It is passed to mcp-redmine as request instructions, to improve parent-task matching.
 - **Leave.** Each leave type maps to a project with a monthly parent issue created by HR. The app creates one child issue per leave day and logs time on it (`leave_commands.rs`, `logtime-core::leave`, `src/leave.ts`).
 - **Google Chat.**
@@ -68,6 +69,8 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 
 - Icons come from Lucide (`lucide-react`), mapped by role in `src/icons.tsx` and used as `<Icon name="…" />`; do not hand-draw SVG icons. The logo is the Redmine logo mark recoloured in the app's blues on a white tile (`BrandMark`, `src-tauri/icons/source.svg`); it is CC BY-SA 2.5 (© 2009 Martin Herr), so keep the attribution in those files and the README.
 - All user-facing text (UI, errors, README) is Vietnamese. Code, comments and AGENTS/CLAUDE files are English.
+- Every page starts with `PageHeader` (`src/PageHeader.tsx`): title and description on the left, controls on the right (`nav-group`, `.nav-solo`, `RefreshButton`, all 36px). The app never opens Redmine pages; issue numbers are plain text.
+- No coloured borders or accent stripes to tell items apart; use a filled badge or tinted background (e.g. the per-project hue badge on calendar entries).
 - Dialogs are native `<dialog>` elements wired through `useModal(onClose, locked)`. They close on Esc and on a backdrop click unless `locked`, e.g. while writing. Popovers such as `DateRangePicker` and `IssuePicker` close on an outside `pointerdown` and on Esc.
 - The report prompt in `crates/ai-bridge/src/report.rs` is an `r#"…"#` raw string: never write `"#` inside it. Keep it principle-based rather than tied to one team's report format.
 - Never write to a real Redmine while testing. Use mock mode, or Docker Redmine for writes.

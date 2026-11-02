@@ -4,6 +4,8 @@ App cho macOS và Ubuntu: xem giờ đã log theo lịch tháng, ghi logtime t�
 
 ![Lịch tháng](docs/images/calendar.png)
 
+Chọn một ngày để xem đã log gì: dự án, task cha, task và số giờ. Ngày đã đủ giờ chỉ xem, không ghi thêm được.
+
 ## Cài đặt
 
 Mở Terminal, chạy:
@@ -34,7 +36,7 @@ Bấm dòng **task cha › task con** dưới tên việc để đổi task; tha
 
 ![Đổi task cha và task con](docs/images/report-edit-task.png)
 
-**3.** Bấm **Ghi … lên Redmine**, xem lại những gì sẽ tạo → **Ghi ngay**.
+**3.** Bấm **Ghi … lên Redmine**, xem lại những gì sẽ tạo (có task con mới thì tick ô xác nhận) → **Ghi ngay**.
 
 ![Popup xác nhận](docs/images/write-confirm.png)
 
@@ -48,11 +50,11 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ## Việc khác
 
-**Ghi tay:** **Lịch tháng** → chọn ngày → **Ghi logtime vào issue**.
+**Ghi tay:** **Lịch tháng** → chọn ngày còn thiếu giờ → **Ghi logtime vào issue**.
 
 ![Ghi tay vào issue](docs/images/manual-entry.png)
 
-**Xin nghỉ:** lần đầu vào **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
+**Xin nghỉ:** lần đầu vào **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày làm việc → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
 
 ![Xin nghỉ](docs/images/leave-request.png)
 
@@ -70,7 +72,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ## Cập nhật, gỡ cài đặt
 
-- **Cập nhật:** khi biểu tượng tải xuống ở góc trên có chấm đỏ, bấm vào → **Cập nhật lên …**. Nếu không được, chạy lại lệnh cài đặt.
+- **Cập nhật:** khi biểu tượng tải xuống ở góc trên có chấm đỏ, bấm vào (hoặc **Cài đặt → Ứng dụng → Phiên bản**) → **Cập nhật lên …**. Nếu không được, chạy lại lệnh cài đặt.
 - **Gỡ:** `curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall`. Cài đặt và API key vẫn giữ trên máy; logtime trên Redmine không bị xoá.
 
 ## Khi gặp lỗi
