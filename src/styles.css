@@ -1749,8 +1749,7 @@ select::-ms-expand {
   color: var(--ink-2);
 }
 .subject-input {
-  flex: 1;
-  min-width: 200px;
+  width: 100%;
   height: var(--control-h-s);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
@@ -2631,25 +2630,13 @@ select::-ms-expand {
   margin: 0;
 }
 
+/* The sub-task, and the new one's name on its own line below. */
 .rtask-sub {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-}
-.rtask-select {
-  max-width: 100%;
-  height: var(--control-h-s);
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  background-color: var(--surface-2);
-  color: var(--ink);
-}
-.rtask-select:has(+ .subject-input) {
-  flex: 0 1 200px;
+  display: grid;
+  gap: 6px;
 }
 
-/* An issue chosen by number or by searching its subject. */
+/* An issue picked from a list, narrowed by number or words of its subject. */
 .ipick {
   position: relative;
   flex: 1 1 320px;
@@ -2666,12 +2653,21 @@ select::-ms-expand {
   padding: 4px 10px;
 }
 .ipick-value {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 8px;
+  padding-right: 32px;
   text-align: left;
   cursor: pointer;
+}
+.ipick-caret {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: var(--ink-2);
 }
 .ipick-value:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--ink-2) 55%, var(--line));
@@ -2730,6 +2726,23 @@ select::-ms-expand {
 }
 .ipick-option .ipick-meta {
   flex-basis: 100%;
+}
+.ipick-option.is-extra {
+  align-items: center;
+  color: var(--accent);
+  font-weight: 500;
+}
+.ipick-check {
+  margin-left: auto;
+  align-self: center;
+  color: var(--accent);
+}
+.ipick-group {
+  margin: 4px 0 0;
+  padding: 6px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
 }
 .ipick-note {
   margin: 0;
@@ -2835,10 +2848,18 @@ select::-ms-expand {
   flex-direction: column;
   gap: 14px;
 }
+/* Not clipped, so a picker's list can open past the card; the ends carry the corners instead. */
 .rday-group {
   border-radius: var(--radius-m);
   box-shadow: 0 0 0 1px var(--line);
-  overflow: hidden;
+}
+.rday-group > :first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+.rday-group > :last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
 }
 .rday-head {
   display: grid;
@@ -3427,6 +3448,9 @@ dialog.is-closing::backdrop {
   flex-wrap: wrap;
   gap: 8px;
 }
+.page-actions .nav-solo {
+  gap: 6px;
+}
 .page-actions .nav-solo,
 .page-actions .refresh {
   height: 36px;
@@ -3693,9 +3717,6 @@ dialog.is-closing::backdrop {
   .rtask-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
-  }
-  .subject-input {
-    min-width: 0;
   }
   .mast-context {
     display: none;

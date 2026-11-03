@@ -48,6 +48,17 @@ export interface DayHours {
   written: boolean;
 }
 
+/** Parents the user logged on lately, shared by every parent picker for a few minutes. */
+let recent: { at: number; list: Promise<IssueBrief[]> } | null = null;
+function recentParents(): Promise<IssueBrief[]> {
+  if (!recent || Date.now() - recent.at > 5 * 60_000) {
+    const list = api.recentParents().then((l) => l.map(issueBrief));
+    list.catch(() => (recent = null));
+    recent = { at: Date.now(), list };
+  }
+  return recent.list;
+}
+
 const itemId = (task: string, date: string) => `${task}|${date}`;
 const leaveId = (date: string) => `leave|${date}`;
 
@@ -57,7 +68,7 @@ const leaveId = (date: string) => `leave|${date}`;
  * many days, `day` = null) and the calendar's day panel (`day` = that date).
  */
 export function useReportFlow(day: string | null, settings: Settings) {
-  const ai = useAiRun();
+  const ai = useAiRun(day ? `day:${day}` : "report");
   const [text, setText] = useState("");
   const [view, setView] = useState<ReportView | null>(null);
   const [tasks, setTasks] = useState<TaskView[]>([]);
@@ -99,9 +110,11 @@ export function useReportFlow(day: string | null, settings: Settings) {
     );
   }, []);
 
-  // Restore what was last typed and analysed for this slot.
+  // Restore what was last typed and analysed for this slot, then the result
+  // of an analysis still running from before the user left the page.
   useEffect(() => {
     let live = true;
+    const running = ai.pending<ReportView>();
     api
       .getLastReport(day)
       .then((r) => {
@@ -110,12 +123,14 @@ export function useReportFlow(day: string | null, settings: Settings) {
         adopt(r.view);
       })
       .catch(() => {})
-      .finally(() => live && setRestored(true));
+      .finally(() => live && setRestored(true))
+      .then(() => running)
+      .then((v) => live && v && adopt(v));
     api.getProfile().then((p) => live && setProfile(p));
     return () => {
       live = false;
     };
-  }, [day, adopt]);
+  }, [day, adopt, ai.pending]);
 
   // The planner splits each day among the ticked entries only.
   const planView = useMemo(
@@ -204,6 +219,12 @@ export function useReportFlow(day: string | null, settings: Settings) {
     const found = t.existing_subtask;
     return found && found.parent_id === c?.parent?.id && !list.some((x) => x.id === found.id) ? [found, ...list] : list;
   };
+
+  /** Parents in this report (chosen, or found by Claude), listed first in every parent picker. */
+  const reportParents = useMemo(() => {
+    const all = [...Object.values(choices).map((c) => c.parent), ...tasks.map((t) => t.parent)];
+    return all.filter((p, i): p is IssueBrief => !!p && all.findIndex((x) => x?.id === p.id) === i);
+  }, [choices, tasks]);
 
   const planned = useMemo(() => new Set(view?.days.map((d) => d.date)), [view]);
   const allocations = plans.flatMap((p) => p.allocations);
@@ -392,6 +413,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
     changeSubject,
     setHours,
     subtasksOf,
+    reportParents,
     daysOf,
     plans,
     planning,
@@ -782,27 +804,32 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
       <dl className="rtask-grid">
         <dt>Task cha</dt>
         <dd>
-          <IssuePicker value={c.parent} onPick={(p) => f.changeParent(key, p)} label={`Task cha của “${t.text}”`} />
+          <IssuePicker
+            value={c.parent}
+            onPick={(p) => f.changeParent(key, p)}
+            label={`Task cha của “${t.text}”`}
+            options={f.reportParents}
+            load={recentParents}
+            remote
+          />
           {t.parent_reason && fromAi && <p className="rtask-reason">{t.parent_reason}</p>}
         </dd>
         <dt>Task con</dt>
         <dd>
           <div className="rtask-sub">
-            <select
-              className="rtask-select"
-              value={String(c.subtask)}
-              onChange={(e) => f.setChoice(key, { subtask: e.target.value === "new" ? "new" : Number(e.target.value) })}
+            <IssuePicker
+              value={c.subtask === "new" ? null : (f.subtasksOf(view).find((x) => x.id === c.subtask) ?? null)}
+              onPick={(sub) => f.setChoice(key, { subtask: sub.id })}
+              label={`Task con của “${t.text}”`}
+              options={f.subtasksOf(view)}
+              extra={{
+                label: "Tạo task con mới",
+                chosen: c.subtask === "new",
+                onPick: () => f.setChoice(key, { subtask: "new" }),
+              }}
               disabled={!c.parent}
-              aria-label={`Task con của “${t.text}”`}
-            >
-              <option value="new">Tạo task con mới</option>
-              {f.subtasksOf(view).map((o) => (
-                <option key={o.id} value={o.id}>
-                  #{o.id} {o.subject}
-                  {o.status ? ` (${o.status})` : ""}
-                </option>
-              ))}
-            </select>
+              empty="Chọn task cha trước"
+            />
             {c.subtask === "new" && (
               <input
                 className="subject-input"

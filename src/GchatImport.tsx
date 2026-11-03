@@ -52,21 +52,33 @@ export function appendBlocks(text: string, blocks: string[]): { text: string; ad
 }
 
 /**
- * The user's messages on one day from the remembered group, for the tray's
- * quick match. Null when that cannot run silently (not connected, no group
- * picked yet, no message): the caller opens the dialog instead.
+ * The user's messages from `from` to `to` in the remembered group, kept when
+ * `keep` accepts the day they were sent. For the quick matches that run
+ * without asking (tray, missing days). Null when that cannot run silently
+ * (not connected, no group picked yet, no message): the caller opens the
+ * dialog instead.
  */
-export async function dayChatBlocks(date: string): Promise<string[] | null> {
+export async function rangeChatMessages(
+  from: string,
+  to: string,
+  keep: (sentOn: string) => boolean = () => true,
+): Promise<ChatMessage[] | null> {
   const space = remembered();
   if (!space) return null;
   try {
     if (!(await api.gchatStatus()).connected) return null;
-    const list = await api.gchatMessages(space, date, date);
-    return list.length > 0 ? chatBlocks(list) : null;
+    const list = (await api.gchatMessages(space, from, to)).filter((m) => keep(sentOn(m)));
+    return list.length > 0 ? list : null;
   } catch {
     return null;
   }
 }
+
+/** The local day a message was sent. */
+export const sentOn = (m: ChatMessage) => isoOf(new Date(m.create_time));
+
+/** One day's messages as report blocks; see `rangeChatMessages`. */
+export const dayChatBlocks = (date: string) => rangeChatMessages(date, date).then((list) => list && chatBlocks(list));
 
 interface Props {
   onInsert: (blocks: string[]) => void;

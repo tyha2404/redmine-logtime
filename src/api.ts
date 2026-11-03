@@ -354,6 +354,8 @@ export const api = {
   lookupIssue: (id: number) => invoke<Issue>("lookup_issue", { id }),
   searchIssues: (query: string) => invoke<Issue[]>("search_issues", { query }),
   listChildren: (parentId: number) => invoke<Issue[]>("list_children", { parentId }),
+  /** Open parent tasks of what the user logged lately, most recent first. */
+  recentParents: () => invoke<Issue[]>("recent_parents"),
   monthSummary: (year: number, month: number) => invoke<MonthSummary>("month_summary", { year, month }),
   checkTools: () => invoke<ToolStatus[]>("check_tools"),
 

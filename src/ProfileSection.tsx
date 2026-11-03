@@ -13,17 +13,29 @@ interface Props {
 
 /** What Claude learned about this Redmine, mainly how to spot BA parent tasks. */
 export default function ProfileSection({ settings, trackers, onApply }: Props) {
-  const ai = useAiRun();
+  const ai = useAiRun("profile");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getProfile().then((p) => {
+    let live = true;
+    const running = ai.pending<Profile>();
+    const show = (p: Profile | null) => {
+      if (!live || !p) return;
       setProfile(p);
-      setNotes(p?.user_notes ?? "");
-    });
-  }, []);
+      setNotes(p.user_notes);
+    };
+    // Then a discovery still running from before the user left Settings.
+    api
+      .getProfile()
+      .then(show)
+      .then(() => running)
+      .then((p) => show(p ?? null));
+    return () => {
+      live = false;
+    };
+  }, [ai.pending]);
 
   const discover = async () => {
     const p = await ai.run(() => api.discoverProfile());

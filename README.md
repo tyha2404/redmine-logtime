@@ -48,6 +48,8 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Khớp nhanh](docs/images/quick-match.png)
 
+**Điền các ngày thiếu:** trên **Lịch tháng**, bấm **Điền N ngày thiếu**. App lấy tin Google Chat của các ngày thiếu giờ (và sáng hôm sau), chạy **Khớp nhanh** rồi hiện kết quả để duyệt và ghi một lần. Ngày không có tin nào được liệt kê để bạn tự nhập.
+
 ## Việc khác
 
 **Ghi tay:** **Lịch tháng** → chọn ngày còn thiếu giờ → **Ghi logtime vào issue**.

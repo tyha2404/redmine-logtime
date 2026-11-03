@@ -518,6 +518,9 @@ let gchat =
     ? { connected: false, email: null as string | null, client_id: null as string | null }
     : { connected: true, email: "dev.a@congty.vn", client_id: "123-abc.apps.googleusercontent.com" };
 
+/** The last analysed report of each slot ("" for the multi-day page), like the kv `last_report` keys. */
+const lastReports = new Map<string, { text: string; view: ReportView | null }>();
+
 /** Tasks remembered from earlier writes; `?memory=0` starts empty. */
 let memory: LearnedTask[] =
   new URLSearchParams(location.search).get("memory") === "0"
@@ -615,12 +618,15 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       ]);
     case "get_profile":
       return delay(PROFILE);
-    case "get_last_report":
+    case "get_last_report": {
+      const kept = lastReports.get(String(args.day ?? ""));
+      if (kept) return delay({ ...kept, day: args.day ?? null });
       return delay(
         args.day === TODAY
           ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW }
           : { text: "", day: args.day ?? null, view: null },
       );
+    }
     case "check_update":
       return delay(
         MOCK_UPDATE
@@ -688,8 +694,14 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "forget_memory":
       memory = [];
       return delay(undefined, 50);
-    case "analyze_report":
-      return delay(args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW), 1200);
+    case "analyze_report": {
+      // Saved at the start and again with the result, so a page left mid-run gets its text back.
+      const slot = String(args.day ?? "");
+      const text = String(args.text);
+      lastReports.set(slot, { text, view: null });
+      const view = args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW);
+      return delay(view, 1200).then((v) => (lastReports.set(slot, { text, view: v }), v));
+    }
     case "discover_leave":
       return delay({ types: settings.leave_types, name: "BE - Tên" }, 700);
     case "leave_parent": {
@@ -736,8 +748,11 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         400,
       );
     }
-    case "clear_last_report":
+    case "clear_last_report": {
+      const kept = lastReports.get(String(args.day ?? ""));
+      if (kept) kept.view = null;
       return delay(undefined);
+    }
     case "plan_report":
       return delay(planReport(args.view as ReportView, args.excluded as string[]));
     case "lookup_issue":
@@ -761,6 +776,11 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         350,
       );
     }
+    case "recent_parents":
+      return delay(
+        ISSUES.filter((i) => !i.parent && i.status.name !== "Closed"),
+        400,
+      );
     case "list_children":
       return delay(
         ISSUES.filter((i) => i.parent?.id === args.parentId && i.assigned_to),

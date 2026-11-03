@@ -6,12 +6,14 @@ export default function AiLog({ ai, idleHint }: { ai: AiRun; idleHint?: string }
   const [seconds, setSeconds] = useState(0);
   const listRef = useRef<HTMLOListElement>(null);
 
+  // Counted from the start, so it stays right when the page comes back mid-run.
   useEffect(() => {
     if (!ai.running) return;
-    setSeconds(0);
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    const tick = () => setSeconds(Math.max(0, Math.round((performance.now() - ai.startedAt) / 1000)));
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [ai.running]);
+  }, [ai.running, ai.startedAt]);
 
   useEffect(() => {
     listRef.current?.lastElementChild?.scrollIntoView({ block: "nearest" });

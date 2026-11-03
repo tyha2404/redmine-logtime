@@ -136,6 +136,15 @@ impl RedmineClient {
     /// Issues by id, any status, in pages of 100. Ids the user cannot see are
     /// simply missing from the result.
     pub async fn issues_by_ids(&self, ids: &[u32]) -> Result<Vec<Issue>> {
+        self.issues_by_ids_in(ids, "*").await
+    }
+
+    /// Like [`Self::issues_by_ids`], open issues only.
+    pub async fn open_issues_by_ids(&self, ids: &[u32]) -> Result<Vec<Issue>> {
+        self.issues_by_ids_in(ids, "open").await
+    }
+
+    async fn issues_by_ids_in(&self, ids: &[u32], status: &str) -> Result<Vec<Issue>> {
         let mut issues = Vec::new();
         for chunk in ids.chunks(100) {
             let list = chunk
@@ -146,7 +155,7 @@ impl RedmineClient {
             let env: IssuesPage = self
                 .get(
                     "issues.json",
-                    &[("issue_id", &list), ("status_id", "*"), ("limit", "100")],
+                    &[("issue_id", &list), ("status_id", status), ("limit", "100")],
                 )
                 .await?;
             issues.extend(env.issues);

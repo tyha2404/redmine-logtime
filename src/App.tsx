@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Settings, type TrayAction } from "./api";
 import CalendarPage, { type DayAsk } from "./CalendarPage";
+import type { FillAsk } from "./ReportComposer";
 import HistoryPage from "./HistoryPage";
 import LeavePage from "./LeavePage";
 import { Icon, BrandMark, type IconName } from "./icons";
@@ -61,6 +62,7 @@ function Shell() {
   const [settingsFocus, setSettingsFocus] = useState<"about" | null>(null);
   const [reportFocus, setReportFocus] = useState(false);
   const [dayAsk, setDayAsk] = useState<DayAsk | null>(null);
+  const [fillAsk, setFillAsk] = useState<FillAsk | null>(null);
   const [guide, setGuide] = useState<Guide>(guideForWidth);
   const [me, setMe] = useState<string | null>(null);
   const update = useUpdate();
@@ -252,6 +254,10 @@ function Shell() {
               setReportFocus(true);
             }}
             onOpenLeave={() => go("leave")}
+            onFillMissing={(dates) => {
+              go("review");
+              setFillAsk({ dates, n: ++askCount.current });
+            }}
             ask={dayAsk}
             onAskTaken={() => setDayAsk(null)}
           />
@@ -262,6 +268,8 @@ function Shell() {
             focusReport={reportFocus}
             onOpenHistory={() => go("history")}
             onOpenSettings={() => go("settings")}
+            fill={fillAsk}
+            onFillTaken={() => setFillAsk(null)}
           />
         )}
         {page === "leave" && settings && <LeavePage settings={settings} onOpenSettings={() => go("settings")} />}

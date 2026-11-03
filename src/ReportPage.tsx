@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Settings } from "./api";
 import PageHeader from "./PageHeader";
-import ReportComposer, { type ComposerHandle } from "./ReportComposer";
+import ReportComposer, { type ComposerHandle, type FillAsk } from "./ReportComposer";
 
 interface Props {
   settings: Settings;
@@ -9,10 +9,13 @@ interface Props {
   focusReport: boolean;
   onOpenHistory: () => void;
   onOpenSettings: () => void;
+  /** Opened from the calendar's "fill the short days". */
+  fill: FillAsk | null;
+  onFillTaken: () => void;
 }
 
 /** "Ghi logtime": a work report, analysed, checked and written to Redmine. */
-export default function ReportPage({ settings, focusReport, onOpenHistory, onOpenSettings }: Props) {
+export default function ReportPage({ settings, focusReport, onOpenHistory, onOpenSettings, fill, onFillTaken }: Props) {
   const composer = useRef<ComposerHandle>(null);
 
   useEffect(() => {
@@ -30,6 +33,8 @@ export default function ReportPage({ settings, focusReport, onOpenHistory, onOpe
         settings={settings}
         onOpenSettings={onOpenSettings}
         onOpenHistory={onOpenHistory}
+        fill={fill}
+        onFillTaken={onFillTaken}
       />
     </div>
   );

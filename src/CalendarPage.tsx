@@ -49,6 +49,8 @@ interface Props {
   /** Opens the report page (one or several days). */
   onOpenReport: () => void;
   onOpenLeave: () => void;
+  /** Report the short workdays (up to today) of the month shown in one go. */
+  onFillMissing: (dates: string[]) => void;
   ask: DayAsk | null;
   /** The panel has acted on `ask`. */
   onAskTaken: () => void;
@@ -60,6 +62,7 @@ export default function CalendarPage({
   onOpenHistory,
   onOpenReport,
   onOpenLeave,
+  onFillMissing,
   ask,
   onAskTaken,
 }: Props) {
@@ -140,6 +143,10 @@ export default function CalendarPage({
   /** Rows the month needs, known before its data arrives (keeps the skeleton the same size). */
   const weekCount = Math.ceil((leading + new Date(ym.year, ym.month, 0).getDate()) / 7);
   const today = todayIso();
+  /** Workdays up to today still short of hours in the month shown. */
+  const shortDays = (shown?.days ?? [])
+    .filter((d) => (d.status === "missing" || d.status === "partial") && d.date <= today)
+    .map((d) => d.date);
   const isCurrentMonth = ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
 
   return (
@@ -163,6 +170,16 @@ export default function CalendarPage({
                 <Icon name="chevronRight" />
               </button>
             </div>
+            {shortDays.length > 0 && (
+              <button
+                className="nav-btn nav-solo"
+                onClick={() => onFillMissing(shortDays)}
+                title="Lấy tin Google Chat của các ngày thiếu giờ rồi khớp nhanh, để duyệt và ghi một lần"
+              >
+                <Icon name="report" size={16} />
+                Điền {shortDays.length} ngày thiếu
+              </button>
+            )}
             <button className="nav-btn nav-solo" onClick={goToday} disabled={isCurrentMonth && selected === today}>
               Hôm nay
             </button>

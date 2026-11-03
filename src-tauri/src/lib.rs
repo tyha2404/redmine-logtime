@@ -84,6 +84,7 @@ pub fn run() {
             plan_commands::lookup_issue,
             plan_commands::search_issues,
             plan_commands::list_children,
+            plan_commands::recent_parents,
             plan_commands::list_trackers,
             plan_commands::preview_plan,
             plan_commands::write_plan,

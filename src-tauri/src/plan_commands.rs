@@ -4,7 +4,7 @@
 use logtime_engine::model::{Batch, Op, OpStatus, WritePlan};
 use logtime_engine::plan::{self, ApiCall};
 use logtime_engine::{Store, exec};
-use redmine_client::{Issue, RedmineClient, Tracker};
+use redmine_client::{Issue, RedmineClient, TimeEntry, Tracker};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
@@ -49,6 +49,57 @@ pub async fn search_issues(state: State<'_, AppState>, query: String) -> CmdResu
         };
     }
     client.search_issues(q, 20).await.map_err(err)
+}
+
+/// How far back "Task cha gần đây" looks for the user's time entries.
+const RECENT_DAYS: i64 = 90;
+
+/// Open parent tasks of the issues the user logged time on lately, the most
+/// recently used first: the list a parent picker opens with.
+#[tauri::command]
+pub async fn recent_parents(state: State<'_, AppState>) -> CmdResult<Vec<Issue>> {
+    let client = client_for(&state.credentials, &state.settings(), None)?;
+    let today = chrono::Local::now().date_naive();
+    let entries = client
+        .my_time_entries(today - chrono::Duration::days(RECENT_DAYS), today)
+        .await
+        .map_err(err)?;
+    let logged = recent_issue_ids(&entries);
+    let issues = client.issues_by_ids(&logged).await.map_err(err)?;
+    let parents = parents_in_order(&logged, &issues);
+    let mut found = client.open_issues_by_ids(&parents).await.map_err(err)?;
+    found.sort_by_key(|i| parents.iter().position(|&p| p == i.id));
+    Ok(found)
+}
+
+/// Issues the entries were logged on, latest first, each once.
+fn recent_issue_ids(entries: &[TimeEntry]) -> Vec<u32> {
+    let mut sorted: Vec<&TimeEntry> = entries.iter().collect();
+    sorted.sort_by(|a, b| b.spent_on.cmp(&a.spent_on));
+    let mut ids = Vec::new();
+    for id in sorted.iter().filter_map(|e| e.issue.as_ref().map(|i| i.id)) {
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    ids
+}
+
+/// Parents of `issues`, in the order of `logged`, each once.
+fn parents_in_order(logged: &[u32], issues: &[Issue]) -> Vec<u32> {
+    let mut parents = Vec::new();
+    for id in logged {
+        let parent = issues
+            .iter()
+            .find(|i| i.id == *id)
+            .and_then(|i| i.parent.as_ref());
+        if let Some(p) = parent
+            && !parents.contains(&p.id)
+        {
+            parents.push(p.id);
+        }
+    }
+    parents
 }
 
 /// The current user's sub-tasks of `parent_id`, to log on one that exists.
@@ -244,4 +295,46 @@ pub async fn undo_batch(
 #[tauri::command]
 pub fn list_batches(state: State<'_, AppState>) -> CmdResult<Vec<Batch>> {
     state.store.list_batches(50).map_err(err)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn entry(issue: u32, spent_on: &str) -> TimeEntry {
+        serde_json::from_value(json!({
+            "id": 1, "project": {"id": 1, "name": "ABC"}, "issue": {"id": issue},
+            "user": {"id": 7, "name": "Dev"}, "activity": {"id": 9, "name": "Dev"},
+            "hours": 1.0, "spent_on": spent_on
+        }))
+        .unwrap()
+    }
+
+    fn issue(id: u32, parent: Option<u32>) -> Issue {
+        serde_json::from_value(json!({
+            "id": id, "subject": "x", "project": {"id": 1, "name": "ABC"},
+            "tracker": {"id": 2, "name": "Task"}, "status": {"id": 1, "name": "New"},
+            "author": {"id": 7, "name": "Dev"},
+            "parent": parent.map(|p| json!({"id": p}))
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn recent_parents_follow_the_latest_entry() {
+        let entries = [
+            entry(10, "2026-10-01"),
+            entry(20, "2026-10-20"),
+            entry(11, "2026-10-15"),
+            entry(10, "2026-10-02"),
+        ];
+        let logged = recent_issue_ids(&entries);
+        assert_eq!(logged, vec![20, 11, 10]);
+        // 20 and 10 share parent 2; 11 has none.
+        let issues = [issue(10, Some(2)), issue(11, None), issue(20, Some(2))];
+        assert_eq!(parents_in_order(&logged, &issues), vec![2]);
+        let issues = [issue(10, Some(3)), issue(11, Some(1)), issue(20, Some(2))];
+        assert_eq!(parents_in_order(&logged, &issues), vec![2, 1, 3]);
+    }
 }
