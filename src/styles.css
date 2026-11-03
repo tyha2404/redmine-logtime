@@ -474,6 +474,17 @@ body {
   flex-shrink: 0;
 }
 
+/* Number fields are typed in, without the step buttons (arrow keys still step). */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Calendar page */
 /* The page header spans both columns, as on every other page; below it the
    month and the selected day side by side. */

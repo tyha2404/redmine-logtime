@@ -71,7 +71,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 
 ## Conventions not obvious from the code
 
-- Icons come from Lucide (`lucide-react`), mapped by role in `src/icons.tsx` and used as `<Icon name="…" />`; do not hand-draw SVG icons. The logo is the Redmine logo mark recoloured in the app's blues on a white tile (`BrandMark`, `src-tauri/icons/source.svg`); it is CC BY-SA 2.5 (© 2009 Martin Herr), so keep the attribution in those files and the README.
+- Icons come from Phosphor (`@phosphor-icons/react`, regular weight; `fill` marks the current page in the rail), mapped by role in `src/icons.tsx` and used as `<Icon name="…" />`; do not hand-draw SVG icons. The logo is the Redmine logo mark recoloured in the app's blues on a white tile (`BrandMark`, `src-tauri/icons/source.svg`); it is CC BY-SA 2.5 (© 2009 Martin Herr), so keep the attribution in those files and the README.
 - All user-facing text (UI, errors, README) is Vietnamese. Code, comments and AGENTS/CLAUDE files are English.
 - Every page starts with `PageHeader` (`src/PageHeader.tsx`): title and description on the left, controls on the right (`nav-group`, `.nav-solo`, `RefreshButton`, all 36px). The app never opens Redmine pages; issue numbers are plain text.
 - No coloured borders or accent stripes to tell items apart; use a filled badge or tinted background (e.g. the per-project hue badge on calendar entries).

@@ -229,7 +229,7 @@ function Shell() {
                 onClick={() => go(target)}
               >
                 <span className="rail-icon">
-                  <Icon name={icon} size={22} />
+                  <Icon name={icon} size={22} weight={page === target ? "fill" : "regular"} />
                 </span>
                 <span className="rail-label">{label}</span>
               </button>

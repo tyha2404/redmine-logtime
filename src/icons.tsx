@@ -1,50 +1,51 @@
 import {
-  CalendarDays,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
+  ArrowsClockwise,
+  CalendarDots,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
   Check,
-  Download,
+  ClockCounterClockwise,
+  DownloadSimple,
   FileText,
-  History,
+  List,
   ListChecks,
-  Menu,
-  Pencil,
+  PencilSimple,
   Plus,
-  RefreshCw,
   SlidersHorizontal,
   TreePalm,
   X,
-  type LucideIcon,
-  type LucideProps,
-} from "lucide-react";
+  type Icon as PhosphorIcon,
+  type IconProps,
+} from "@phosphor-icons/react";
 
-/** The app's icons, all from Lucide (lucide.dev), by the role they play here. */
+/** The app's icons, all from Phosphor (phosphoricons.com), by the role they play here. */
 const ICONS = {
-  chevronDown: ChevronDown,
-  chevronLeft: ChevronLeft,
-  chevronRight: ChevronRight,
+  chevronDown: CaretDown,
+  chevronLeft: CaretLeft,
+  chevronRight: CaretRight,
   check: Check,
-  refresh: RefreshCw,
+  refresh: ArrowsClockwise,
   close: X,
-  menu: Menu,
+  menu: List,
   plus: Plus,
   leave: TreePalm,
-  edit: Pencil,
-  download: Download,
+  edit: PencilSimple,
+  download: DownloadSimple,
   // Pages
-  calendar: CalendarDays,
+  calendar: CalendarDots,
   report: FileText,
   review: ListChecks,
-  history: History,
+  history: ClockCounterClockwise,
   settings: SlidersHorizontal,
-} satisfies Record<string, LucideIcon>;
+} satisfies Record<string, PhosphorIcon>;
 
 export type IconName = keyof typeof ICONS;
 
-export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: number } & LucideProps) {
+/** `weight="fill"` marks the current item, e.g. the open page in the rail. */
+export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: number } & IconProps) {
   const Svg = ICONS[name];
-  return <Svg className="icon" size={size} strokeWidth={1.75} aria-hidden focusable="false" {...rest} />;
+  return <Svg className="icon" size={size} aria-hidden focusable="false" {...rest} />;
 }
 
 /** Apple's icon tile: 824px at 100,100, radius 185.4 with continuous corners. */
