@@ -22,6 +22,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 
 ### Frontend ↔ backend
 
+- `useAiRun(slot)` keeps each Claude job in a module-level store by slot (`report`, `day:<date>`, `profile`), so leaving a page does not lose it: the page shows the run again when it comes back and `pending()` hands over the result.
 - `src/api.ts` holds typed wrappers whose shapes mirror the Rust serde structs (snake_case). It calls `src/bridge.ts`, which sends `invoke`/`listen` to Tauri, or to `src/mock.ts` when `VITE_MOCK=1`.
 - Adding or changing a command touches four places:
   - the Rust fn in `src-tauri/src/*_commands.rs`
@@ -41,6 +42,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
    - Claude returns the tasks, dates, candidate parent issues and per-day weights. It never sets the hours.
 3. **Hours (`plan_report`).** `report::plan` → `logtime-core::planner::allocate` splits each day up to `hours_per_day`, minus existing Redmine hours and leave. `remove_duplicates` drops work already logged.
 4. **Review (`src/reportFlow.tsx`).** `useReportFlow` holds the user's edits (parent, sub-task, subject, hours, unticked entries). It re-plans when entries are unticked; the write button stays disabled while `planning`.
+   - Parent and sub-task are `IssuePicker` select-with-search fields. The parent list is the report's parents, then `recent_parents` (open parents of what the user logged in the last 90 days, cached 5 minutes), plus `search_issues` for typed text; the sub-task list is `list_children` plus "Tạo task con mới".
    - `ReportResult` renders one card per day.
    - The same hook and view serve `ReportPage` (multi-day) and the calendar `DayPanel` (one day, `compact`).
 5. **Write.** `buildPlan` produces a `WritePlan { subtasks, items }`. `WriteDialog` is the mandatory confirm step and then shows live progress through the `batch-progress` event.
@@ -77,7 +79,12 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - Colours follow VS Code's Light Modern / Dark Modern themes through the tokens at the top of `src/styles.css` (system UI font at 13px, weights up to 600, 2px radius on controls and 4px on panels, solid blue primary and grey secondary buttons, 1px dividers; section titles are 11px upper case like the side bar's headers; the calendar's day panel is a side bar flush to the right and bottom, below the header). Restyle through those tokens rather than per-component colours.
 - Every page starts with `PageHeader` (`src/PageHeader.tsx`): title and description on the left, controls on the right like the editor's action bar (`nav-group` and `RefreshButton` are flat 26px items; `.nav-solo` text actions are 26px secondary buttons). Pages are full width, so headers line up. A page with a period filter puts it in the same order everywhere: `nav-group` arrows around a 148px `.period-label`/`.month-btn`, then a 72px "Hôm nay"/"Năm nay" `.nav-solo`, then `RefreshButton`; nothing optional sits in the header (the calendar's fill action sits at the right end of the legend row under the grid). The app never opens Redmine pages; issue numbers are plain text.
 - No coloured borders or accent stripes to tell items apart; use a filled badge or tinted background (e.g. the per-project hue badge on calendar entries).
+- Cards, tabs and dividers are the same on every page:
+  - `.card` is the one box (surface, 1px `--line` border, `--radius-m`, 16px 20px padding, 13px semibold title). Pages sit on the window background; do not wrap a whole page or form in a card, nor nest cards.
+  - A grouped list (report days `.rday-group`, history `.batch`, leave months `.list-card`) is a card with a `--surface-2` head row naming the group and rows split by a single 1px line.
+  - `Tabs` (`src/Tabs.tsx`, `.tabs`) is the only tab strip, for switching what a page or form shows (Settings, manual entry's "Issue có sẵn / Tạo task con"); value choices inside a form use `.segmented`.
+  - Section headings (`.section-title`, `.composer-sub`) are 11px upper case. Separate areas with 1px `--line` borders, never `box-shadow` rings.
 - Dialogs are native `<dialog>` elements wired through `useModal(onClose, locked)`. They close on Esc and on a backdrop click unless `locked`, e.g. while writing. Popovers such as `DateRangePicker` and `IssuePicker` close on an outside `pointerdown` and on Esc.
 - The report prompt in `crates/ai-bridge/src/report.rs` is an `r#"…"#` raw string: never write `"#` inside it. Keep it principle-based rather than tied to one team's report format.
 - Never write to a real Redmine while testing. Use mock mode, or Docker Redmine for writes.
-- README screenshots in `docs/images/` are captured from mock mode.
+- README screenshots in `docs/images/` are captured from mock mode in the light appearance at 1280×800.

@@ -1196,7 +1196,7 @@ button.stat:hover {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
-  padding: 20px 22px;
+  padding: 16px 20px;
 }
 .card-scroll {
   max-height: 180px;
@@ -1458,11 +1458,6 @@ select::-ms-expand {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 28px;
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  box-shadow: none;
-  border: 1px solid var(--line);
 }
 .composer-head {
   display: flex;
@@ -1494,8 +1489,11 @@ select::-ms-expand {
 }
 .composer-sub {
   margin: 18px 0 4px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-transform: uppercase;
 }
 .composer-actions {
   display: flex;
@@ -1606,18 +1604,12 @@ select::-ms-expand {
   flex-direction: column;
   gap: 12px;
 }
-.batch {
-  border-bottom: 1px solid var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-m);
-  background: var(--surface);
-}
 .batch-head {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr) auto;
   gap: 14px;
   width: 100%;
-  padding: 20px;
+  padding: 10px 16px;
   border: 0;
   background: none;
   text-align: left;
@@ -1642,9 +1634,7 @@ select::-ms-expand {
   justify-content: flex-end;
 }
 .batch-body {
-  padding: 0 20px 20px;
-  margin: 0 20px;
-  border-top: 1px solid var(--line);
+  padding: 12px 16px 16px;
 }
 .batch-body .progress {
   margin: 8px 0 14px;
@@ -1729,9 +1719,8 @@ select::-ms-expand {
 
 .ai-questions {
   padding: 12px 14px;
-  border-left: 3px solid var(--partial);
-  background: color-mix(in srgb, var(--partial) 9%, transparent);
-  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: color-mix(in srgb, var(--partial) 12%, transparent);
+  border-radius: var(--radius-m);
 }
 .ai-questions p {
   margin: 0 0 4px;
@@ -2264,21 +2253,13 @@ select::-ms-expand {
 .leave-months {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 12px;
 }
-.leave-month h3 {
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
-}
+
 .leave-month ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
 }
 .leave-month li {
   display: grid;
@@ -2286,7 +2267,7 @@ select::-ms-expand {
   grid-template-columns: minmax(150px, 1.2fr) minmax(140px, 1fr) minmax(80px, 1fr) 64px;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 12px 16px;
 }
 .leave-month li + li {
   border-top: 1px solid var(--line);
@@ -2873,9 +2854,26 @@ select::-ms-expand {
   gap: 14px;
 }
 /* Not clipped, so a picker's list can open past the card; the ends carry the corners instead. */
-.rday-group {
+/* A list card: the head row names the group (a day, a write, a month), rows
+   below are split by one line. Report days, history batches and leave months
+   all use it. */
+.rday-group,
+.batch,
+.list-card {
+  border: 1px solid var(--line);
   border-radius: var(--radius-m);
-  box-shadow: 0 0 0 1px var(--line);
+  background: var(--surface);
+}
+.rday-head,
+.list-card-head {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-m) var(--radius-m) 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .rday-group > :first-child {
   border-top-left-radius: inherit;
@@ -2890,9 +2888,6 @@ select::-ms-expand {
   grid-template-columns: auto auto minmax(80px, 1fr);
   align-items: center;
   gap: 4px 14px;
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
 }
 .rday-title {
   margin: 0;
@@ -2925,7 +2920,7 @@ select::-ms-expand {
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: start;
   gap: 4px 12px;
-  padding: 14px 16px;
+  padding: 12px 16px;
 }
 .rentry + .rentry {
   border-top: 1px solid var(--line);
@@ -3493,35 +3488,38 @@ dialog.is-closing::backdrop {
   margin-left: -132px;
 }
 
-.settings-nav {
+/* The one tab strip (Tabs.tsx): switches what a page or form shows. Value
+   choices inside a form use .segmented instead. */
+.tabs {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
-.settings-nav [role="tab"] {
+.tabs [role="tab"] {
   flex: none;
-  padding: 12px 2px;
+  padding: 8px 2px;
   border: 0;
-  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--ink-2);
   font-size: 13px;
-  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
-.settings-nav [role="tab"]:hover {
+.tabs [role="tab"]:hover {
   color: var(--ink);
 }
-.settings-nav [role="tab"][aria-selected="true"] {
-  border-bottom-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
+/* Drawn inside the tab: the strip scrolls sideways and would clip anything below it. */
+.tabs [role="tab"][aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+  color: var(--ink);
 }
-.settings-nav [role="tab"]:focus-visible {
-  outline-offset: -3px;
+.tabs [role="tab"]:focus-visible {
+  outline-offset: -1px;
+}
+.add-form .tabs {
+  margin-bottom: 14px;
 }
 .settings-group {
   margin-bottom: 24px;
@@ -3584,8 +3582,11 @@ dialog.is-closing::backdrop {
   margin-top: 36px;
   margin-bottom: 16px;
 }
+/* Open, the head becomes the list card's head row. */
 .batch.is-open .batch-head {
   background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-m) var(--radius-m) 0 0;
 }
 .batch-body > .small {
   margin-block: 16px;

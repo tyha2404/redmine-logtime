@@ -153,8 +153,8 @@ function DayList({ days, hoursPerDay }: { days: LeaveDay[]; hoursPerDay: number 
   return (
     <div className="leave-months">
       {[...months].map(([m, list]) => (
-        <section key={m} className="leave-month">
-          <h3>Tháng {Number(m.slice(5))}</h3>
+        <section key={m} className="leave-month list-card">
+          <h3 className="list-card-head">Tháng {Number(m.slice(5))}</h3>
           <ul>
             {list.map((d) => (
               <li key={`${d.date}-${d.type.project_id}`}>

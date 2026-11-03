@@ -55,7 +55,7 @@ make dev
 make mock
 ```
 
-Mở `http://localhost:1430/?page=calendar`. Có thể đổi `calendar` thành `review`, `leave`, `history`, `settings`; dùng `?setup=1` để xem màn kết nối lần đầu, thêm `&slow=1` để dữ liệu mẫu trả về chậm và xem skeleton khi tải.
+Mở `http://localhost:1430/?page=calendar`. Có thể đổi `calendar` thành `review`, `leave`, `history`, `settings`; dùng `?setup=1` để xem màn kết nối lần đầu, thêm `&slow=1` để dữ liệu mẫu trả về chậm và xem skeleton khi tải, `&update=1` để có bản mới giả lập (xem nút cập nhật ở thanh bên trái và thanh trạng thái).
 
 Chế độ này dùng `src/mock.ts`, với dữ liệu tháng 10/2026; không cần Tauri hoặc Redmine. Không bật `VITE_MOCK` khi build bản dùng thật. `npm run dev` chỉ chạy Vite, không tự bật dữ liệu mẫu.
 

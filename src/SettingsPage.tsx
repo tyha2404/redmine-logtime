@@ -7,6 +7,7 @@ import LeaveSettings from "./LeaveSettings";
 import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
 import PageHeader from "./PageHeader";
+import Tabs from "./Tabs";
 import type { Update } from "./useUpdate";
 
 const WEEKDAYS: [number, string][] = [
@@ -235,34 +236,7 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
     <div className="settings page-pad">
       <PageHeader title="Cài đặt" description="Kết nối tài khoản và điều chỉnh app theo cách làm việc của bạn." />
 
-      <div className="settings-nav" role="tablist" aria-label="Các nhóm cài đặt">
-        {SETTINGS_TABS.map(({ id, label }, index) => (
-          <button
-            key={id}
-            id={`settings-tab-${id}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls={`settings-${id}`}
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => setTab(id)}
-            onKeyDown={(event) => {
-              let next: number;
-              if (event.key === "ArrowRight") next = (index + 1) % SETTINGS_TABS.length;
-              else if (event.key === "ArrowLeft") next = (index + SETTINGS_TABS.length - 1) % SETTINGS_TABS.length;
-              else if (event.key === "Home") next = 0;
-              else if (event.key === "End") next = SETTINGS_TABS.length - 1;
-              else return;
-              event.preventDefault();
-              const target = SETTINGS_TABS[next].id;
-              setTab(target);
-              document.getElementById(`settings-tab-${target}`)?.focus();
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={SETTINGS_TABS} value={tab} onChange={setTab} label="Các nhóm cài đặt" idPrefix="settings" />
 
       <section
         className="settings-group"

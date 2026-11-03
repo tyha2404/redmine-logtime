@@ -11,6 +11,7 @@ import {
   type Tracker,
 } from "./api";
 import { fmtHours } from "./fmt";
+import Tabs from "./Tabs";
 
 type Mode = "existing" | "subtask";
 
@@ -137,14 +138,15 @@ export default function AddEntryForm({ date, settings, remainingHours, onAdd, on
 
   return (
     <form className="add-form" onSubmit={submit} noValidate>
-      <div className="segmented" role="radiogroup" aria-label="Ghi vào đâu">
-        <button type="button" role="radio" aria-checked={mode === "existing"} onClick={() => setMode("existing")}>
-          Issue có sẵn
-        </button>
-        <button type="button" role="radio" aria-checked={mode === "subtask"} onClick={() => setMode("subtask")}>
-          Tạo task con
-        </button>
-      </div>
+      <Tabs
+        items={[
+          { id: "existing", label: "Issue có sẵn" },
+          { id: "subtask", label: "Tạo task con" },
+        ]}
+        value={mode}
+        onChange={setMode}
+        label="Ghi vào đâu"
+      />
 
       <label className="field">
         <span>{mode === "existing" ? "Issue" : "Issue cha (do BA tạo)"}</span>

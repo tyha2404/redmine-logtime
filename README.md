@@ -24,7 +24,7 @@ Mở **Redmine Logtime**, nhập địa chỉ Redmine và API key (trên Redmine
 
 Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/): chạy `claude` trong Terminal để đăng nhập, rồi **Cài đặt → Ghi giờ & AI → Chạy thử Claude** và **Phân tích cấu trúc Redmine**.
 
-**1.** Vào **Ghi logtime**, dán báo cáo (hoặc **Lấy từ Google Chat**) → **Phân tích bằng AI**.
+**1.** Vào **Ghi logtime**, dán báo cáo (hoặc **Lấy từ Google Chat**) → **Phân tích bằng AI**. Trong lúc chờ có thể sang trang khác; quay lại vẫn thấy tiến trình và kết quả.
 
 ![Dán báo cáo](docs/images/report-paste.png)
 
@@ -32,7 +32,7 @@ Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh
 
 ![Kết quả theo ngày](docs/images/report-result.png)
 
-Bấm dòng **task cha › task con** dưới tên việc để đổi task; thay đổi áp dụng cho việc đó ở mọi ngày.
+Bấm dòng **task cha › task con** dưới tên việc để đổi task. Ô **Task cha** mở danh sách task cha bạn đã log gần đây, ô **Task con** mở các task con của bạn (hoặc **Tạo task con mới**); gõ `#id` hoặc tên để lọc (không cần dấu), task cha còn tìm thêm trên Redmine. Thay đổi áp dụng cho việc đó ở mọi ngày.
 
 ![Đổi task cha và task con](docs/images/report-edit-task.png)
 
