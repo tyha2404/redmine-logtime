@@ -48,7 +48,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Khớp nhanh](docs/images/quick-match.png)
 
-**Điền các ngày thiếu:** trên **Lịch tháng**, bấm **Điền N ngày thiếu**. App lấy tin Google Chat của các ngày thiếu giờ (và sáng hôm sau), chạy **Khớp nhanh** rồi hiện kết quả để duyệt và ghi một lần. Ngày không có tin nào được liệt kê để bạn tự nhập.
+**Điền các ngày thiếu:** trên **Lịch tháng**, bấm **Điền N ngày thiếu** ở cuối lịch, cạnh chú thích màu. App lấy tin Google Chat của các ngày thiếu giờ (và sáng hôm sau), chạy **Khớp nhanh** rồi hiện kết quả để duyệt và ghi một lần. Ngày không có tin nào được liệt kê để bạn tự nhập.
 
 ## Việc khác
 
@@ -76,7 +76,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ## Cập nhật, gỡ cài đặt
 
-- **Cập nhật:** app tự kiểm tra bản mới khi mở và vài giờ một lần; muốn kiểm tra ngay thì bấm **Kiểm tra bản cập nhật** ở **Cài đặt → Ứng dụng → Phiên bản**. Khi có bản mới, bấm biểu tượng tải xuống có chấm đỏ ở góc trên → **Cập nhật và khởi động lại**. Nếu không được, chạy lại lệnh cài đặt.
+- **Cập nhật:** app tự kiểm tra bản mới khi mở và vài giờ một lần; muốn kiểm tra ngay thì bấm **Kiểm tra bản cập nhật** ở **Cài đặt → Ứng dụng → Phiên bản**. Khi có bản mới, bấm biểu tượng tải xuống có chấm đỏ ở cuối thanh bên trái (hoặc **Có bản …** ở thanh dưới cùng) → **Cập nhật và khởi động lại**. Nếu không được, chạy lại lệnh cài đặt.
 - **Gỡ:** `curl -fsSL https://raw.githubusercontent.com/tyha2404/redmine-logtime/HEAD/scripts/install.sh | bash -s -- --uninstall`. Cài đặt và API key vẫn giữ trên máy; logtime trên Redmine không bị xoá.
 
 ## Khi gặp lỗi
@@ -88,4 +88,4 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ---
 
-Người đóng góp: [Hướng dẫn phát triển](docs/development.md) · [Quy ước](AGENTS.md). Mã nguồn theo giấy phép [MIT](LICENSE). Logo dựa trên [logo Redmine](https://www.redmine.org/projects/redmine/wiki/Logo) © 2009 Martin Herr, đổi màu, theo giấy phép [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/). Redmine Logtime không phải sản phẩm chính thức của Redmine.
+Người đóng góp: [Hướng dẫn phát triển](docs/development.md) · [Quy ước](AGENTS.md). Mã nguồn theo giấy phép [MIT](LICENSE). Logo dựa trên [logo Redmine](https://www.redmine.org/projects/redmine/wiki/Logo) © 2009 Martin Herr, đổi màu, theo giấy phép [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/). Icon là [Codicons](https://github.com/microsoft/vscode-codicons) © Microsoft, theo giấy phép [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Redmine Logtime không phải sản phẩm chính thức của Redmine.

@@ -1,42 +1,50 @@
-/* Shared workspace tokens: quiet surfaces, clear hierarchy, Redmine blue actions. */
+/* Workspace tokens after VS Code's default themes: "Light Modern" here,
+   "Dark Modern" below. Flat surfaces, thin borders, one blue for actions. */
 :root {
-  --bg: #f5f7fa;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f7f9fb;
-  --ink: #263748;
-  --ink-2: #617183;
-  --line: #e0e6ed;
-  --accent: #1b6897;
+  --surface-2: #f8f8f8;
+  --ink: #3b3b3b;
+  --ink-2: #6e6e6e;
+  --line: #e5e5e5;
+  --accent: #005fb8;
   --accent-ink: #ffffff;
-  --primary: var(--accent);
-  --primary-ink: var(--accent-ink);
-  --link-hover: #b33d45;
+  --primary: #005fb8;
+  --primary-ink: #ffffff;
+  --primary-hover: #0258a8;
+  --link-hover: #005fb8;
+  --focus: #005fb8;
+  /* Secondary buttons, text fields, hover on flat controls. */
+  --btn2-bg: #e5e5e5;
+  --btn2-ink: #3b3b3b;
+  --btn2-hover: #cccccc;
+  --input-bg: #ffffff;
+  --input-line: #cecece;
+  --hover: rgba(184, 184, 184, 0.31);
+  --scroll-thumb: rgba(100, 100, 100, 0.4);
 
-  /* Neutral application chrome leaves blue for navigation and actions. */
-  --mast-bg: #ffffff;
-  --mast-ink: #263748;
-  --mast-line: #e0e6ed;
-  --mast-hover: #eef3f7;
-  --mast-pill: rgba(255, 255, 255, 0.1);
-  --avatar-bg: #426b8b;
-  --guide-bg: #f5f7fa;
-  --guide-ink: #263748;
-  --guide-hover: #eaf0f5;
-  --guide-active: #e4eef6;
-  --guide-active-ink: #1b587d;
-  --guide-active-icon: #1b6897;
+  /* Chrome: activity bar and status bar. */
+  --avatar-bg: #005fb8;
+  --guide-bg: #f8f8f8;
+  --guide-ink: #1f1f1f;
+  --guide-hover: rgba(184, 184, 184, 0.31);
+  --guide-active: transparent;
+  --guide-active-icon: #1f1f1f;
+  --activity-ink: #616161;
+  --status-remote-bg: #005fb8;
+  --status-remote-ink: #ffffff;
 
-  --full: #2f7a3e;
-  --partial: #95650d;
-  --missing: #b33d45;
-  --over: #4a7fb5;
-  --leave: #7a5ea8;
+  --full: #388a34;
+  --partial: #bf8803;
+  --missing: #e51400;
+  --over: #1a85ff;
+  --leave: #8f4ac6;
   --off: #cccccc;
-  --pending: #1b6897;
+  --pending: #005fb8;
 
   /* One height for text fields and dropdowns, one for compact inline ones. */
-  --control-h: 40px;
-  --control-h-s: 32px;
+  --control-h: 32px;
+  --control-h-s: 28px;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
   /* Motion: every animation and transition runs at a constant (linear) pace. */
   --motion-fast: 120ms;
@@ -44,49 +52,56 @@
   --motion-slow: 360ms;
   --skel: color-mix(in srgb, var(--ink) 7%, transparent);
   --skel-hi: color-mix(in srgb, var(--ink) 14%, transparent);
-  --radius-s: 7px;
-  --radius-m: 12px;
-  --font: "Be Vietnam Pro", system-ui, sans-serif;
+  --radius-s: 2px;
+  --radius-m: 4px;
+  /* VS Code's UI font: the system's own. */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Droid Sans", system-ui, sans-serif;
   color-scheme: light;
   --page-gutter: clamp(20px, 3vw, 40px);
   --space-section: 32px;
 }
 
-/* System dark appearance keeps the same hierarchy and blue actions. */
+/* System dark appearance: VS Code's "Dark Modern". */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #131c26;
-    --surface: #1b2734;
-    --surface-2: #17222e;
-    --ink: #e5edf5;
-    --ink-2: #a4b3c4;
-    --line: #314151;
-    --accent: #75b7e7;
-    --accent-ink: #131c26;
-    --primary: #75b7e7;
-    --primary-ink: #131c26;
-    --link-hover: #8ccaff;
+    --bg: #1f1f1f;
+    --surface: #181818;
+    --surface-2: #252526;
+    --ink: #cccccc;
+    --ink-2: #9d9d9d;
+    --line: #2b2b2b;
+    --accent: #4daafc;
+    --accent-ink: #1f1f1f;
+    --primary: #0078d4;
+    --primary-ink: #ffffff;
+    --primary-hover: #026ec1;
+    --link-hover: #4daafc;
+    --focus: #0078d4;
+    --btn2-bg: #313131;
+    --btn2-ink: #cccccc;
+    --btn2-hover: #3c3c3c;
+    --input-bg: #313131;
+    --input-line: #3c3c3c;
+    --hover: rgba(90, 93, 94, 0.31);
+    --scroll-thumb: rgba(121, 121, 121, 0.4);
 
-    --mast-bg: #131c26;
-    --mast-ink: #e5edf5;
-    --mast-line: #131c26;
-    --mast-hover: #243545;
-    --mast-pill: #243545;
-    --avatar-bg: #5c6bc0;
-    --guide-bg: #131c26;
-    --guide-ink: #e5edf5;
-    --guide-hover: #243545;
-    --guide-active: #243545;
-    --guide-active-ink: #e5edf5;
-    --guide-active-icon: #e5edf5;
+    --avatar-bg: #0078d4;
+    --guide-bg: #181818;
+    --guide-ink: #d7d7d7;
+    --guide-hover: rgba(90, 93, 94, 0.31);
+    --guide-active: transparent;
+    --guide-active-icon: #d7d7d7;
+    --activity-ink: #868686;
+    --status-remote-bg: #0078d4;
+    --status-remote-ink: #ffffff;
 
-    --full: #2ba640;
-    --partial: #f2b33d;
-    --missing: #ff4e45;
-    --over: #8ab4f8;
-    --leave: #b49cf5;
+    --full: #2ea043;
+    --partial: #cca700;
+    --missing: #f85149;
+    --over: #3794ff;
+    --leave: #b180d7;
     --off: #3f3f3f;
-    --pending: #75b7e7;
+    --pending: #4daafc;
     --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aaaaaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
     color-scheme: dark;
   }
@@ -106,7 +121,7 @@ body,
 body {
   background: var(--bg);
   color: var(--ink);
-  font: 400 14px/1.6 var(--font);
+  font: 400 13px/1.5 var(--font);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -120,8 +135,25 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 1px solid var(--focus);
+  outline-offset: -1px;
+}
+
+/* Thin overlay scrollbars, as in the editor. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--scroll-thumb) 100%, var(--ink) 15%);
 }
 
 .muted {
@@ -153,239 +185,149 @@ html,
 body {
   overflow: hidden;
 }
+/* Like an editor: an icon-only activity bar on the left, the page, and a
+   status bar along the bottom. */
 .shell {
-  --mast-h: 56px;
-  --guide-w: 208px;
+  --activity-w: 48px;
+  --status-h: 22px;
   display: grid;
-  grid-template-columns: var(--guide-w) minmax(0, 1fr);
-  grid-template-rows: var(--mast-h) minmax(0, 1fr);
+  grid-template-columns: var(--activity-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--status-h);
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
 }
-.shell.guide-mini {
-  --guide-w: 80px;
+.shell > .main {
+  grid-column: 2;
+  grid-row: 1;
 }
 
-/* Masthead */
-.mast {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 24px;
-  background: var(--mast-bg);
-  color: var(--mast-ink);
-  border-bottom: 1px solid var(--mast-line);
-  user-select: none;
-  -webkit-user-select: none;
-}
-.mast-start,
-.mast-end {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mast-start {
-  gap: 12px;
-}
-.mast-context {
-  max-width: 36ch;
-  padding-left: 16px;
-  border-left: 1px solid var(--line);
-  overflow: hidden;
-  color: var(--ink-2);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mast-btn {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-}
-.mast-btn:hover {
-  background: var(--mast-hover);
-}
-/* Update indicator, kept separate from the navigation state. */
-.mast-btn.has-dot::after {
-  content: "";
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--missing);
-  box-shadow: 0 0 0 2px var(--mast-bg);
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: -0.03em;
-}
 .brand-mark {
   display: block;
   flex-shrink: 0;
 }
+
+/* Activity bar */
+.activity {
+  /* Where the bar's colour and dividing line start: below the traffic lights on macOS. */
+  --divider-top: 0px;
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow-y: auto;
+  /* Drawn as backgrounds so the bar and its divider can start lower: on macOS
+     the traffic lights sit on the window's own background, uncut. */
+  background:
+    linear-gradient(var(--line), var(--line)) right var(--divider-top) / 1px calc(100% - var(--divider-top)) no-repeat,
+    linear-gradient(var(--guide-bg), var(--guide-bg)) 0 var(--divider-top) / 100% calc(100% - var(--divider-top))
+      no-repeat;
+  color: var(--guide-ink);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.activity-item {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--activity-ink);
+  cursor: pointer;
+}
+.activity-item:hover,
+.activity-item[aria-current="page"] {
+  color: var(--guide-active-icon);
+}
+.activity-item.is-static {
+  cursor: default;
+}
+.activity-item.is-static:hover {
+  background: none;
+}
+.activity-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+/* Update indicator, kept separate from the navigation state. */
+.activity-icon.has-dot::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--missing);
+  box-shadow: 0 0 0 2px var(--guide-bg);
+}
+.activity-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: auto;
+}
 .avatar {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin-left: 8px;
-  border: 0;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--avatar-bg);
   color: #fff;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  cursor: default;
-}
-.mast :focus-visible {
-  outline-color: var(--mast-ink);
 }
 
-/* Fixed cells, so the guide can float (narrow drawer) without the page
-   sliding into its column. */
-.rail {
-  grid-column: 1;
+/* Status bar */
+.statusbar {
+  grid-column: 1 / -1;
   grid-row: 2;
-  padding: 20px 12px;
-  border-right: 1px solid var(--line);
-}
-.shell > .main {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-/* Guide */
-.rail {
-  position: relative;
   display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 12px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 0 4px 0 0;
   background: var(--guide-bg);
-  color: var(--guide-ink);
-}
-.guide-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.guide-section + .guide-section {
-  position: relative;
-  margin-top: 24px;
-  padding-top: 20px;
-}
-.guide-section + .guide-section::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  color: var(--ink);
   border-top: 1px solid var(--line);
+  font-size: 12px;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.rail-item {
+.status-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 44px;
-  padding: 0 12px;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 8px;
   border: 0;
-  border-radius: var(--radius-s);
   background: none;
   color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font-size: 13px;
+  font: inherit;
+  white-space: nowrap;
 }
-.rail-item:hover {
+/* The connection sits where the editor shows its remote: a filled blue block. */
+.status-item.is-remote {
+  padding: 0 10px;
+  background: var(--status-remote-bg);
+  color: var(--status-remote-ink);
+}
+.status-item.is-action {
+  cursor: pointer;
+}
+.status-item.is-action:hover {
   background: var(--guide-hover);
 }
-.rail-item[aria-current="page"] {
-  background: var(--guide-active);
-  color: var(--guide-active-ink);
-  font-weight: 600;
-}
-.rail-item[aria-current="page"] .icon {
-  color: var(--guide-active-icon);
-}
-.rail-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-.rail-label {
+.status-fill {
   flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.guide-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: auto;
-  padding: 16px 12px 4px;
-  color: var(--ink-2);
-  font-size: 12px;
-  line-height: 1.6;
-}
-.guide-foot p {
-  margin: 0;
-}
-
-/* Compact navigation keeps labels visible on narrow desktop windows. */
-.guide-mini .rail {
-  padding: 16px 8px;
-}
-.guide-mini .guide-section {
-  gap: 4px;
-}
-.guide-mini .guide-section + .guide-section {
-  margin-top: 8px;
-  padding-top: 8px;
-}
-.guide-mini .guide-section + .guide-section::before {
-  left: 8px;
-  right: 8px;
-}
-.guide-mini .rail-item {
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  height: 68px;
-  /* No side padding: the bold "Ghi logtime" needs the full 60px. */
-  padding: 0;
-  text-align: center;
-  font-size: 10px;
-  font-weight: 400;
-}
-.guide-mini .rail-item[aria-current="page"] {
-  font-weight: 600;
-}
-.guide-mini .rail-label {
-  flex: none;
-  width: 100%;
-}
-.guide-mini .guide-foot {
-  display: none;
 }
 
 /* Positioned so hidden inputs and screen-reader text inside a page stay in
@@ -401,17 +343,18 @@ body {
 
 /* Buttons */
 .btn {
-  border: 1px solid var(--line);
-  background: var(--surface);
+  border: 1px solid transparent;
+  background: var(--btn2-bg);
+  color: var(--btn2-ink);
   border-radius: var(--radius-s);
-  padding: 7px 14px;
+  padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
-  min-height: 36px;
+  min-height: 28px;
   line-height: 1.4;
 }
 .btn:hover:not(:disabled) {
-  border-color: var(--ink-2);
+  background: var(--btn2-hover);
 }
 .btn:disabled {
   opacity: 0.55;
@@ -419,31 +362,29 @@ body {
 }
 .btn.primary {
   background: var(--primary);
-  border-color: var(--primary);
   color: var(--primary-ink);
-  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
 }
 .btn.ghost {
   background: transparent;
-  border-color: transparent;
+  color: var(--ink);
 }
 .btn.ghost:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: var(--line);
+  background: var(--hover);
 }
 .btn.danger {
   color: var(--missing);
 }
 .btn.danger-solid {
   background: var(--missing);
-  border-color: var(--missing);
   color: #fff;
-  font-weight: 600;
 }
 .btn.small {
-  padding: 3px 10px;
-  font-size: 13px;
-  min-height: 30px;
+  padding: 2px 8px;
+  font-size: 12px;
+  min-height: 24px;
 }
 .btn.block {
   width: 100%;
@@ -469,9 +410,35 @@ body {
   margin-top: 14px;
 }
 
-.icon {
+/* Codicons are a font; sized as a box like an SVG would be (beats codicon.css, loaded later). */
+.icon.codicon {
   display: block;
   flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Checkboxes as in the editor's settings: a small filled box and a check. */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--input-line);
+  border-radius: 3px;
+  background: var(--input-bg) center / 12px 12px no-repeat;
+  vertical-align: middle;
+  cursor: pointer;
+}
+input[type="checkbox"]:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-width='1.6' d='m3.5 8.2 3 3 6-6.4'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Number fields are typed in, without the step buttons (arrow keys still step). */
@@ -488,18 +455,33 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Calendar page */
 /* The page header spans both columns, as on every other page; below it the
    month and the selected day side by side. */
+/* Like the editor with its secondary side bar: the month on the left, the
+   selected day in a panel flush to the right and bottom, split by one line. */
 .calendar-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(320px, 28vw, 380px);
   grid-template-rows: auto minmax(0, 1fr);
-  column-gap: 24px;
   /* The page fills the window; the month grid takes whatever height is left. */
   height: 100%;
   min-height: 560px;
-  padding: 32px var(--page-gutter) 20px;
 }
 .calendar-page > .page-head {
   grid-column: 1 / -1;
+  grid-row: 1;
+  padding: 32px var(--page-gutter) 0;
+}
+.calendar-page > .calendar-col {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 0 var(--page-gutter) 20px;
+}
+.calendar-page > .day-panel {
+  grid-column: 2;
+  grid-row: 2;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: 0;
 }
 
 .calendar-col {
@@ -563,7 +545,7 @@ input[type="number"]::-webkit-outer-spin-button {
   background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 .month-pop-item[data-now] {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--accent);
 }
 .month-pop-item[aria-pressed="true"] {
@@ -614,7 +596,7 @@ button.stat:hover {
 }
 .stat-value strong {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 .stat-progress {
   min-width: 0;
@@ -647,33 +629,31 @@ button.stat:hover {
   color: var(--leave);
 }
 
+/* Toolbars work like the editor's action bar: flat 26px items that only
+   show a background on hover. */
 .nav-group {
   display: flex;
-  padding: 3px;
   gap: 2px;
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
 }
 .nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
-  padding: 0 12px;
+  height: 26px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 5px;
   background: none;
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
 }
 .nav-btn.icon-only {
-  width: 30px;
+  width: 26px;
   padding: 0;
 }
 .nav-btn:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: var(--hover);
 }
 .nav-btn:disabled {
   color: var(--ink-2);
@@ -684,12 +664,8 @@ button.stat:hover {
 }
 /* Refresh stands alone, quieter than the month control. */
 .nav-btn.refresh {
-  height: 36px;
-  width: 36px;
-  color: var(--ink-2);
-}
-.nav-btn.refresh:hover:not(:disabled) {
-  background: var(--surface);
+  height: 26px;
+  width: 26px;
   color: var(--ink);
 }
 .nav-btn.refresh.is-loading .icon {
@@ -907,6 +883,25 @@ button.stat:hover {
   color: var(--ink-2);
   font-size: 12px;
 }
+/* Under the grid: the legend, and on the right the fill action. A fixed
+   height keeps the grid where it is when the action comes and goes. */
+.calendar-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 24px;
+  margin-top: 16px;
+}
+.calendar-foot .legend {
+  margin: 0;
+}
+.calendar-foot .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .legend li {
   display: flex;
   align-items: center;
@@ -942,7 +937,7 @@ button.stat:hover {
 }
 .panel-title {
   margin: 0;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.45;
 }
@@ -1098,15 +1093,15 @@ button.stat:hover {
 }
 
 /* Settings */
+/* Pages fill the width like an editor, so every page header (and its
+   filters, top right) sits at the same place. */
 .page-pad {
   padding: 32px var(--page-gutter) 40px;
   width: 100%;
-  max-width: 1320px;
-  margin-inline: auto;
 }
 .page-title {
   margin: 0 0 24px;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.025em;
@@ -1211,7 +1206,7 @@ button.stat:hover {
 .card h2,
 .card h3 {
   margin: 0 0 16px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
 }
 .hint {
@@ -1242,10 +1237,16 @@ button.stat:hover {
 .field input,
 .field select,
 .field textarea {
-  border: 1px solid var(--line);
+  border: 1px solid var(--input-line);
   border-radius: var(--radius-s);
-  background-color: var(--surface-2);
-  padding: 7px 12px;
+  background-color: var(--input-bg);
+  padding: 4px 8px;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--focus);
+  outline: none;
 }
 /* Text fields and dropdowns share one box, whatever the engine's defaults. */
 .field input:not([type="checkbox"]):not([type="radio"]),
@@ -1574,7 +1575,7 @@ select::-ms-expand {
   padding: 8px 0;
 }
 .op-mark {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink-2);
 }
 .op.is-done .op-mark {
@@ -1667,16 +1668,23 @@ select::-ms-expand {
   width: 100%;
   min-height: 220px;
   resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-m);
-  background: var(--surface-2);
-  padding: 16px;
-  line-height: 1.8;
+  border: 1px solid var(--input-line);
+  border-radius: var(--radius-s);
+  background: var(--input-bg);
+  padding: 8px 10px;
+  line-height: 1.6;
 }
+.report-text:focus {
+  border-color: var(--focus);
+  outline: none;
+}
+/* Like the editor's side bar section headers: small, upper case. */
 .section-title {
   margin: 26px 0 8px;
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .ai-log {
@@ -1759,12 +1767,16 @@ select::-ms-expand {
   font-size: 13px;
   color: var(--ink-2);
 }
+.subject-input:focus {
+  border-color: var(--focus);
+  outline: none;
+}
 .subject-input {
   width: 100%;
   height: var(--control-h-s);
-  border: 1px solid var(--line);
+  border: 1px solid var(--input-line);
   border-radius: var(--radius-s);
-  background: var(--surface-2);
+  background: var(--input-bg);
   padding: 0 8px;
 }
 
@@ -1846,9 +1858,10 @@ select::-ms-expand {
   height: 28px;
   z-index: 40;
 }
-/* The traffic lights sit at the masthead's left end. */
-[data-titlebar="overlay"] .mast {
-  padding-left: 84px;
+/* The traffic lights sit above the activity bar's first item. */
+[data-titlebar="overlay"] .activity {
+  --divider-top: 32px;
+  padding-top: 32px;
 }
 [data-titlebar="overlay"] .main,
 [data-titlebar="overlay"] .day-panel {
@@ -1873,7 +1886,7 @@ select::-ms-expand {
 }
 .week-logged {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .week-expected {
   color: var(--ink-2);
@@ -1916,7 +1929,8 @@ select::-ms-expand {
 .toasts {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  /* Clear of the status bar. */
+  bottom: 40px;
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -1930,27 +1944,29 @@ select::-ms-expand {
   align-items: center;
   gap: 14px;
   max-width: 420px;
-  padding: 10px 8px 10px 16px;
+  padding: 8px 6px 8px 14px;
   border-radius: var(--radius-m);
-  background: var(--ink);
-  color: var(--surface);
+  /* The editor's notification: a raised panel in the theme's own colours. */
+  background: var(--surface-2);
+  color: var(--ink);
   font-size: 13px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 0 8px 2px rgba(0, 0, 0, 0.36);
   animation: toast-in var(--motion) linear;
 }
 .toast.is-error {
-  background: var(--missing);
-  color: #fff;
+  background: color-mix(in srgb, var(--missing) 18%, var(--surface-2));
 }
 .toast-action {
   border: 0;
   background: none;
   padding: 2px 4px;
-  color: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--accent);
   cursor: pointer;
+}
+.toast-action:hover {
+  text-decoration: underline;
 }
 .toast-close {
   display: grid;
@@ -1967,9 +1983,6 @@ select::-ms-expand {
 }
 .toast-close:hover {
   opacity: 1;
-}
-.toast :focus-visible {
-  outline-color: var(--surface);
 }
 @keyframes toast-in {
   from {
@@ -2177,8 +2190,9 @@ select::-ms-expand {
 .leave-page {
   padding-bottom: 40px;
 }
-.leave-year {
-  min-width: 64px;
+/* The period between a filter's arrows: one width on every page. */
+.period-label {
+  min-width: 148px;
   font-weight: 600;
   cursor: default;
 }
@@ -2207,7 +2221,7 @@ select::-ms-expand {
 .leave-count strong {
   font-size: 34px;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--ink);
 }
@@ -2591,7 +2605,7 @@ select::-ms-expand {
   border-radius: var(--radius-s);
 }
 .range-day.today {
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -2657,11 +2671,11 @@ select::-ms-expand {
 .ipick-input {
   width: 100%;
   min-height: var(--control-h-s);
-  border: 1px solid var(--line);
+  border: 1px solid var(--input-line);
   border-radius: var(--radius-s);
-  background: var(--surface-2);
+  background: var(--input-bg);
   color: var(--ink);
-  padding: 4px 10px;
+  padding: 2px 8px;
 }
 .ipick-value {
   position: relative;
@@ -2688,8 +2702,7 @@ select::-ms-expand {
 }
 .ipick-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--focus);
 }
 .ipick-id {
   font-weight: 600;
@@ -3018,13 +3031,12 @@ select::-ms-expand {
   gap: 2px;
   height: var(--control-h-s);
   padding: 0 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--input-line);
   border-radius: var(--radius-s);
-  background: var(--surface-2);
+  background: var(--input-bg);
 }
 .hinput:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--focus);
 }
 .hinput input {
   width: 34px;
@@ -3135,9 +3147,8 @@ select::-ms-expand {
 .btn,
 .link,
 .nav-btn,
-.rail-item,
-.mast-btn,
-.avatar,
+.activity-item,
+.status-item,
 .toggle span,
 .segmented button,
 .ipick-value,
@@ -3155,12 +3166,6 @@ textarea {
     color var(--motion) linear,
     box-shadow var(--motion) linear,
     opacity var(--motion) linear;
-}
-.rail-icon .icon {
-  transition: transform var(--motion) linear;
-}
-.rail-item:hover .rail-icon .icon {
-  transform: none;
 }
 
 /* A page (from the second one on: the first replaces its skeleton in
@@ -3427,7 +3432,7 @@ dialog.is-closing::backdrop {
 
 /*
  * One header for every page: title and a line of description on the left,
- * the page's controls on the right, all at one height (36px).
+ * the page's controls on the right, all at one height (26px).
  */
 .page-head {
   display: flex;
@@ -3443,7 +3448,7 @@ dialog.is-closing::backdrop {
 }
 .page-head .page-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.3;
 }
 .page-description {
@@ -3457,25 +3462,22 @@ dialog.is-closing::backdrop {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
 }
 .page-actions .nav-solo {
   gap: 6px;
 }
-.page-actions .nav-solo,
-.page-actions .refresh {
-  height: 36px;
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+/* A text action in a toolbar is a secondary button. */
+.page-actions .nav-solo {
+  /* "Hôm nay" and "Năm nay" take the same room, so filters line up across pages. */
+  min-width: 72px;
+  height: 26px;
+  border-radius: var(--radius-s);
+  background: var(--btn2-bg);
+  color: var(--btn2-ink);
 }
-.page-actions .refresh {
-  width: 36px;
-}
-.page-actions .nav-solo:hover:not(:disabled),
-.page-actions .refresh:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--ink);
+.page-actions .nav-solo:hover:not(:disabled) {
+  background: var(--btn2-hover);
 }
 /* The month in the middle of its arrows; opens the month picker. */
 .month-btn {
@@ -3601,9 +3603,6 @@ dialog.is-closing::backdrop {
     --week-col: 46px;
     gap: 6px;
   }
-  .calendar-page {
-    column-gap: 16px;
-  }
   .day-panel {
     padding: 18px;
   }
@@ -3634,9 +3633,12 @@ dialog.is-closing::backdrop {
   .calendar-col {
     min-height: 580px;
   }
-  .day-panel {
+  .calendar-page > .day-panel {
+    grid-column: 1;
+    grid-row: 3;
     overflow: visible;
-    margin-top: 20px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
   }
   .leave-month li {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3652,15 +3654,6 @@ dialog.is-closing::backdrop {
   }
 }
 @media (max-width: 600px) {
-  .shell.guide-mini {
-    --guide-w: 64px;
-  }
-  .guide-mini .rail {
-    padding-inline: 4px;
-  }
-  .guide-mini .rail-item {
-    font-size: 9px;
-  }
   .page-pad,
   .report-page {
     padding: 24px 16px 32px;
@@ -3728,9 +3721,6 @@ dialog.is-closing::backdrop {
   .rtask-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
-  }
-  .mast-context {
-    display: none;
   }
   .composer-actions .btn {
     white-space: normal;

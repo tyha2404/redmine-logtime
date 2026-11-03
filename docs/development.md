@@ -155,7 +155,7 @@ Lịch sử ghi nằm trong `logtime.db` ở thư mục dữ liệu của app: t
 
 ### Icon và logo
 
-Icon trong app lấy từ [Phosphor](https://phosphoricons.com) (`@phosphor-icons/react`) qua `src/icons.tsx`; thêm icon mới bằng cách khai báo tên trong đó, không tự vẽ SVG.
+Icon trong app là [Codicons](https://github.com/microsoft/vscode-codicons) của VS Code (`@vscode/codicons`) qua `src/icons.tsx`; thêm icon mới bằng cách khai báo tên trong đó, không tự vẽ SVG.
 
 Logo là hình của [logo Redmine](https://github.com/edavis10/redmine_logo) (© 2009 Martin Herr, CC BY-SA 2.5) đổi sang các sắc xanh của app, trên ô trắng: `src-tauri/icons/source.svg` và `BrandMark` trong `src/icons.tsx`. Ô theo mẫu icon macOS của Apple: 824px trong canvas 1024px, bán kính góc 185,4px (22,37%), góc liền mạch (squircle, độ mượt 60%). Bản chỉnh sửa này cũng theo CC BY-SA 2.5 (khác giấy phép MIT của mã nguồn) và phải giữ ghi công. Đổi logo: sửa `source.svg`, xuất PNG 1024px, chạy `npx tauri icon <file.png> -o <thư mục tạm>` rồi chép `32x32.png`, `64x64.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico`, `icon.png` vào `src-tauri/icons/`. Icon thanh menu macOS (`tray-template.png`, 44px, hình đen trên nền trong) dùng cùng hình.
 

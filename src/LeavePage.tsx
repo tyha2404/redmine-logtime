@@ -48,7 +48,7 @@ export default function LeavePage(props: { settings: Settings; onOpenSettings: (
               >
                 <Icon name="chevronLeft" />
               </button>
-              <span className="nav-btn leave-year" aria-live="polite">
+              <span className="nav-btn period-label" aria-live="polite">
                 {year}
               </span>
               <button
@@ -61,6 +61,9 @@ export default function LeavePage(props: { settings: Settings; onOpenSettings: (
                 <Icon name="chevronRight" />
               </button>
             </div>
+            <button className="nav-btn nav-solo" onClick={() => setYear(thisYear)} disabled={year === thisYear}>
+              Năm nay
+            </button>
             <RefreshButton loading={loading} onClick={() => setReloads((n) => n + 1)} />
           </>
         }

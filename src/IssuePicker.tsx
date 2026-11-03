@@ -175,7 +175,7 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
     >
       <span className="ipick-id">#{r.id}</span>
       <span className="ipick-subject">{r.subject}</span>
-      {r.id === value?.id && <Icon name="check" size={16} className="icon ipick-check" />}
+      {r.id === value?.id && <Icon name="check" size={16} className="ipick-check" />}
       <span className="ipick-meta">
         {r.tracker} · {r.status}, {r.project_name}
       </span>
@@ -223,7 +223,7 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
           ) : (
             <span className="text-missing">{empty ?? "Chưa có, bấm để chọn"}</span>
           )}
-          <Icon name="chevronDown" size={16} className="icon ipick-caret" />
+          <Icon name="chevronDown" size={16} className="ipick-caret" />
         </button>
       )}
 
@@ -246,7 +246,7 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
             >
               <Icon name="plus" size={16} />
               <span className="ipick-subject">{extra.label}</span>
-              {extra.chosen && <Icon name="check" size={16} className="icon ipick-check" />}
+              {extra.chosen && <Icon name="check" size={16} className="ipick-check" />}
             </button>
           )}
           {listed.map((r, i) => option(r, i + offset))}

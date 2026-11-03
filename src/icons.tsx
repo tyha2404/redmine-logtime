@@ -1,51 +1,49 @@
-import {
-  ArrowsClockwise,
-  CalendarDots,
-  CaretDown,
-  CaretLeft,
-  CaretRight,
-  Check,
-  ClockCounterClockwise,
-  DownloadSimple,
-  FileText,
-  List,
-  ListChecks,
-  PencilSimple,
-  Plus,
-  SlidersHorizontal,
-  TreePalm,
-  X,
-  type Icon as PhosphorIcon,
-  type IconProps,
-} from "@phosphor-icons/react";
+import type { HTMLAttributes } from "react";
+import "@vscode/codicons/dist/codicon.css";
 
-/** The app's icons, all from Phosphor (phosphoricons.com), by the role they play here. */
+/**
+ * The app's icons: Codicons, the VS Code icon font (github.com/microsoft/vscode-codicons,
+ * CC BY 4.0, © Microsoft), by the role they play here.
+ */
 const ICONS = {
-  chevronDown: CaretDown,
-  chevronLeft: CaretLeft,
-  chevronRight: CaretRight,
-  check: Check,
-  refresh: ArrowsClockwise,
-  close: X,
-  menu: List,
-  plus: Plus,
-  leave: TreePalm,
-  edit: PencilSimple,
-  download: DownloadSimple,
+  chevronDown: "chevron-down",
+  chevronLeft: "chevron-left",
+  chevronRight: "chevron-right",
+  check: "check",
+  refresh: "refresh",
+  close: "close",
+  menu: "menu",
+  plus: "add",
+  leave: "coffee",
+  edit: "edit",
+  download: "cloud-download",
+  server: "server",
   // Pages
-  calendar: CalendarDots,
-  report: FileText,
-  review: ListChecks,
-  history: ClockCounterClockwise,
-  settings: SlidersHorizontal,
-} satisfies Record<string, PhosphorIcon>;
+  calendar: "calendar",
+  report: "file-text",
+  review: "checklist",
+  history: "history",
+  settings: "settings-gear",
+} satisfies Record<string, string>;
 
 export type IconName = keyof typeof ICONS;
 
-/** `weight="fill"` marks the current item, e.g. the open page in the rail. */
-export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: number } & IconProps) {
-  const Svg = ICONS[name];
-  return <Svg className="icon" size={size} aria-hidden focusable="false" {...rest} />;
+/** Codicons are drawn on a 16px grid; 16 (inline) and 24 (activity bar) stay crisp. */
+export function Icon({
+  name,
+  size = 16,
+  className,
+  style,
+  ...rest
+}: { name: IconName; size?: number } & HTMLAttributes<HTMLElement>) {
+  return (
+    <i
+      className={`icon codicon codicon-${ICONS[name]}${className ? ` ${className}` : ""}`}
+      style={{ fontSize: size, width: size, height: size, ...style }}
+      aria-hidden
+      {...rest}
+    />
+  );
 }
 
 /** Apple's icon tile: 824px at 100,100, radius 185.4 with continuous corners. */

@@ -4,7 +4,7 @@ import CalendarPage, { type DayAsk } from "./CalendarPage";
 import type { FillAsk } from "./ReportComposer";
 import HistoryPage from "./HistoryPage";
 import LeavePage from "./LeavePage";
-import { Icon, BrandMark, type IconName } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { inTauri, isMac } from "./platform";
 import ReportPage from "./ReportPage";
 import SettingsPage, { type SettingsHandle } from "./SettingsPage";
@@ -19,26 +19,16 @@ type Page = "setup" | "calendar" | "review" | "leave" | "history" | "settings";
 
 type NavItem = { page: Exclude<Page, "setup">; label: string; icon: IconName };
 
-/** Daily work first, application preferences second. */
-const NAV: NavItem[][] = [
-  [
-    { page: "calendar", label: "Lịch tháng", icon: "calendar" },
-    { page: "review", label: "Ghi logtime", icon: "review" },
-    { page: "leave", label: "Ngày nghỉ", icon: "leave" },
-    { page: "history", label: "Lịch sử ghi", icon: "history" },
-  ],
-  [{ page: "settings", label: "Cài đặt", icon: "settings" }],
+/** The activity bar, like an editor's: daily work at the top. Settings sit at the foot. */
+const NAV: NavItem[] = [
+  { page: "calendar", label: "Lịch tháng", icon: "calendar" },
+  { page: "review", label: "Ghi logtime", icon: "review" },
+  { page: "leave", label: "Ngày nghỉ", icon: "leave" },
+  { page: "history", label: "Lịch sử ghi", icon: "history" },
 ];
 
-// On macOS the window has no title bar; the traffic lights sit in the masthead.
+// On macOS the window has no title bar; the traffic lights sit over the top of the activity bar.
 const overlayTitleBar = inTauri && isMac;
-
-type Guide = "full" | "mini";
-
-/** Preserve workspace for the calendar and its day panel on narrow windows. */
-function guideForWidth(): Guide {
-  return window.innerWidth >= 1280 ? "full" : "mini";
-}
 
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -63,7 +53,6 @@ function Shell() {
   const [reportFocus, setReportFocus] = useState(false);
   const [dayAsk, setDayAsk] = useState<DayAsk | null>(null);
   const [fillAsk, setFillAsk] = useState<FillAsk | null>(null);
-  const [guide, setGuide] = useState<Guide>(guideForWidth);
   const [me, setMe] = useState<string | null>(null);
   const update = useUpdate();
   const [showUpdate, setShowUpdate] = useState(false);
@@ -74,12 +63,6 @@ function Shell() {
   const [leaveTo, setLeaveTo] = useState<Page | null>(null);
   /** Pages slide in when the user switches, not when the first one replaces the loading skeleton. */
   const [pageAnim, setPageAnim] = useState(false);
-
-  useEffect(() => {
-    const onResize = () => setGuide(guideForWidth());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   // The avatar shows who Redmine thinks you are.
   useEffect(() => {
@@ -134,7 +117,7 @@ function Shell() {
   /** The update dialog when this build can install the new version; the install command otherwise. */
   const offerUpdate = () => (update.canInstall ? setShowUpdate(true) : openAbout());
 
-  // Like an editor: a found update is announced once, then stays as the dot in the masthead.
+  // Like an editor: a found update is announced once, then stays in the activity bar and the status bar.
   const announced = useRef<string | null>(null);
   useEffect(() => {
     if (!update.available || !update.canInstall || !update.latest || announced.current === update.latest) return;
@@ -185,61 +168,37 @@ function Shell() {
   const host = settings?.redmine_url ? hostOf(settings.redmine_url) : "";
 
   return (
-    <div className={`shell guide-${guide}`}>
-      <header className="mast" data-tauri-drag-region>
-        <div className="mast-start" data-tauri-drag-region>
-          <div className="brand" data-tauri-drag-region>
-            <BrandMark size={26} />
-            <span className="brand-name">Logtime</span>
-          </div>
-          {host && (
-            <span className="mast-context" data-tauri-drag-region>
-              {host}
-            </span>
-          )}
-        </div>
-        <div className="mast-end">
+    <div className="shell">
+      {overlayTitleBar && <div className="titlebar" data-tauri-drag-region />}
+
+      <nav className="activity" aria-label="Điều hướng">
+        {NAV.map((item) => (
+          <ActivityItem key={item.page} item={item} current={page === item.page} onClick={() => go(item.page)} />
+        ))}
+        <div className="activity-foot">
           {update.available && (
             <button
-              className="mast-btn has-dot"
-              title={`Có bản ${update.latest}, ${update.canInstall ? "bấm để cập nhật" : "xem cách cập nhật"}`}
+              className="activity-item"
+              title={`Có bản ${update.latest}`}
               aria-label={`Có bản ${update.latest}, ${update.canInstall ? "bấm để cập nhật" : "xem cách cập nhật"}`}
               onClick={offerUpdate}
             >
-              <Icon name="download" size={22} />
+              <span className="activity-icon has-dot">
+                <Icon name="download" size={24} />
+              </span>
             </button>
           )}
           {me && (
-            <span className="avatar" title={`${me} trên ${host}`} aria-label={me}>
-              {initials(me)}
+            <span className="activity-item is-static" title={`${me} trên ${host}`} aria-label={me}>
+              <span className="avatar">{initials(me)}</span>
             </span>
           )}
+          <ActivityItem
+            item={{ page: "settings", label: "Cài đặt", icon: "settings" }}
+            current={page === "settings"}
+            onClick={() => go("settings")}
+          />
         </div>
-      </header>
-
-      <nav className="rail" aria-label="Điều hướng">
-        {NAV.map((section, si) => (
-          <div key={si} className="guide-section">
-            {section.map(({ page: target, label, icon }) => (
-              <button
-                key={target}
-                className="rail-item"
-                aria-current={page === target ? "page" : undefined}
-                title={guide === "mini" ? label : undefined}
-                onClick={() => go(target)}
-              >
-                <span className="rail-icon">
-                  <Icon name={icon} size={22} weight={page === target ? "fill" : "regular"} />
-                </span>
-                <span className="rail-label">{label}</span>
-              </button>
-            ))}
-          </div>
-        ))}
-
-        <footer className="guide-foot">
-          <p className="guide-version">Logtime {__APP_VERSION__}</p>
-        </footer>
       </nav>
 
       <main className="main" data-page-anim={pageAnim ? "" : undefined}>
@@ -285,6 +244,23 @@ function Shell() {
         )}
       </main>
 
+      <footer className="statusbar">
+        {host && (
+          <span className="status-item is-remote" title={me ? `${me} trên ${host}` : host}>
+            <Icon name="server" size={14} />
+            {host}
+          </span>
+        )}
+        <span className="status-fill" />
+        {update.available && (
+          <button className="status-item is-action" onClick={offerUpdate}>
+            <Icon name="download" size={14} />
+            Có bản {update.latest}
+          </button>
+        )}
+        <span className="status-item">Logtime {__APP_VERSION__}</span>
+      </footer>
+
       {showUpdate && <UpdateDialog update={update} onClose={() => setShowUpdate(false)} />}
 
       {leaveTo && (
@@ -298,6 +274,23 @@ function Shell() {
         />
       )}
     </div>
+  );
+}
+
+/** An icon-only page button; the name shows on hover. */
+function ActivityItem({ item, current, onClick }: { item: NavItem; current: boolean; onClick: () => void }) {
+  return (
+    <button
+      className="activity-item"
+      aria-current={current ? "page" : undefined}
+      aria-label={item.label}
+      title={item.label}
+      onClick={onClick}
+    >
+      <span className="activity-icon">
+        <Icon name={item.icon} size={24} />
+      </span>
+    </button>
   );
 }
 

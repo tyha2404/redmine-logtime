@@ -631,7 +631,8 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       return delay(
         MOCK_UPDATE
           ? {
-              version: "0.4.0",
+              // Always one minor version ahead of this build.
+              version: __APP_VERSION__.replace(/^(\d+)\.(\d+)\.\d+/, (_, a, b) => `${a}.${Number(b) + 1}.0`),
               current_version: __APP_VERSION__,
               notes:
                 "- Thanh menu hiện số giờ hôm nay và lối tắt ghi logtime\n- Kiểm tra và cập nhật ngay trong app\n- Sửa lỗi chia giờ khi có ngày nghỉ nửa buổi",

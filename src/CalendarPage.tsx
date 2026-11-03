@@ -170,16 +170,6 @@ export default function CalendarPage({
                 <Icon name="chevronRight" />
               </button>
             </div>
-            {shortDays.length > 0 && (
-              <button
-                className="nav-btn nav-solo"
-                onClick={() => onFillMissing(shortDays)}
-                title="Lấy tin Google Chat của các ngày thiếu giờ rồi khớp nhanh, để duyệt và ghi một lần"
-              >
-                <Icon name="report" size={16} />
-                Điền {shortDays.length} ngày thiếu
-              </button>
-            )}
             <button className="nav-btn nav-solo" onClick={goToday} disabled={isCurrentMonth && selected === today}>
               Hôm nay
             </button>
@@ -232,14 +222,27 @@ export default function CalendarPage({
               </div>
             )}
 
-            <ul className="legend">
-              {LEGEND.map((s) => (
-                <li key={s}>
-                  <span className={`swatch s-${s}`} aria-hidden />
-                  {STATUS_LABEL[s]}
-                </li>
-              ))}
-            </ul>
+            {/* The legend row always stands, so the grid stays put whether or not there is a fill action. */}
+            <div className="calendar-foot">
+              <ul className="legend">
+                {LEGEND.map((s) => (
+                  <li key={s}>
+                    <span className={`swatch s-${s}`} aria-hidden />
+                    {STATUS_LABEL[s]}
+                  </li>
+                ))}
+              </ul>
+              {shortDays.length > 0 && (
+                <button
+                  className="btn small"
+                  onClick={() => onFillMissing(shortDays)}
+                  title="Lấy tin Google Chat của các ngày thiếu giờ rồi khớp nhanh, để duyệt và ghi một lần"
+                >
+                  <Icon name="report" size={14} />
+                  Điền {shortDays.length} ngày thiếu
+                </button>
+              )}
+            </div>
           </>
         )}
       </section>
@@ -335,7 +338,7 @@ function MonthStats(props: {
     );
   }
   const pct = s.expected_hours > 0 ? Math.min(s.total_hours / s.expected_hours, 1) : 0;
-  const firstMissing = s.days.find((d) => d.status === "missing");
+  const firstMissing = s.days.find((d) => d.status === "missing" || d.status === "partial");
   const leaveHours = s.days.reduce((n, d) => n + d.leave_hours, 0);
   const ahead = s.days.filter((d) => d.status === "future").length;
   return (
