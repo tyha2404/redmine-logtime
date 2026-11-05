@@ -6,6 +6,7 @@ import {
   newId,
   type Batch,
   type DayPlan,
+  type FixedEntry,
   type IssueBrief,
   type LearnedTask,
   type PlanItem,
@@ -20,6 +21,7 @@ import { fmtDayLong, fmtDayShort, fmtHours } from "./fmt";
 import IssuePicker from "./IssuePicker";
 import { buildLeave, type ParentCache } from "./leave";
 import QuotaRail from "./QuotaRail";
+import { recurringId, recurringItem, subjectOf } from "./recurring";
 import { useToast } from "./toast";
 import { useAiRun } from "./useAiRun";
 import WriteDialog from "./WriteDialog";
@@ -132,11 +134,23 @@ export function useReportFlow(day: string | null, settings: Settings) {
     };
   }, [day, adopt, ai.pending]);
 
-  // The planner splits each day among the ticked entries only.
+  /** Recurring work as it will be written: ticked ones, with the hours the user typed. */
+  const fixed = useMemo(
+    () =>
+      (view?.recurring ?? [])
+        .filter((f) => !off.has(recurringId(f)))
+        .map((f) => ({ ...f, hours: edits[recurringId(f)] ?? f.hours })),
+    [view, off, edits],
+  );
+  const fixedKey = JSON.stringify(fixed);
+
+  // The planner splits each day among the ticked entries only, after the
+  // recurring work that comes off the free hours first.
   const planView = useMemo(
     () =>
       view && {
         ...view,
+        recurring: JSON.parse(fixedKey) as FixedEntry[],
         analysis: {
           ...view.analysis,
           tasks: view.analysis.tasks.map((t) => ({
@@ -145,7 +159,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
           })),
         },
       },
-    [view, off],
+    [view, off, fixedKey],
   );
 
   // Re-split the hours whenever the selection changes. Until the new split
@@ -249,6 +263,15 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const leave = (view?.analysis.leave ?? []).filter((l) => planned.has(l.date));
   const leaveOn = (date: string) => !off.has(leaveId(date));
   const pendingLeave = leave.filter((l) => leaveOn(l.date) && !(leaveId(l.date) in written));
+  /** Recurring work of each reported day, with its tick and hours (like `daysOf`). */
+  const recurring = (view?.recurring ?? [])
+    .filter((f) => planned.has(f.date))
+    .map((f) => {
+      const id = recurringId(f);
+      const on = !off.has(id);
+      return { f, id, on, written: id in written, hours: written[id] ?? (on ? (edits[id] ?? f.hours) : 0) };
+    });
+  const pendingRecurring = recurring.filter((r) => r.on && !r.written && r.hours > EPS);
   /** Every entry that can be ticked, for "Chọn tất cả". */
   const allIds = [
     ...tasks.flatMap((t) =>
@@ -257,15 +280,19 @@ export function useReportFlow(day: string | null, settings: Settings) {
         .map((d) => d.id),
     ),
     ...leave.filter((l) => !(leaveId(l.date) in written)).map((l) => leaveId(l.date)),
+    ...recurring.filter((r) => !r.written).map((r) => r.id),
   ];
-  const totalHours = pending.reduce((s, x) => s + x.d.hours, 0) + pendingLeave.reduce((s, l) => s + l.hours, 0);
-  const count = pending.length + pendingLeave.length;
+  const totalHours =
+    pending.reduce((s, x) => s + x.d.hours, 0) +
+    pendingLeave.reduce((s, l) => s + l.hours, 0) +
+    pendingRecurring.reduce((s, r) => s + r.hours, 0);
+  const count = pending.length + pendingLeave.length + pendingRecurring.length;
 
   const trackerId = settings.subtask_tracker_id ?? profile?.subtask_tracker_id ?? null;
   const tasksToWrite = [...new Set(pending.map((x) => x.t))];
   const missingParent = tasksToWrite.filter((t) => !choices[t.task.key].parent).length;
   const needsTracker = tasksToWrite.some((t) => choices[t.task.key].subtask === "new");
-  const badHours = pending.some((x) => !(x.d.hours <= 24));
+  const badHours = pending.some((x) => !(x.d.hours <= 24)) || pendingRecurring.some((r) => !(r.hours <= 24));
   const blankSubject = tasksToWrite.some(
     (t) => choices[t.task.key].subtask === "new" && !choices[t.task.key].subject.trim(),
   );
@@ -279,7 +306,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
       .reduce((s, d) => s + d.hours, 0);
     const l = leave.find((x) => x.date === date);
     const off = l && (leaveOn(date) || leaveId(date) in written) ? l.hours : 0;
-    return before + work + off > 24 + EPS;
+    const rec = recurring.filter((r) => r.f.date === date && (r.on || r.written)).reduce((s, r) => s + r.hours, 0);
+    return before + work + off + rec > 24 + EPS;
   });
   const blocker =
     missingParent > 0
@@ -335,6 +363,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
         });
       }
     }
+    for (const r of pendingRecurring) items.push(recurringItem(r.f, settings, r.hours));
     // Each day off becomes its own issue under HR's parent for that month.
     try {
       const cache: ParentCache = new Map();
@@ -384,7 +413,10 @@ export function useReportFlow(day: string | null, settings: Settings) {
     }
     if (learned.length) await api.rememberTasks(learned).catch(() => {});
     await api.clearLastReport(day).catch(() => {});
-    const left = pending.some((x) => !(x.d.id in now)) || pendingLeave.some((l) => !(leaveId(l.date) in now));
+    const left =
+      pending.some((x) => !(x.d.id in now)) ||
+      pendingLeave.some((l) => !(leaveId(l.date) in now)) ||
+      pendingRecurring.some((r) => !(r.id in now));
     if (!left) adopt(null);
     return done.length;
   };
@@ -424,6 +456,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
     quick,
     duplicateCount,
     leave,
+    recurring,
     totalHours,
     count,
     blocker,
@@ -605,11 +638,15 @@ function DayGroup({
   const leave = f.leave.find((l) => l.date === day.date);
   const leaveWritten = !!leave && f.leaveId(day.date) in f.written;
   const leaveOn = !!leave && f.leaveOn(day.date);
+  const fixed = f.recurring.filter((r) => r.f.date === day.date);
   const writtenHours =
-    rows.filter((r) => r.d.written).reduce((s, r) => s + r.d.hours, 0) + (leaveWritten ? leave!.hours : 0);
+    rows.filter((r) => r.d.written).reduce((s, r) => s + r.d.hours, 0) +
+    (leaveWritten ? leave!.hours : 0) +
+    fixed.filter((r) => r.written).reduce((s, r) => s + r.hours, 0);
   const plannedHours =
     rows.filter((r) => r.d.on && !r.d.written).reduce((s, r) => s + r.d.hours, 0) +
-    (leave && leaveOn && !leaveWritten ? leave.hours : 0);
+    (leave && leaveOn && !leaveWritten ? leave.hours : 0) +
+    fixed.filter((r) => r.on && !r.written).reduce((s, r) => s + r.hours, 0);
   const existing = day.existing_hours + writtenHours;
   const total = existing + plannedHours;
   const state = total > hpd + EPS ? "over" : total + EPS >= hpd ? "full" : day.workday ? "short" : "off";
@@ -655,6 +692,40 @@ function DayGroup({
             <span className="rentry-hours">{leaveWritten ? `✓ ${fmtHours(leave.hours)}` : fmtHours(leave.hours)}</span>
           </li>
         )}
+        {fixed.map((r) => (
+          <li
+            key={r.id}
+            className={`rentry is-recurring${r.on || r.written ? "" : " is-off"}${r.written ? " is-written" : ""}`}
+          >
+            <input
+              type="checkbox"
+              checked={r.on || r.written}
+              disabled={r.written || f.ai.running}
+              onChange={(e) => f.setOn([r.id], e.target.checked)}
+              aria-label={`Ghi “${subjectOf(r.f.label)}” ngày ${fmtDayShort(day.date)}`}
+            />
+            <div className="rentry-main">
+              <div className="rentry-text">
+                {r.f.comments.trim() || subjectOf(r.f.label)}
+                <span className="rentry-span">Lặp lại</span>
+              </div>
+              <span className="rentry-target is-static">
+                <span className="rentry-id">#{r.f.issue_id}</span>
+                <span className="rentry-name">{subjectOf(r.f.label)}</span>
+              </span>
+            </div>
+            {r.written ? (
+              <span className="rentry-hours is-done">✓ {fmtHours(r.hours)}</span>
+            ) : (
+              <HoursInput
+                hours={r.hours}
+                disabled={!r.on || f.ai.running}
+                label={`Số giờ “${subjectOf(r.f.label)}” ngày ${fmtDayShort(day.date)}`}
+                onChange={(h) => f.setHours(r.id, h)}
+              />
+            )}
+          </li>
+        ))}
         {rows.map(({ t, d }) => (
           <EntryRow
             key={d.id}
@@ -665,7 +736,7 @@ function DayGroup({
             onEdit={(on) => onEdit(on ? d.id : null)}
           />
         ))}
-        {rows.length === 0 && !leave && day.workday && (
+        {rows.length === 0 && !leave && fixed.length === 0 && day.workday && (
           <li className="rentry is-static muted">Báo cáo không có việc nào cho ngày này.</li>
         )}
       </ul>

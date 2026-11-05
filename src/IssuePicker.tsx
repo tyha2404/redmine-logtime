@@ -37,6 +37,12 @@ function matches(issue: IssueBrief, q: string): boolean {
     .every((w) => subject.includes(w));
 }
 
+/** "Task · New, Dự án ABC"; parts the app does not know (an entry's issue) are left out. */
+function issueMeta(i: IssueBrief, status: boolean): string {
+  const kind = [i.tracker, status ? i.status : ""].filter(Boolean).join(" · ");
+  return [kind, i.project_name].filter(Boolean).join(", ");
+}
+
 /** Worth asking Redmine: a number, or two letters or more. */
 const searchable = (q: string) => /^#?\d+$/.test(q) || q.length >= 2;
 
@@ -176,9 +182,7 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
       <span className="ipick-id">#{r.id}</span>
       <span className="ipick-subject">{r.subject}</span>
       {r.id === value?.id && <Icon name="check" size={16} className="ipick-check" />}
-      <span className="ipick-meta">
-        {r.tracker} · {r.status}, {r.project_name}
-      </span>
+      <span className="ipick-meta">{issueMeta(r, true)}</span>
     </button>
   );
 
@@ -214,9 +218,7 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
             <>
               <span className="ipick-id">#{value.id}</span>
               <span className="ipick-subject">{value.subject}</span>
-              <span className="ipick-meta">
-                {value.tracker}, {value.project_name}
-              </span>
+              <span className="ipick-meta">{issueMeta(value, false)}</span>
             </>
           ) : extra?.chosen ? (
             <span className="ipick-subject">{extra.label}</span>

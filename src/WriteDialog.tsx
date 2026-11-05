@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, errorText, type ApiCall, type Batch, type Op, type WritePlan } from "./api";
-import { describeOp, fmtDayLong, fmtDayShort, fmtHours, targetLabel } from "./fmt";
+import { batchWhat, describeOp, fmtDayLong, fmtDayShort, fmtHours, isMainOp, targetLabel } from "./fmt";
 import { useModal } from "./useModal";
 
 type Phase =
@@ -8,12 +8,18 @@ type Phase =
   | { kind: "running"; what: "write" | "retry" | "undo"; ops: Op[] }
   | { kind: "done"; batch: Batch; undone: boolean };
 
-/** "3 logtime, 26/10–28/10": the batch name in the history. */
+/** "3 logtime, 26/10–28/10" or "Đổi tên #77": the batch name in the history. */
 export function batchLabel(plan: WritePlan): string {
-  const dates = plan.items.map((i) => i.date).sort();
-  const span =
-    dates[0] === dates.at(-1) ? fmtDayShort(dates[0]) : `${fmtDayShort(dates[0])}–${fmtDayShort(dates.at(-1)!)}`;
-  return `${plan.items.length} logtime, ${span}`;
+  const renames = plan.renames ?? [];
+  const parts: string[] = [];
+  if (plan.items.length) {
+    const dates = plan.items.map((i) => i.date).sort();
+    const span =
+      dates[0] === dates.at(-1) ? fmtDayShort(dates[0]) : `${fmtDayShort(dates[0])}–${fmtDayShort(dates.at(-1)!)}`;
+    parts.push(`${plan.items.length} logtime, ${span}`);
+  }
+  if (renames.length) parts.push(`Đổi tên ${renames.map((r) => `#${r.issue_id}`).join(", ")}`);
+  return parts.join("; ");
 }
 
 function hostOf(url: string): string {
@@ -49,8 +55,21 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
   const newSubtasks = plan.subtasks.filter((s) =>
     plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key),
   );
+  const renames = plan.renames ?? [];
   const total = plan.items.reduce((s, i) => s + i.hours, 0);
   const byDate = [...new Set(plan.items.map((i) => i.date))].sort();
+  const asks = [
+    plan.items.length ? (
+      <>
+        ghi <strong>{plan.items.length} logtime</strong>, tổng <strong>{fmtHours(total)}</strong>
+      </>
+    ) : null,
+    renames.length ? (
+      <>
+        đổi tên <strong>{renames.length} task</strong>
+      </>
+    ) : null,
+  ].filter(Boolean);
 
   /** Runs a write, retry or undo, showing each op as Redmine answers. */
   const run = async (what: "write" | "retry" | "undo", start: Op[], call: () => Promise<Batch>) => {
@@ -87,22 +106,47 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
   };
 
   const ops = phase.kind === "running" ? phase.ops : phase.kind === "done" ? phase.batch.ops : [];
-  const entries = ops.filter((o) => o.payload.op === "create_time_entry");
+  const entries = ops.filter(isMainOp);
   const ok = entries.filter((o) => o.status === "done").length;
   const failed = entries.filter((o) => o.status === "failed").length;
   const undone = entries.filter((o) => o.status === "undone").length;
+  const { verb, noun } = batchWhat(phase.kind === "done" ? phase.batch.ops : ops);
+  /** Undo of new entries only deletes them; a rename gets its old name back. */
+  const onlyNew = entries.every((o) => o.payload.op === "create_time_entry");
+  const madeSubtasks = ops.some((o) => o.payload.op === "create_subtask" && o.status === "done");
 
   return (
     <dialog {...modal} className="confirm-dialog write-dialog" aria-labelledby="write-title">
       {phase.kind === "confirm" ? (
         <>
-          <h2 id="write-title">Ghi lên Redmine?</h2>
+          <h2 id="write-title">{plan.items.length ? "Ghi lên Redmine?" : "Đổi tên task trên Redmine?"}</h2>
           <p>
-            Ghi <strong>{plan.items.length} logtime</strong>, tổng <strong>{fmtHours(total)}</strong> lên{" "}
-            <strong>{hostOf(redmineUrl)}</strong>.
+            Sẽ{" "}
+            {asks.map((a, i) => (
+              <span key={i}>
+                {i === 0 ? "" : i === asks.length - 1 ? " và " : ", "}
+                {a}
+              </span>
+            ))}{" "}
+            trên <strong>{hostOf(redmineUrl)}</strong>.
           </p>
 
           <div className="write-body">
+            {renames.length > 0 && (
+              <table className="write-table">
+                <tbody>
+                  {renames.map((r) => (
+                    <tr key={r.issue_id}>
+                      <th scope="row">#{r.issue_id}</th>
+                      <td>
+                        <span className="write-kind">Tên mới</span> {r.after.trim()}
+                        <span className="write-comment">Tên cũ: {r.before}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
             {newSubtasks.length > 0 && (
               <section className="write-subtasks">
                 <h3>Tạo {newSubtasks.length} task con mới</h3>
@@ -120,30 +164,32 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
               </section>
             )}
 
-            <table className="write-table">
-              <tbody>
-                {byDate.map((date) =>
-                  plan.items
-                    .filter((i) => i.date === date)
-                    .map((i, n, day) => (
-                      <tr key={i.id}>
-                        {n === 0 && (
-                          <th scope="row" rowSpan={day.length}>
-                            {fmtDayLong(date)}
-                          </th>
-                        )}
-                        <td>
-                          {targetLabel(i, plan)}
-                          {i.comments && i.comments !== targetLabel(i, plan) && (
-                            <span className="write-comment">{i.comments}</span>
+            {plan.items.length > 0 && (
+              <table className="write-table">
+                <tbody>
+                  {byDate.map((date) =>
+                    plan.items
+                      .filter((i) => i.date === date)
+                      .map((i, n, day) => (
+                        <tr key={i.id}>
+                          {n === 0 && (
+                            <th scope="row" rowSpan={day.length}>
+                              {fmtDayLong(date)}
+                            </th>
                           )}
-                        </td>
-                        <td className="write-hours">{fmtHours(i.hours)}</td>
-                      </tr>
-                    )),
-                )}
-              </tbody>
-            </table>
+                          <td>
+                            {targetLabel(i, plan)}
+                            {i.comments && i.comments !== targetLabel(i, plan) && (
+                              <span className="write-comment">{i.comments}</span>
+                            )}
+                          </td>
+                          <td className="write-hours">{fmtHours(i.hours)}</td>
+                        </tr>
+                      )),
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {newSubtasks.length > 0 && (
@@ -172,7 +218,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
               Huỷ
             </button>
             <button className="btn primary" disabled={newSubtasks.length > 0 && !ack} onClick={write} autoFocus>
-              Ghi ngay
+              {plan.items.length ? "Ghi ngay" : "Đổi tên ngay"}
             </button>
           </div>
         </>
@@ -182,15 +228,17 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
             {phase.kind === "running"
               ? { write: "Đang ghi lên Redmine…", retry: "Đang ghi lại phần lỗi…", undo: "Đang hoàn tác…" }[phase.what]
               : phase.undone
-                ? `Đã hoàn tác ${undone} logtime`
+                ? onlyNew
+                  ? `Đã hoàn tác ${undone} logtime`
+                  : `Đã hoàn tác ${undone} thay đổi`
                 : failed
-                  ? `Đã ghi ${ok}/${entries.length} logtime, ${failed} mục lỗi`
-                  : `Đã ghi ${ok} logtime lên Redmine`}
+                  ? `Đã ${verb} ${ok}/${entries.length} ${noun}, ${failed} mục lỗi`
+                  : `Đã ${verb} ${ok} ${noun} trên Redmine`}
           </h2>
           {phase.kind === "done" && failed > 0 && !phase.undone && (
-            <p>Sửa nguyên nhân bên dưới rồi bấm Thử lại, hoặc đóng để chỉnh lại trên màn kết quả.</p>
+            <p>Sửa nguyên nhân bên dưới rồi bấm Thử lại, hoặc đóng để chỉnh lại.</p>
           )}
-          {phase.kind === "done" && phase.undone && <p>Task con đã tạo vẫn giữ trên Redmine.</p>}
+          {phase.kind === "done" && phase.undone && madeSubtasks && <p>Task con đã tạo vẫn giữ trên Redmine.</p>}
 
           <div className="write-body">
             {ops.length === 0 ? (
@@ -242,7 +290,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                       run("undo", phase.batch.ops, () => api.undoBatch(phase.batch.id));
                     }}
                   >
-                    Xoá {ok} logtime khỏi Redmine
+                    {onlyNew ? `Xoá ${ok} logtime khỏi Redmine` : `Hoàn tác ${ok} thay đổi`}
                   </button>
                 ) : (
                   <button className="btn" onClick={() => setConfirmUndo(true)}>

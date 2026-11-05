@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RowsSkeleton, Skel } from "./Skeleton";
 import { api, errorText, type Batch } from "./api";
 import PageHeader from "./PageHeader";
-import { describeOp, fmtTimestamp } from "./fmt";
+import { batchWhat, describeOp, fmtTimestamp, isMainOp } from "./fmt";
 
 export default function HistoryPage() {
   const [batches, setBatches] = useState<Batch[] | null>(null);
@@ -52,14 +52,17 @@ export default function HistoryPage() {
     <div className="history page-pad">
       <PageHeader
         title="Lịch sử ghi"
-        description="Xem kết quả từng lần ghi, thử lại mục lỗi hoặc hoàn tác logtime. Task con vẫn được giữ trên Redmine."
+        description="Xem kết quả từng lần ghi hoặc đổi tên task, thử lại mục lỗi hoặc hoàn tác. Task con vẫn được giữ trên Redmine."
       />
       {error && <p className="notice error">{error}</p>}
       {batches.length === 0 && <div className="empty">Chưa ghi lô nào.</div>}
 
       <ul className="batches">
         {batches.map((b) => {
-          const entries = b.ops.filter((o) => o.payload.op === "create_time_entry");
+          const entries = b.ops.filter(isMainOp);
+          const { verb } = batchWhat(b.ops);
+          /** Undo deletes new entries; a renamed issue gets its old name back. */
+          const onlyNew = entries.every((o) => o.payload.op === "create_time_entry");
           const count = (s: string) => entries.filter((o) => o.status === s).length;
           const subtasks = b.ops.filter((o) => o.payload.op === "create_subtask" && o.status === "done").length;
           const interrupted = b.ops.some((o) => o.status === "pending" || o.status === "running");
@@ -72,7 +75,11 @@ export default function HistoryPage() {
                 <span className="batch-time">{fmtTimestamp(b.created_at)}</span>
                 <span className="batch-label">{b.label}</span>
                 <span className="batch-counts">
-                  {count("done") > 0 && <span className="text-ok">{count("done")} đã ghi</span>}
+                  {count("done") > 0 && (
+                    <span className="text-ok">
+                      {count("done")} đã {verb}
+                    </span>
+                  )}
                   {count("failed") > 0 && <span className="text-missing">{count("failed")} lỗi</span>}
                   {count("undone") > 0 && <span className="muted">{count("undone")} đã hoàn tác</span>}
                   {subtasks > 0 && <span className="muted">{subtasks} task con</span>}
@@ -121,9 +128,13 @@ export default function HistoryPage() {
                     {undoable &&
                       (confirmUndo === b.id ? (
                         <>
-                          <span className="confirm-text">Xoá {count("done")} logtime khỏi Redmine?</span>
+                          <span className="confirm-text">
+                            {onlyNew
+                              ? `Xoá ${count("done")} logtime khỏi Redmine?`
+                              : `Hoàn tác ${count("done")} thay đổi trên Redmine?`}
+                          </span>
                           <button className="btn danger-solid" onClick={() => act(b.id, api.undoBatch)}>
-                            Xoá logtime
+                            {onlyNew ? "Xoá logtime" : "Hoàn tác"}
                           </button>
                           <button className="btn ghost" onClick={() => setConfirmUndo(null)}>
                             Thôi

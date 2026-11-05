@@ -1,5 +1,5 @@
-//! Commands for writing to Redmine: issue lookups, write batches, retry,
-//! history and undo.
+//! Commands for writing to Redmine: issue lookups, write batches (new
+//! entries and issue renames), retry, history and undo.
 
 use logtime_engine::model::{Batch, Op, OpStatus, WritePlan};
 use logtime_engine::plan::{self, ApiCall};
@@ -142,7 +142,7 @@ struct ProgressEvent {
 pub async fn write_plan(
     app: AppHandle,
     state: State<'_, AppState>,
-    plan: WritePlan,
+    mut plan: WritePlan,
     label: String,
 ) -> CmdResult<Batch> {
     let _guard = state.begin_execution().ok_or(BUSY)?;
@@ -162,6 +162,14 @@ pub async fn write_plan(
             .map(|e| (e.spent_on, e.hours))
             .collect();
         plan::check_plan(&plan, &logged).map_err(err)?;
+    } else {
+        plan::check_plan(&plan, &[]).map_err(err)?;
+    }
+    // A renamed issue keeps the name it has now, for undo.
+    if !plan.renames.is_empty() {
+        let ids: Vec<u32> = plan.renames.iter().map(|r| r.issue_id).collect();
+        let current = client.issues_by_ids(&ids).await.map_err(err)?;
+        plan::refresh_renames(&mut plan, &current).map_err(err)?;
     }
     let ops = plan::build_ops(&plan).map_err(err)?;
     let batch_id = state
@@ -262,7 +270,8 @@ async fn run(
     Ok(batch)
 }
 
-/// Deletes the time entries a batch created (sub-tasks are kept).
+/// Reverts a batch: deletes the time entries it created and gives renamed
+/// issues their old name back (sub-tasks are kept).
 #[tauri::command]
 pub async fn undo_batch(
     app: AppHandle,

@@ -4,7 +4,9 @@
 //!   REDMINE_API_KEY=<dev1 key> cargo run -p logtime-engine --example local_e2e
 
 use chrono::NaiveDate;
-use logtime_engine::model::{ItemKind, OpStatus, PlanItem, SubtaskDraft, Target, WritePlan};
+use logtime_engine::model::{
+    IssueRename, ItemKind, OpStatus, PlanItem, SubtaskDraft, Target, WritePlan,
+};
 use logtime_engine::{Store, exec, plan};
 use redmine_client::{ClientOptions, RedmineClient};
 
@@ -58,6 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             comments: "e2e".into(),
             kind: ItemKind::Work,
         }],
+        ..Default::default()
     };
 
     let store = Store::open_in_memory()?;
@@ -114,6 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lost = WritePlan {
         subtasks: vec![],
         items: vec![entry("r1", 1.25, activity.id)],
+        ..Default::default()
     };
     let id = store.create_batch("e2e-retry", &url, &plan::build_ops(&lost)?)?;
     let saved = client
@@ -150,6 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rejected = WritePlan {
         subtasks: vec![],
         items: vec![entry("v1", 1.0, 999_999)],
+        ..Default::default()
     };
     let id = store.create_batch("e2e-422", &url, &plan::build_ops(&rejected)?)?;
     let failed = exec::run_batch(&store, &client, id, &url, me.id, &mut |_| {}).await?;
@@ -180,11 +185,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let over = WritePlan {
         subtasks: vec![],
         items: vec![entry("o1", 23.0, activity.id)],
+        ..Default::default()
     };
     let checked = plan::check_plan(&over, &logged);
     client.delete_time_entry(held_entry.id).await?;
     let msg = checked.unwrap_err().to_string();
     assert!(msg.contains("vượt 24h"), "{msg}");
     println!("OK: chặn 23h khi Redmine đã có {held}h trong ngày: {msg}");
+
+    // Rename the parent issue through a batch, then undo: the old name is back.
+    let mut rename = WritePlan {
+        renames: vec![IssueRename {
+            issue_id: parent.id,
+            before: String::new(),
+            after: format!("{} (e2e)", parent.subject),
+        }],
+        ..Default::default()
+    };
+    plan::refresh_renames(&mut rename, &[client.issue(parent.id).await?])?;
+    assert_eq!(rename.renames[0].before, parent.subject);
+    let id = store.create_batch("e2e-rename", &url, &plan::build_ops(&rename)?)?;
+    exec::run_batch(&store, &client, id, &url, me.id, &mut |_| {}).await?;
+    assert_eq!(
+        client.issue(parent.id).await?.subject,
+        rename.renames[0].after
+    );
+    exec::undo_batch(&store, &client, id, &url, &mut |_| {}).await?;
+    assert_eq!(client.issue(parent.id).await?.subject, parent.subject);
+    println!("OK: đổi tên task rồi hoàn tác về tên cũ");
     Ok(())
 }

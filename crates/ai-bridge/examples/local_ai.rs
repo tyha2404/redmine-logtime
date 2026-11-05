@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .collect();
-    for p in report::plan(&analysis, &days, &[]) {
+    for p in report::plan(&analysis, &days, &[], &[]) {
         let parts: Vec<String> = p
             .allocations
             .iter()

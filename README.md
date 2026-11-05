@@ -56,13 +56,17 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Ghi tay vào issue](docs/images/manual-entry.png)
 
+**Đổi tên task:** logtime đã ghi thì không sửa số giờ hay xoá được, chỉ đổi được tên task. Chọn ngày trên **Lịch tháng**, rê chuột vào một logtime trong **Đã log trên Redmine** rồi bấm biểu tượng bút. App hỏi xác nhận; **Hoàn tác lô này** trả lại tên cũ. Logtime nghỉ phép giữ tên theo quy định của HR nên không đổi tên ở đây.
+
+**Việc lặp lại:** việc cố định như daily, họp sprint: khai báo ở **Cài đặt → Ghi giờ & AI → Việc lặp lại** (issue, số giờ, các ngày trong tuần). Khi phân tích báo cáo hoặc khớp nhanh, mỗi ngày có sẵn các việc này (bỏ tick được) và app trừ giờ của chúng trước khi chia cho việc khác. Trên **Lịch tháng**, ngày còn thiếu có nút ghi nhanh việc lặp lại.
+
 **Xin nghỉ:** lần đầu vào **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày làm việc → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
 
 ![Xin nghỉ](docs/images/leave-request.png)
 
 ![Ngày nghỉ trong năm](docs/images/leave-overview.png)
 
-**Lịch sử, hoàn tác:** trang **Lịch sử ghi** liệt kê mọi lần ghi; **Hoàn tác lô này** chỉ xoá logtime, task con vẫn giữ.
+**Lịch sử, hoàn tác:** trang **Lịch sử ghi** liệt kê mọi lần ghi và đổi tên task; **Hoàn tác lô này** xoá logtime vừa ghi hoặc trả lại tên cũ cho task. Task con vẫn giữ.
 
 ![Lịch sử ghi](docs/images/history.png)
 

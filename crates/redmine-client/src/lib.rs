@@ -1,6 +1,6 @@
 //! Typed client for the Redmine REST API.
 //!
-//! Write operations (`create_*`, `delete_*`) are only called by the execution
+//! Write operations (`create_*`, `rename_issue`, `delete_*`) are only called by the execution
 //! engine after the user has reviewed the plan.
 
 mod types;
@@ -298,6 +298,19 @@ impl RedmineClient {
         Ok(env.time_entry)
     }
 
+    /// Renames an issue; Redmine answers with no body.
+    pub async fn rename_issue(&self, id: u32, subject: &str) -> Result<()> {
+        self.send(
+            reqwest::Method::PUT,
+            &format!("issues/{id}.json"),
+            &IssueEnvelope {
+                issue: serde_json::json!({ "subject": subject }),
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
     /// Deleting an entry that is already gone counts as success.
     pub async fn delete_time_entry(&self, id: u32) -> Result<()> {
         let url = self.url(&format!("time_entries/{id}.json"))?;
@@ -512,6 +525,24 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Validation(ref v) if v[0].contains("Tracker")));
+    }
+
+    #[tokio::test]
+    async fn rename_issue_puts_only_the_subject() {
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/issues/77.json"))
+            .and(wiremock::matchers::body_json(
+                json!({"issue": {"subject": "[FE] Lọc theo vùng"}}),
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+        client(&server, "")
+            .rename_issue(77, "[FE] Lọc theo vùng")
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

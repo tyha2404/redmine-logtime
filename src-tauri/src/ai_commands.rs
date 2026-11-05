@@ -12,6 +12,7 @@ use ai_bridge::report::{
 use ai_bridge::{ClaudeRunner, Progress, RedmineMcp};
 use chrono::{Local, NaiveDate, Utc};
 use logtime_core::Settings;
+use logtime_core::recurring::{self, FixedEntry};
 use redmine_client::Issue;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -230,6 +231,9 @@ pub struct ReportView {
     /// The calendar day this report is for, when reported per day.
     #[serde(default)]
     day: Option<NaiveDate>,
+    /// Recurring work due on the reported days, logged before the split.
+    #[serde(default)]
+    recurring: Vec<FixedEntry>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -505,12 +509,20 @@ async fn build_view(
         });
     }
 
+    let free: Vec<_> = days.iter().map(|d| (d.date, d.capacity)).collect();
+    let logged: Vec<_> = existing
+        .iter()
+        .filter_map(|e| e.issue.as_ref().map(|i| (e.spent_on, i.id)))
+        .collect();
+    let recurring = recurring::due(settings, &free, &logged);
+
     Ok(ReportView {
         analysis,
         tasks,
         days,
         skipped_future,
         day,
+        recurring,
     })
 }
 
@@ -561,10 +573,11 @@ async fn verify_task(client: &redmine_client::RedmineClient, task: ReportTask) -
     }
 }
 
-/// Recomputes the hour split, e.g. after the user excludes some tasks.
+/// Recomputes the hour split, e.g. after the user excludes some tasks or
+/// recurring entries (the view holds the ticked ones only).
 #[tauri::command]
 pub fn plan_report(view: ReportView, excluded: Vec<String>) -> Vec<DayPlan> {
-    report::plan(&view.analysis, &view.days, &excluded)
+    report::plan(&view.analysis, &view.days, &view.recurring, &excluded)
 }
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - Mock flag `&slow=1` makes every mock answer ~15× slower, to see the loading skeletons.
 - Mock flag `&memory=0` starts with no remembered tasks (Khớp nhanh then explains why it cannot match).
 - Mock flag `&update=1` makes a newer, installable release (the next minor version) available, to see the update toast and dialog.
+- Mock data has two recurring tasks (daily on #9, Monday meeting on #8).
 - Mock flag `&tray=today|quick` fires that menu bar / tray shortcut once the app is up; `mockTray("quick")` in the console fires one any time.
 
 ## Architecture
@@ -49,7 +50,8 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
    - `write_plan` stores a batch in SQLite (`logtime-engine::store`), and `exec::run_batch` runs its ops.
    - Failed ops stay failed until `retry_batch` (`Store::reset_failed`).
    - A new sub-task's `key` makes re-runs idempotent.
-   - Undo deletes only the time entries; sub-tasks remain.
+   - Undo deletes created entries and gives renamed issues their old name back; sub-tasks remain.
+   - Logged time is never edited or deleted (a user rule): the only change to logged work is renaming its issue. A `WritePlan` can carry `renames` (`IssueRename`, op `rename_issue`, `RedmineClient::rename_issue`, run first); `write_plan` refreshes each one's `before` from Redmine (`plan::refresh_renames`) for undo. The calendar's `DayPanel` builds one from `RenameTask` (not for leave entries).
    - `write_plan` re-validates with `logtime_engine::plan::check_plan` (hours, targets, ≤ 24h per day including Redmine's hours) before creating the batch.
    - A failure that may have reached Redmine (network, timeout, 5xx) is marked `uncertain`; `reset_failed` turns it into `running`, so the retry looks up the existing entry/sub-task before creating.
 6. **Learn.** After a write, `afterWrite` sends each task's chosen parent/sub-task to `remember_tasks` (`ai-bridge::memory`, kv key `task_memory`). The memory is applied over Claude's guesses in `analyze_report`, listed in the prompt, and drives `quick_report` (“Khớp nhanh”: date headers + memory, no Claude).
@@ -62,8 +64,9 @@ Contributor setup, Docker Redmine, data locations and release steps are in `docs
 - **Credentials (`secrets.rs`).** One JSON item in the OS keychain via `keyring`; falls back to `credentials.json` (0600) when the keychain fails, and migrates an old file into the keychain.
 - **In-app update (`update_commands.rs`, `src/useUpdate.ts`).** `check_update` reads `latest.json` from the latest GitHub release (signed by `scripts/ci/sign-update.sh` and `latest-json.sh` in `release.yml` when the `TAURI_SIGNING_PRIVATE_KEY` secret is set; its notes are the tag body from `NOTES_FILE`) and keeps the found `Update`; `install_update` installs it and restarts, refusing while a write or Claude run is busy. `useUpdate` (one instance in `App.tsx`) checks at start, every 6 hours and on demand (About card). An installable update shows a toast once and `UpdateDialog` from the activity bar's update item or the status bar; when the updater cannot run here, it falls back to the GitHub release list and the About card's install command.
 
+- **Recurring work.** `Settings::recurring` (`RecurringTask`: issue, hours, ISO weekdays, paused). `build_view` adds `ReportView::recurring` (`recurring::due`: workdays, not already logged on that issue, while it fits the free hours) and `report::plan` takes them off each day's capacity first. `reportFlow` shows them as tickable rows (`rec|<id>|<date>`) and re-plans with the ticked ones; `DayPanel` offers them as one write (`src/recurring.ts`, kept in step with the Rust rule).
 - **Fill the short days.** The calendar's "Điền N ngày thiếu" (right of the legend under the grid) sends the month's missing/partial workdays up to today to `ReportComposer` (`fill`). It fetches the remembered Google Chat group's messages sent on those days or the day after (`fillRange`, `rangeChatMessages`), replaces the report text with them and runs `quick`; days with no message are listed (`uncoveredDays`). Without a remembered group it opens `GchatImport` for that range.
-- **Calendar day panel.** `month_summary` fills each entry's issue subject and parent task (`RedmineClient::issues_by_ids`, best effort), so `DayPanel` can show project › parent › task. A day with `hours >= hours_per_day` is read-only: no report, add or leave actions.
+- **Calendar day panel.** `month_summary` fills each entry's issue subject and parent task (`RedmineClient::issues_by_ids`, best effort), so `DayPanel` can show project › parent › task. A day with `hours >= hours_per_day` has no report, add or leave actions; its entries' tasks can still be renamed.
 - **Redmine profile.** "Phân tích cấu trúc Redmine" (`discover_profile`, `ai-bridge::profile`) writes `redmine-profile.md`. It is passed to mcp-redmine as request instructions, to improve parent-task matching.
 - **Leave.** Each leave type maps to a project with a monthly parent issue created by HR. The app creates one child issue per leave day and logs time on it (`leave_commands.rs`, `logtime-core::leave`, `src/leave.ts`).
 - **Google Chat.**

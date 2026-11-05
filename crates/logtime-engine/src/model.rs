@@ -51,17 +51,34 @@ pub struct SubtaskDraft {
     pub start_date: Option<NaiveDate>,
 }
 
-/// What one write sends to Redmine: the sub-tasks to create and the time
-/// entries, as the user confirmed them.
+/// A new name for an issue that already has time on it (time entries
+/// themselves are never changed). `before` is the name Redmine held when
+/// the batch was made (refreshed by `plan::refresh_renames`), so undo can
+/// put it back.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IssueRename {
+    pub issue_id: u32,
+    pub before: String,
+    pub after: String,
+}
+
+/// What one write sends to Redmine: the sub-tasks to create, the time
+/// entries, and new names for existing issues, as the user confirmed them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct WritePlan {
     pub subtasks: Vec<SubtaskDraft>,
     pub items: Vec<PlanItem>,
+    #[serde(default)]
+    pub renames: Vec<IssueRename>,
 }
 
 impl WritePlan {
     pub fn subtask(&self, key: &str) -> Option<&SubtaskDraft> {
         self.subtasks.iter().find(|s| s.key == key)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty() && self.renames.is_empty()
     }
 }
 
@@ -70,6 +87,7 @@ impl WritePlan {
 pub enum OpPayload {
     CreateSubtask(SubtaskDraft),
     CreateTimeEntry(PlanItem),
+    RenameIssue(IssueRename),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

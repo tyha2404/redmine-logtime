@@ -5,6 +5,7 @@ use chrono::NaiveDate;
 use std::collections::BTreeMap;
 
 use logtime_core::planner::{self, Allocation, Demand};
+use logtime_core::recurring::FixedEntry;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -93,12 +94,26 @@ pub struct DayPlan {
     pub warnings: Vec<String>,
 }
 
-/// Splits each day's free hours across the report tasks done that day.
-pub fn plan(analysis: &ReportAnalysis, days: &[DayCapacity], excluded: &[String]) -> Vec<DayPlan> {
+/// Splits each day's free hours across the report tasks done that day,
+/// after the recurring work (`fixed`) planned for it.
+pub fn plan(
+    analysis: &ReportAnalysis,
+    days: &[DayCapacity],
+    fixed: &[FixedEntry],
+    excluded: &[String],
+) -> Vec<DayPlan> {
+    let fixed_on = |date: NaiveDate| -> f64 {
+        fixed
+            .iter()
+            .filter(|f| f.date == date)
+            .map(|f| f.hours)
+            .sum()
+    };
+    let free = |d: &DayCapacity| (d.capacity - fixed_on(d.date)).max(0.0);
     let capacity: BTreeMap<NaiveDate, f64> = days
         .iter()
         .filter(|d| d.workday)
-        .map(|d| (d.date, d.capacity))
+        .map(|d| (d.date, free(d)))
         .collect();
     let demands = analysis.demands(excluded);
     let allocations = planner::allocate(&capacity, &demands, 0.5);
@@ -111,20 +126,18 @@ pub fn plan(analysis: &ReportAnalysis, days: &[DayCapacity], excluded: &[String]
                 .cloned()
                 .collect();
             let used: f64 = mine.iter().map(|a| a.hours).sum();
+            let free = free(d);
             let wanted = demands.iter().any(|x| x.date == d.date);
             let mut warnings = Vec::new();
             if !d.workday && wanted {
                 warnings.push("Báo cáo có việc vào ngày nghỉ; đã bỏ qua.".to_string());
-            } else if d.workday && d.capacity > 0.0 && !wanted {
+            } else if d.workday && free > 0.0 && !wanted {
                 warnings.push(format!(
                     "Không có việc nào trong báo cáo cho ngày này, còn trống {}h.",
-                    fmt_h(d.capacity)
+                    fmt_h(free)
                 ));
-            } else if d.workday && d.capacity - used >= 0.25 && wanted {
-                warnings.push(format!(
-                    "Còn trống {}h chưa phân bổ.",
-                    fmt_h(d.capacity - used)
-                ));
+            } else if d.workday && free - used >= 0.25 && wanted {
+                warnings.push(format!("Còn trống {}h chưa phân bổ.", fmt_h(free - used)));
             }
             DayPlan {
                 date: d.date,
@@ -510,7 +523,7 @@ mod tests {
             capacity: 8.0 - existing,
         };
         let days = vec![cap(26, 0.0), cap(27, 3.0), cap(28, 0.0)];
-        let p = plan(&a, &days, &[]);
+        let p = plan(&a, &days, &[], &[]);
 
         let hours = |i: usize| {
             p[i].allocations
@@ -522,9 +535,24 @@ mod tests {
         assert_eq!(hours(1), vec![("a", 5.0)]);
         assert!(p[2].warnings[0].contains("còn trống 8h"));
 
-        let without_b = plan(&a, &days, &["b".into()]);
+        let without_b = plan(&a, &days, &[], &["b".into()]);
         assert_eq!(without_b[0].allocations.len(), 1);
         assert_eq!(without_b[0].allocations[0].hours, 8.0);
+
+        // A 1h meeting on 26 and 0.5h stand-up on 28 come off the free hours first.
+        let fixed = |x: u32, hours: f64| FixedEntry {
+            id: "r".into(),
+            date: d(x),
+            issue_id: 9,
+            label: "#9".into(),
+            hours,
+            activity_id: None,
+            comments: String::new(),
+        };
+        let with_fixed = plan(&a, &days, &[fixed(26, 1.0), fixed(28, 0.5)], &[]);
+        let total: f64 = with_fixed[0].allocations.iter().map(|x| x.hours).sum();
+        assert_eq!(total, 7.0);
+        assert!(with_fixed[2].warnings[0].contains("còn trống 7.5h"));
     }
 
     fn task(key: &str, text: &str, subtask: Option<u32>, days: &[u32]) -> ReportTask {

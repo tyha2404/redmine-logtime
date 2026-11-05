@@ -6,6 +6,7 @@ import type {
   DayPlan,
   DayStatus,
   DaySummary,
+  FixedEntry,
   Issue,
   LearnedTask,
   Op,
@@ -62,7 +63,37 @@ let settings: Settings = {
   reminder_enabled: true,
   reminder_time: "17:30",
   start_at_login: false,
+  recurring: [
+    {
+      id: "daily",
+      issue_id: 9,
+      label: "#9 Sprint 42 – họp và review",
+      hours: 0.5,
+      weekdays: [],
+      activity_id: null,
+      comments: "Daily stand-up",
+      paused: false,
+    },
+    {
+      id: "planning",
+      issue_id: 8,
+      label: "#8 Họp và nghiệp vụ nội bộ tháng 10",
+      hours: 1,
+      weekdays: [1],
+      activity_id: null,
+      comments: "Họp đầu tuần",
+      paused: false,
+    },
+  ],
 };
+
+const ACTIVITIES = [
+  { id: 8, name: "Design", is_default: false, active: true },
+  { id: 9, name: "Development", is_default: true, active: true },
+  { id: 21, name: "Annual Leave", is_default: false, active: true },
+  { id: 22, name: "Sick Leave", is_default: false, active: true },
+  { id: 23, name: "Unpaid Leave", is_default: false, active: true },
+];
 
 const iso = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
 let nextEntry = 1000;
@@ -389,6 +420,12 @@ let nextBatch = 10;
 let nextIssue = 20000;
 const created = new Map<string, number>();
 
+/** Renames an issue on the mock Redmine. */
+function renameIssue(id: number, subject: string) {
+  const issue = ISSUES.find((i) => i.id === id);
+  if (issue) issue.subject = subject;
+}
+
 async function runOps(batch: Batch, pick: (op: Op) => boolean, fail: (op: Op) => string | null) {
   for (const op of batch.ops) {
     if (!pick(op)) continue;
@@ -396,6 +433,9 @@ async function runOps(batch: Batch, pick: (op: Op) => boolean, fail: (op: Op) =>
     const why = fail(op);
     if (why) {
       Object.assign(op, { status: "failed", error: why });
+    } else if (op.payload.op === "rename_issue") {
+      renameIssue(op.payload.issue_id, op.payload.after.trim());
+      Object.assign(op, { status: "done", result_id: op.payload.issue_id, error: null });
     } else if (op.payload.op === "create_subtask") {
       const id = created.get(op.payload.key) ?? nextIssue++;
       created.set(op.payload.key, id);
@@ -412,8 +452,28 @@ async function runOps(batch: Batch, pick: (op: Op) => boolean, fail: (op: Op) =>
   return structuredClone(batch);
 }
 
+/** Recurring work due on a report's days, like build_view (recurring::due). */
+function withRecurring(view: ReportView): ReportView {
+  const recurring: FixedEntry[] = [];
+  for (const d of view.days) {
+    if (!d.workday) continue;
+    const weekday = ((new RealDate(`${d.date}T00:00:00`).getDay() + 6) % 7) + 1;
+    let left = d.capacity;
+    for (const r of settings.recurring) {
+      if (r.paused || (r.weekdays.length && !r.weekdays.includes(weekday)) || r.hours > left) continue;
+      if (ENTRIES.some((e) => e.spent_on === d.date && e.issue?.id === r.issue_id)) continue;
+      left -= r.hours;
+      const { id, issue_id, label, hours, activity_id, comments } = r;
+      recurring.push({ id, date: d.date, issue_id, label, hours, activity_id, comments });
+    }
+  }
+  return { ...view, recurring };
+}
+
 function planReport(view: ReportView, excluded: string[]): DayPlan[] {
-  return view.days.map((d) => {
+  return view.days.map((day) => {
+    const fixed = (view.recurring ?? []).filter((r) => r.date === day.date).reduce((s, r) => s + r.hours, 0);
+    const d = { ...day, capacity: Math.max(day.capacity - fixed, 0) };
     const demands = view.analysis.tasks
       .filter((t) => !excluded.includes(t.key))
       .flatMap((t) => t.days.filter((x) => x.date === d.date).map((x) => ({ task: t.key, w: x.weight })));
@@ -428,7 +488,7 @@ function planReport(view: ReportView, excluded: string[]): DayPlan[] {
       d.capacity > 0 && demands.length === 0
         ? [`Không có việc nào trong báo cáo cho ngày này, còn trống ${d.capacity}h.`]
         : [];
-    return { ...d, allocations: allocations.filter((a) => a.hours > 0), warnings };
+    return { ...day, allocations: allocations.filter((a) => a.hours > 0), warnings };
   });
 }
 
@@ -597,13 +657,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "list_batches":
       return delay(structuredClone(BATCHES));
     case "list_activities":
-      return delay([
-        { id: 8, name: "Design", is_default: false, active: true },
-        { id: 9, name: "Development", is_default: true, active: true },
-        { id: 21, name: "Annual Leave", is_default: false, active: true },
-        { id: 22, name: "Sick Leave", is_default: false, active: true },
-        { id: 23, name: "Unpaid Leave", is_default: false, active: true },
-      ]);
+      return delay(ACTIVITIES);
     case "list_trackers":
       return delay([
         { id: 1, name: "Bug" },
@@ -623,7 +677,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       if (kept) return delay({ ...kept, day: args.day ?? null });
       return delay(
         args.day === TODAY
-          ? { text: REPORT_TEXT, day: TODAY, view: REPORT_VIEW }
+          ? { text: REPORT_TEXT, day: TODAY, view: withRecurring(REPORT_VIEW) }
           : { text: "", day: args.day ?? null, view: null },
       );
     }
@@ -680,7 +734,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
         v.days = [{ date: day, workday: true, existing_hours: 0, leave_hours: 0, capacity: HPD }];
         v.day = day;
       }
-      return delay(v, 300);
+      return delay(withRecurring(v), 300);
     }
     case "remember_tasks": {
       for (const t of args.tasks as LearnedTask[]) {
@@ -700,7 +754,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       const slot = String(args.day ?? "");
       const text = String(args.text);
       lastReports.set(slot, { text, view: null });
-      const view = args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW);
+      const view = withRecurring(args.day ? { ...REPORT_VIEW, day: args.day as string } : structuredClone(WEEK_VIEW));
       return delay(view, 1200).then((v) => (lastReports.set(slot, { text, view: v }), v));
     }
     case "discover_leave":
@@ -790,6 +844,11 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "preview_plan": {
       const plan = args.plan as WritePlan;
       return delay([
+        ...(plan.renames ?? []).map((r) => ({
+          method: "PUT",
+          path: `/issues/${r.issue_id}.json`,
+          body: { issue: { subject: r.after } },
+        })),
         ...plan.subtasks.map((s) => ({
           method: "POST",
           path: "/issues.json",
@@ -807,7 +866,13 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
       const used = plan.subtasks.filter((s) =>
         plan.items.some((i) => i.target.type === "new_subtask" && i.target.key === s.key),
       );
+      // Like refresh_renames: the name Redmine holds now, for undo.
+      const renames = (plan.renames ?? []).map((r) => ({
+        ...r,
+        before: ISSUES.find((i) => i.id === r.issue_id)?.subject ?? r.before,
+      }));
       const payloads: OpPayload[] = [
+        ...renames.map((r) => ({ op: "rename_issue" as const, ...r })),
         ...used.map((s) => ({ op: "create_subtask" as const, ...s })),
         ...[...plan.items]
           .sort((a, b) => a.date.localeCompare(b.date))
@@ -854,10 +919,13 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "undo_batch": {
       const batch = BATCHES.find((b) => b.id === args.batchId)!;
       for (const op of [...batch.ops].reverse()) {
-        if (op.payload.op !== "create_time_entry" || op.status !== "done") continue;
+        if (op.payload.op === "create_subtask" || op.status !== "done") continue;
         await delay(null, 250);
-        const at = ENTRIES.findIndex((e) => e.id === op.result_id);
-        if (at >= 0) ENTRIES.splice(at, 1);
+        if (op.payload.op === "rename_issue") renameIssue(op.payload.issue_id, op.payload.before);
+        else {
+          const at = ENTRIES.findIndex((e) => e.id === op.result_id);
+          if (at >= 0) ENTRIES.splice(at, 1);
+        }
         op.status = "undone";
         emit("batch-progress", { batch_id: batch.id, op: { ...op } });
       }

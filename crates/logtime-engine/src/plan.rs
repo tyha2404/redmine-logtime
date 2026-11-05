@@ -1,25 +1,43 @@
 //! Pure planning helpers: turning a write plan into operations and
 //! previewing the API calls.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use chrono::NaiveDate;
+use redmine_client::Issue;
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::model::{OpPayload, PlanItem, Target, WritePlan};
 use crate::{Error, Result};
 
-/// Operations for a plan: each new sub-task once (before its entries), then
-/// the time entries ordered by date.
+/// Operations for a plan: issue renames first, then each new sub-task once
+/// (before its entries), then the new entries ordered by date.
 pub fn build_ops(plan: &WritePlan) -> Result<Vec<OpPayload>> {
-    let mut items: Vec<&PlanItem> = plan.items.iter().collect();
-    if items.is_empty() {
+    if plan.is_empty() {
         return Err(Error::Invalid("Chưa chọn logtime nào để ghi.".into()));
     }
+    let mut items: Vec<&PlanItem> = plan.items.iter().collect();
     items.sort_by_key(|i| i.date);
 
     let mut ops = Vec::new();
+    let mut renamed = HashSet::new();
+    for r in &plan.renames {
+        if !renamed.insert(r.issue_id) {
+            return Err(Error::Invalid(format!(
+                "Issue #{} được đổi tên hai lần trong lô ghi.",
+                r.issue_id
+            )));
+        }
+        if r.after.trim().is_empty() {
+            return Err(Error::Invalid(format!(
+                "Tên mới của issue #{} đang trống.",
+                r.issue_id
+            )));
+        }
+        ops.push(OpPayload::RenameIssue(r.clone()));
+    }
+
     let mut seen_keys: Vec<&str> = Vec::new();
     for item in &items {
         if !(item.hours > 0.0 && item.hours <= 24.0) {
@@ -54,19 +72,41 @@ pub fn build_ops(plan: &WritePlan) -> Result<Vec<OpPayload>> {
 pub const MAX_HOURS_PER_DAY: f64 = 24.0;
 const EPS: f64 = 1e-6;
 
+/// Sets each rename's `before` to the name Redmine holds now (`current`),
+/// so undo restores the real previous name. Fails when an issue cannot be
+/// seen any more.
+pub fn refresh_renames(plan: &mut WritePlan, current: &[Issue]) -> Result<()> {
+    for r in &mut plan.renames {
+        let issue = current.iter().find(|i| i.id == r.issue_id).ok_or_else(|| {
+            Error::Invalid(format!(
+                "Không đọc được issue #{} trên Redmine. Tải lại lịch rồi thử lại.",
+                r.issue_id
+            ))
+        })?;
+        r.before = issue.subject.clone();
+    }
+    Ok(())
+}
+
 /// The last check before anything is sent, independent of the UI: every
-/// entry has sane hours and a target, every new sub-task is complete, and no
-/// day ends up above 24h counting what Redmine already holds (`logged`).
+/// entry has sane hours and a target, every new sub-task is complete, every
+/// rename has a name, and no day ends up above 24h counting what Redmine
+/// already holds (`logged`).
 pub fn check_plan(plan: &WritePlan, logged: &[(NaiveDate, f64)]) -> Result<()> {
     let bad = |msg: String| Err(Error::Invalid(msg));
-    if plan.items.is_empty() {
+    if plan.is_empty() {
         return bad("Chưa chọn logtime nào để ghi.".into());
+    }
+    for r in &plan.renames {
+        if r.issue_id == 0 || r.after.trim().is_empty() {
+            return bad(format!("Tên mới của issue #{} đang trống.", r.issue_id));
+        }
     }
     let mut per_day: BTreeMap<NaiveDate, f64> = BTreeMap::new();
     for (date, hours) in logged {
         *per_day.entry(*date).or_default() += hours;
     }
-    let mut ids = std::collections::HashSet::new();
+    let mut ids = HashSet::new();
     for item in &plan.items {
         let day = item.date.format("%d/%m/%Y");
         if !ids.insert(item.id.as_str()) {
@@ -117,7 +157,7 @@ pub fn check_plan(plan: &WritePlan, logged: &[(NaiveDate, f64)]) -> Result<()> {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ApiCall {
     pub method: &'static str,
-    pub path: &'static str,
+    pub path: String,
     pub body: Value,
 }
 
@@ -127,7 +167,7 @@ pub fn preview(ops: &[OpPayload], plan: &WritePlan, assignee_id: Option<u32>) ->
         .map(|op| match op {
             OpPayload::CreateSubtask(s) => ApiCall {
                 method: "POST",
-                path: "/issues.json",
+                path: "/issues.json".into(),
                 body: json!({"issue": {
                     "project_id": s.project_id,
                     "tracker_id": s.tracker_id,
@@ -148,7 +188,7 @@ pub fn preview(ops: &[OpPayload], plan: &WritePlan, assignee_id: Option<u32>) ->
                 };
                 ApiCall {
                     method: "POST",
-                    path: "/time_entries.json",
+                    path: "/time_entries.json".into(),
                     body: json!({"time_entry": {
                         "issue_id": issue_id,
                         "spent_on": i.date,
@@ -158,6 +198,11 @@ pub fn preview(ops: &[OpPayload], plan: &WritePlan, assignee_id: Option<u32>) ->
                     }}),
                 }
             }
+            OpPayload::RenameIssue(r) => ApiCall {
+                method: "PUT",
+                path: format!("/issues/{}.json", r.issue_id),
+                body: json!({"issue": {"subject": r.after}}),
+            },
         })
         .collect()
 }
@@ -165,7 +210,7 @@ pub fn preview(ops: &[OpPayload], plan: &WritePlan, assignee_id: Option<u32>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{ItemKind, SubtaskDraft};
+    use crate::model::{IssueRename, ItemKind, SubtaskDraft};
     use chrono::NaiveDate;
 
     fn d(day: u32) -> NaiveDate {
@@ -214,6 +259,7 @@ mod tests {
                     3.0,
                 ),
             ],
+            ..Default::default()
         }
     }
 
@@ -301,5 +347,69 @@ mod tests {
             calls[1].body["time_entry"]["issue_id"],
             "<id task con \"Task a\">"
         );
+    }
+
+    fn renames() -> WritePlan {
+        WritePlan {
+            renames: vec![IssueRename {
+                issue_id: 77,
+                before: String::new(),
+                after: "[FE] Lọc theo vùng".into(),
+            }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn build_ops_renames_first_and_once() {
+        let mut p = plan();
+        p.renames = renames().renames;
+        let ops = build_ops(&p).unwrap();
+        assert!(matches!(&ops[0], OpPayload::RenameIssue(r) if r.issue_id == 77));
+        assert!(matches!(&ops[1], OpPayload::CreateSubtask(_)));
+        // Renames alone are a plan; the same issue twice or a blank name is not.
+        assert_eq!(build_ops(&renames()).unwrap().len(), 1);
+        let mut twice = renames();
+        twice.renames.push(twice.renames[0].clone());
+        assert!(
+            build_ops(&twice)
+                .unwrap_err()
+                .to_string()
+                .contains("hai lần")
+        );
+        let mut blank = renames();
+        blank.renames[0].after = "  ".into();
+        assert!(build_ops(&blank).is_err());
+        assert!(check_err(&blank, &[]).contains("trống"));
+        assert!(check_plan(&renames(), &[]).is_ok());
+    }
+
+    fn issue(id: u32, subject: &str) -> Issue {
+        serde_json::from_value(json!({
+            "id": id, "subject": subject, "project": {"id": 3, "name": "ABC"},
+            "tracker": {"id": 4, "name": "Task"}, "status": {"id": 1, "name": "New"},
+            "author": {"id": 7, "name": "Me"}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn refresh_renames_takes_the_name_redmine_holds_now() {
+        let mut p = renames();
+        refresh_renames(&mut p, &[issue(77, "Lọc vùng (sửa trên web)")]).unwrap();
+        assert_eq!(p.renames[0].before, "Lọc vùng (sửa trên web)");
+        let err = refresh_renames(&mut renames(), &[issue(78, "x")]).unwrap_err();
+        assert!(err.to_string().contains("#77"));
+    }
+
+    #[test]
+    fn preview_shows_the_rename() {
+        let p = renames();
+        let calls = preview(&build_ops(&p).unwrap(), &p, None);
+        assert_eq!(
+            (calls[0].method, calls[0].path.as_str()),
+            ("PUT", "/issues/77.json")
+        );
+        assert_eq!(calls[0].body["issue"]["subject"], "[FE] Lọc theo vùng");
     }
 }

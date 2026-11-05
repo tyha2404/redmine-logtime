@@ -51,6 +51,12 @@ pub async fn run_batch(
             OpPayload::CreateTimeEntry(item) => {
                 create_entry(store, client, item, interrupted, &taken).await
             }
+            // Idempotent: the same name sent twice is the same result.
+            OpPayload::RenameIssue(r) => client
+                .rename_issue(r.issue_id, r.after.trim())
+                .await
+                .map(|()| r.issue_id)
+                .map_err(Error::from),
         };
 
         let (status, result_id, error) = match outcome {
@@ -78,8 +84,9 @@ pub async fn run_batch(
     store.batch(batch_id)
 }
 
-/// Deletes the time entries the batch created. Sub-tasks are kept: most
-/// Redmine roles cannot delete issues.
+/// Reverts what the batch did, last first: deletes the time entries it
+/// created and gives renamed issues their old name back. Sub-tasks are
+/// kept: most Redmine roles cannot delete issues.
 pub async fn undo_batch(
     store: &Store,
     client: &RedmineClient,
@@ -91,14 +98,23 @@ pub async fn undo_batch(
     ensure_same_server(&batch, current_url)?;
 
     for op in batch.ops.into_iter().rev() {
-        let (OpPayload::CreateTimeEntry(_), OpStatus::Done, Some(entry_id)) =
-            (&op.payload, op.status, op.result_id)
-        else {
+        let (OpStatus::Done, Some(entry_id)) = (op.status, op.result_id) else {
             continue;
         };
-        let (status, error) = match client.delete_time_entry(entry_id).await {
+        let reverted = match &op.payload {
+            OpPayload::CreateSubtask(_) => continue,
+            OpPayload::CreateTimeEntry(_) => client
+                .delete_time_entry(entry_id)
+                .await
+                .map_err(|e| format!("Không xoá được: {e}")),
+            OpPayload::RenameIssue(r) => client
+                .rename_issue(r.issue_id, &r.before)
+                .await
+                .map_err(|e| format!("Không đặt lại tên cũ được: {e}")),
+        };
+        let (status, error) = match reverted {
             Ok(()) => (OpStatus::Undone, None),
-            Err(e) => (OpStatus::Done, Some(format!("Không xoá được: {e}"))),
+            Err(e) => (OpStatus::Done, Some(e)),
         };
         store.set_op(op.id, status, None, error.as_deref())?;
         on_progress(&Op {
@@ -242,6 +258,7 @@ mod tests {
                     kind: ItemKind::Work,
                 },
             ],
+            ..Default::default()
         }
     }
 
@@ -545,5 +562,80 @@ mod tests {
         .await
         .unwrap_err();
         assert!(err.to_string().contains("khác với Redmine"));
+    }
+
+    #[tokio::test]
+    async fn rename_runs_then_undo_puts_the_old_name_back() {
+        use crate::model::IssueRename;
+        let server = MockServer::start().await;
+        let plan = WritePlan {
+            renames: vec![IssueRename {
+                issue_id: 77,
+                before: "Lọc vùng".into(),
+                after: "[FE] Lọc theo vùng ".into(),
+            }],
+            ..Default::default()
+        };
+        let store = Store::open_in_memory().unwrap();
+        let client = RedmineClient::new(&server.uri(), "k", ClientOptions::default()).unwrap();
+        let id = store
+            .create_batch("rename", &server.uri(), &build_ops(&plan).unwrap())
+            .unwrap();
+        Mock::given(method("PUT"))
+            .and(path("/issues/77.json"))
+            .and(wiremock::matchers::body_json(
+                json!({"issue": {"subject": "[FE] Lọc theo vùng"}}),
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let batch = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(batch.ops[0].status, OpStatus::Done);
+        assert_eq!(batch.ops[0].result_id, Some(77));
+
+        Mock::given(method("PUT"))
+            .and(path("/issues/77.json"))
+            .and(wiremock::matchers::body_json(
+                json!({"issue": {"subject": "Lọc vùng"}}),
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let undone = undo_batch(&store, &client, id, &server.uri(), &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(undone.ops[0].status, OpStatus::Undone);
+    }
+
+    #[tokio::test]
+    async fn a_rename_redmine_refuses_stays_failed() {
+        use crate::model::IssueRename;
+        let server = MockServer::start().await;
+        let plan = WritePlan {
+            renames: vec![IssueRename {
+                issue_id: 5,
+                before: "Module Sự kiện".into(),
+                after: "Sự kiện".into(),
+            }],
+            ..Default::default()
+        };
+        let store = Store::open_in_memory().unwrap();
+        let client = RedmineClient::new(&server.uri(), "k", ClientOptions::default()).unwrap();
+        let id = store
+            .create_batch("rename", &server.uri(), &build_ops(&plan).unwrap())
+            .unwrap();
+        Mock::given(method("PUT"))
+            .respond_with(ResponseTemplate::new(403))
+            .mount(&server)
+            .await;
+        let batch = run_batch(&store, &client, id, &server.uri(), 7, &mut |_: &Op| {})
+            .await
+            .unwrap();
+        assert_eq!(batch.ops[0].status, OpStatus::Failed);
+        assert!(batch.ops[0].error.as_deref().unwrap().contains("403"));
     }
 }

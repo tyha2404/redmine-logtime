@@ -8,8 +8,8 @@ Redmine Logtime combines Tauri 2, React/TypeScript, and a Rust workspace.
 - `src-tauri/`: desktop commands, application state, credentials (OS keychain with file fallback), tray and end-of-day reminder, in-app updater, logging, and Tauri configuration.
 - `crates/google-chat/`: read-only Google Chat client and OAuth sign-in.
 - `crates/redmine-client/`: Redmine REST client.
-- `crates/logtime-core/`: settings, calendar, leave, and planning logic.
-- `crates/logtime-engine/`: SQLite-backed write batches, retry, deduplication, and undo.
+- `crates/logtime-core/`: settings, calendar, leave, recurring work, and planning logic.
+- `crates/logtime-engine/`: SQLite-backed write batches (new entries and issue renames), retry, deduplication, and undo.
 - `crates/ai-bridge/`: Claude CLI integration, report analysis, and remembered task choices (`memory.rs`, also used by the no-AI quick match).
 - `docker/`: local Redmine and seed data; `scripts/`: installation and releases; `docs/`: development notes and screenshots.
 
@@ -39,7 +39,7 @@ Follow the history's Conventional Commit prefixes: `feat:`, `fix:`, `docs:`, and
 
 ## Security & Configuration
 
-Never commit API keys or credentials. Test writes against Docker Redmine, following `docs/development.md`; its seed does not cover the full monthly leave workflow. Preserve explicit user review before Redmine writes and the read-only access of the AI and Google Chat integrations. Undo removes time entries, retaining subtasks.
+Never commit API keys or credentials. Test writes against Docker Redmine, following `docs/development.md`; its seed does not cover the full monthly leave workflow. Preserve explicit user review before Redmine writes and the read-only access of the AI and Google Chat integrations. Logged time entries are never edited or deleted, except by undoing the batch that created them; only their issue can be renamed. Undo deletes created time entries, restores renamed issues' names, and retains subtasks.
 
 ## Documentation
 

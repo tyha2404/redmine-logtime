@@ -60,6 +60,9 @@ export function describeOp(op: Op, ops: Op[]): string {
   if (p.op === "create_subtask") {
     return `Tạo task con "${p.subject}" dưới #${p.parent_id}${op.result_id ? `, thành #${op.result_id}` : ""}`;
   }
+  if (p.op === "rename_issue") {
+    return `Đổi tên #${p.issue_id}: “${p.before}” → “${p.after.trim()}”`;
+  }
   let target: string;
   if (p.target.type === "issue") {
     target = p.target.label;
@@ -70,4 +73,15 @@ export function describeOp(op: Op, ops: Op[]): string {
     target = sub?.result_id ? `#${sub.result_id} ${subject}` : subject;
   }
   return `${fmtDayShort(p.date)}: ${fmtHours(p.hours)} vào ${target}`;
+}
+
+/** Ops a batch is about: new entries and renames (not the sub-tasks created for them). */
+export const isMainOp = (o: Op): boolean => o.payload.op !== "create_subtask";
+
+/** What a batch did, in words: "ghi … logtime", "đổi tên … task", or "cập nhật … mục" when mixed. */
+export function batchWhat(ops: Op[]): { verb: string; noun: string } {
+  const kinds = new Set(ops.filter(isMainOp).map((o) => o.payload.op));
+  if (kinds.size === 1 && kinds.has("rename_issue")) return { verb: "đổi tên", noun: "task" };
+  if (kinds.size === 1) return { verb: "ghi", noun: "logtime" };
+  return { verb: "cập nhật", noun: "mục" };
 }

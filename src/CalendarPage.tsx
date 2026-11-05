@@ -14,10 +14,12 @@ import {
   type Settings,
   type WritePlan,
 } from "./api";
-import { fmtDayLong, fmtDayShort, fmtHours, isoOf, parseIso, todayIso } from "./fmt";
+import { batchWhat, fmtDayLong, fmtDayShort, fmtHours, isMainOp, isoOf, parseIso, todayIso } from "./fmt";
 import { Icon } from "./icons";
 import PageHeader, { RefreshButton } from "./PageHeader";
 import QuotaRail from "./QuotaRail";
+import { recurringDue, recurringItem, subjectOf } from "./recurring";
+import RenameTask from "./RenameTask";
 import { ReportResult, useReportFlow } from "./reportFlow";
 import { fmtDays } from "./leave";
 import { useToast } from "./toast";
@@ -543,6 +545,8 @@ function DayPanel(props: {
   const [plan, setPlan] = useState<WritePlan | null>(null);
   /** The tray's quick-match request being run (remounts the report on each). */
   const [quickRun, setQuickRun] = useState(0);
+  /** The logged entry whose task is being renamed in place. */
+  const [editing, setEditing] = useState<number | null>(null);
 
   useEffect(() => {
     if (!ask || !day) return;
@@ -572,12 +576,22 @@ function DayPanel(props: {
 
   const closed = (batch: Batch | null) => {
     setPlan(null);
-    const ok = batch?.ops.filter((o) => o.payload.op === "create_time_entry" && o.status === "done").length ?? 0;
-    if (ok === 0) return;
+    const ok = batch?.ops.filter((o) => isMainOp(o) && o.status === "done").length ?? 0;
+    if (!batch || ok === 0) return;
     setMode("idle");
+    setEditing(null);
     onWritten();
-    toast(`Đã ghi ${ok} logtime ngày ${fmtDayShort(day.date)} lên Redmine.`);
+    const { verb, noun } = batchWhat(batch.ops);
+    toast(
+      noun === "task"
+        ? `Đã đổi tên task trên Redmine.`
+        : `Đã ${verb} ${ok} ${noun} ngày ${fmtDayShort(day.date)} lên Redmine.`,
+    );
   };
+  /** Leave issues follow HR's naming, so they are not renamed here. */
+  const leaveProjects = new Set(settings.leave_types.map((t) => t.project_id));
+  const recurring = recurringDue(settings, day);
+  const recurringHours = recurring.reduce((s, r) => s + r.hours, 0);
 
   return (
     <aside className="day-panel">
@@ -648,6 +662,18 @@ function DayPanel(props: {
             <Icon name="plus" size={16} />
             Ghi logtime vào issue
           </button>
+          {recurring.length > 0 && (
+            <button
+              className="btn"
+              onClick={() => setPlan({ items: recurring.map((r) => recurringItem(r, settings)), subtasks: [] })}
+              title={recurring.map((r) => `${r.label}: ${fmtHours(r.hours)}`).join("\n")}
+            >
+              <Icon name="recurring" size={16} />
+              {recurring.length === 1
+                ? `Ghi ${subjectOf(recurring[0].label)} (${fmtHours(recurringHours)})`
+                : `Ghi ${recurring.length} việc lặp lại (${fmtHours(recurringHours)})`}
+            </button>
+          )}
           {!off && (
             <button className="btn" onClick={() => setMode("leave")}>
               <Icon name="leave" size={16} />
@@ -669,6 +695,21 @@ function DayPanel(props: {
               const parent = e.issue?.parent;
               const title = e.issue?.subject ?? (e.issue ? `Issue #${e.issue.id}` : e.project.name);
               const note = e.comments?.trim();
+              if (editing === e.id) {
+                return (
+                  <li key={e.id} className="entry is-editing" style={projectHue(e.project.id)}>
+                    <div className="entry-context">
+                      <span className="entry-project">{e.project.name}</span>
+                      {parent && <span className="entry-parent">{parent.subject ?? `#${parent.id}`}</span>}
+                    </div>
+                    <RenameTask
+                      entry={e}
+                      onSave={(rename) => setPlan({ items: [], subtasks: [], renames: [rename] })}
+                      onCancel={() => setEditing(null)}
+                    />
+                  </li>
+                );
+              }
               return (
                 <li key={e.id} className="entry" style={projectHue(e.project.id)}>
                   {/* Where the task sits: the project, then its parent task. */}
@@ -685,6 +726,20 @@ function DayPanel(props: {
                     <span>{e.activity.name}</span>
                   </div>
                   {note && !title.toLowerCase().includes(note.toLowerCase()) && <p className="entry-comment">{note}</p>}
+                  {/* Logged work stays as it is; only its task (issue) can be renamed. */}
+                  {e.issue && !leaveProjects.has(e.project.id) && (
+                    <div className="entry-actions">
+                      <button
+                        className="nav-btn icon-only"
+                        onClick={() => setEditing(e.id)}
+                        disabled={editing !== null || !!plan}
+                        aria-label={`Đổi tên task ${title}`}
+                        title="Đổi tên task"
+                      >
+                        <Icon name="edit" />
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}

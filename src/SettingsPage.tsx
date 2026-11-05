@@ -6,6 +6,7 @@ import { api, errorText, type Activity, type Settings, type SettingsView, type T
 import LeaveSettings from "./LeaveSettings";
 import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
+import RecurringSettings, { recurringProblem } from "./RecurringSettings";
 import PageHeader from "./PageHeader";
 import Tabs from "./Tabs";
 import type { Update } from "./useUpdate";
@@ -191,6 +192,12 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
     if (settings.workdays.length === 0) {
       setTab("work");
       setSaveNotice({ kind: "error", text: "Chọn ít nhất một ngày làm việc trong tuần." });
+      return false;
+    }
+    const recurringBad = recurringProblem(settings.recurring ?? [], hpd);
+    if (recurringBad) {
+      setTab("integrations");
+      setSaveNotice({ kind: "error", text: recurringBad });
       return false;
     }
     setBusy(true);
@@ -412,6 +419,14 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
             </div>
             <TaskMemory />
           </section>
+
+          <RecurringSettings
+            tasks={settings.recurring ?? []}
+            workdays={settings.workdays}
+            hoursPerDay={settings.hours_per_day}
+            activities={workActivities}
+            onChange={(recurring) => update("recurring", recurring)}
+          />
 
           <section className="card">
             <h3>Claude</h3>

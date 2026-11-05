@@ -16,6 +16,7 @@ const ICONS = {
   plus: "add",
   leave: "coffee",
   edit: "edit",
+  recurring: "sync",
   download: "cloud-download",
   server: "server",
   // Pages

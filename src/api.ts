@@ -22,6 +22,35 @@ export interface Settings {
   /** "HH:MM" */
   reminder_time: string;
   start_at_login: boolean;
+  /** Fixed work on fixed weekdays, logged before a report's hours are split. */
+  recurring: RecurringTask[];
+}
+
+/** One piece of recurring work (stand-up, weekly meeting) on an existing issue. */
+export interface RecurringTask {
+  id: string;
+  issue_id: number;
+  /** "#123 Họp daily" */
+  label: string;
+  hours: number;
+  /** ISO weekdays (Monday = 1); empty = every workday. */
+  weekdays: number[];
+  /** null = the default activity. */
+  activity_id: number | null;
+  /** The entry's comment; the issue subject when empty. */
+  comments: string;
+  paused: boolean;
+}
+
+/** A recurring task due on one reported day (logtime-core recurring.rs). */
+export interface FixedEntry {
+  id: string;
+  date: string;
+  issue_id: number;
+  label: string;
+  hours: number;
+  activity_id: number | null;
+  comments: string;
 }
 
 export interface LeaveType {
@@ -154,10 +183,19 @@ export interface SubtaskDraft {
   start_date?: string | null;
 }
 
-/** What one write sends: new sub-tasks first, then the time entries. */
+/** A new name for an issue that has time on it; logged entries themselves never change. */
+export interface IssueRename {
+  issue_id: number;
+  /** The name now (the backend refreshes it before writing, for undo). */
+  before: string;
+  after: string;
+}
+
+/** What one write sends: issue renames, new sub-tasks, then new time entries. */
 export interface WritePlan {
   subtasks: SubtaskDraft[];
   items: PlanItem[];
+  renames?: IssueRename[];
 }
 
 /** What the user chose for a report line, remembered after a write. */
@@ -177,7 +215,10 @@ export interface ApiCall {
   body: unknown;
 }
 
-export type OpPayload = ({ op: "create_subtask" } & SubtaskDraft) | ({ op: "create_time_entry" } & PlanItem);
+export type OpPayload =
+  | ({ op: "create_subtask" } & SubtaskDraft)
+  | ({ op: "create_time_entry" } & PlanItem)
+  | ({ op: "rename_issue" } & IssueRename);
 
 export type OpStatus = "pending" | "running" | "done" | "failed" | "undone";
 
@@ -296,6 +337,8 @@ export interface ReportView {
   skipped_future: string[];
   /** Set when this is one calendar day's report. */
   day: string | null;
+  /** Recurring work due on the reported days (absent in reports saved by older versions). */
+  recurring?: FixedEntry[];
 }
 
 export interface DayPlan {

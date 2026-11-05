@@ -3132,6 +3132,103 @@ select::-ms-expand {
   margin-top: 16px;
 }
 
+/* A logged entry's rename action: top right, shown on hover or focus. */
+.entry {
+  position: relative;
+}
+.entry-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  opacity: 0;
+}
+.entry:hover .entry-actions,
+.entry:focus-within .entry-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .entry-actions {
+    opacity: 1;
+  }
+}
+.entry.is-editing {
+  padding-bottom: 14px;
+}
+.entry-editor {
+  display: flex;
+  flex-direction: column;
+}
+.entry-editor .field {
+  margin-bottom: 12px;
+}
+.entry-editor .notice {
+  margin: 0 0 12px;
+}
+/* In a field (a column), the picker is one control high, not its row basis. */
+.field > .ipick {
+  flex: none;
+}
+
+/* Write dialog: a task's new name. */
+.write-kind {
+  margin-right: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-2) 16%, transparent);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.write-body > .write-table + .write-table {
+  border-top: 1px solid var(--line);
+}
+
+/* Recurring work in a report day: like an entry, with a fixed issue. */
+.rentry-target.is-static {
+  cursor: default;
+}
+
+/* Settings: recurring work. */
+.recurring-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.recurring-item {
+  padding: 14px 0 6px;
+  border-top: 1px solid var(--line);
+}
+.recurring-item .field {
+  margin-bottom: 10px;
+}
+.recurring-item.is-paused .field {
+  opacity: 0.55;
+}
+.recurring-grid {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 10px;
+}
+.recurring-grid + .recurring-grid {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+.recurring-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.recurring-foot .check {
+  margin: 0;
+}
+.recurring-card .card-foot .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ---------------------------------------------------------------------------
  * Motion. All linear. Controls fade between states; things that appear
  * (pages, dialogs, popovers, panels, results, bars) fade and slide in a few

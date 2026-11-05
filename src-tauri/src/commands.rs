@@ -64,6 +64,17 @@ pub fn save_settings(
     if settings.reminder_enabled && crate::reminder::parse_time(&settings.reminder_time).is_none() {
         return Err("Giờ nhắc phải có dạng HH:MM, ví dụ 17:30.".into());
     }
+    for task in &settings.recurring {
+        if task.issue_id == 0 {
+            return Err("Việc lặp lại nào cũng cần một issue.".into());
+        }
+        if !(task.hours > 0.0 && task.hours <= settings.hours_per_day) {
+            return Err(format!(
+                "Số giờ của việc lặp lại “{}” phải lớn hơn 0 và không quá {}h.",
+                task.label, settings.hours_per_day
+            ));
+        }
+    }
     let login = settings.start_at_login;
     state
         .save_settings(settings)

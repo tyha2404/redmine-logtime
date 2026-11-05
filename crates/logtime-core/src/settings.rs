@@ -29,6 +29,9 @@ pub struct Settings {
     pub reminder_time: String,
     /// Start (hidden, in the tray) when the user logs in.
     pub start_at_login: bool,
+    /// Work done the same way on fixed weekdays (stand-up, weekly meeting),
+    /// logged with its own hours before a report's hours are split.
+    pub recurring: Vec<RecurringTask>,
 }
 
 impl Default for Settings {
@@ -47,7 +50,36 @@ impl Default for Settings {
             reminder_enabled: true,
             reminder_time: "17:30".into(),
             start_at_login: false,
+            recurring: Vec::new(),
         }
+    }
+}
+
+/// One piece of recurring work, logged on an existing issue.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct RecurringTask {
+    /// Stable local id.
+    pub id: String,
+    pub issue_id: u32,
+    /// "#123 Họp daily", for display.
+    pub label: String,
+    pub hours: f64,
+    /// ISO weekdays it happens on (Monday = 1); empty means every workday.
+    pub weekdays: Vec<u8>,
+    /// None uses the default activity.
+    pub activity_id: Option<u32>,
+    /// The time entry's comment; the issue subject when empty.
+    pub comments: String,
+    /// Kept in the list but not proposed.
+    pub paused: bool,
+}
+
+impl RecurringTask {
+    /// Whether it is proposed on `date` (a workday, see `Settings::is_workday`).
+    pub fn on(&self, date: NaiveDate) -> bool {
+        let iso = date.weekday().number_from_monday() as u8;
+        !self.paused && (self.weekdays.is_empty() || self.weekdays.contains(&iso))
     }
 }
 

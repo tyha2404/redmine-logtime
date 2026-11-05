@@ -99,7 +99,7 @@ REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
   cargo run -p redmine-client --example smoke -- 2026-10-01 2026-10-31
 
 # Tạo task con, ghi giờ, chạy lại không trùng, hoàn tác; thử lại sau lỗi
-# mạng không ghi trùng; lỗi 422; chặn ngày vượt 24h
+# mạng không ghi trùng; lỗi 422; chặn ngày vượt 24h; đổi tên task rồi hoàn tác
 REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
   cargo run -p logtime-engine --example local_e2e
 
@@ -113,11 +113,11 @@ Ví dụ `local_e2e` giữ lại task con sau khi hoàn tác logtime. Dừng mô
 
 ### Ghi lên Redmine và AI
 
-Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Trước khi gửi, `plan::check_plan` kiểm tra lại phía Rust: giờ hợp lệ, có issue, task con đủ thông tin, mỗi ngày không quá 24h tính cả giờ đã có trên Redmine.
+Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, giờ) rồi xác nhận trong popup; app gửi một `WritePlan` qua `write_plan`. Logtime đã ghi không bao giờ bị sửa hay xoá (trừ khi hoàn tác chính lô vừa ghi); `WritePlan` chỉ có thể đổi tên issue của nó (`renames`). Trước khi gửi, `plan::check_plan` kiểm tra lại phía Rust: giờ hợp lệ, có issue, task con đủ thông tin, tên mới không trống, mỗi ngày không quá 24h tính cả giờ đã có trên Redmine; `plan::refresh_renames` lấy tên hiện tại trên Redmine để hoàn tác đúng.
 
-Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Lỗi có thể Redmine đã nhận (mất kết nối, timeout, 5xx) được đánh dấu `uncertain`; khi thử lại, app tìm logtime/task con đã có trước khi tạo. Hoàn tác chỉ xóa logtime của lô, giữ task con.
+Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Lỗi có thể Redmine đã nhận (mất kết nối, timeout, 5xx) được đánh dấu `uncertain`; khi thử lại, app tìm logtime/task con đã có trước khi tạo. Hoàn tác xoá logtime lô đã tạo và trả lại tên cũ cho issue đã đổi tên; task con vẫn giữ.
 
-App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine và giờ nghỉ. Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
+App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine, giờ nghỉ và việc lặp lại (`logtime-core::recurring`). Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
 
 Sau mỗi lần ghi từ báo cáo, app lưu “dòng báo cáo → task cha, task con” (`ai-bridge::memory`, khoá `task_memory` trong SQLite). Ghi nhớ được dùng để gợi ý trong prompt, ghi đè đề xuất của Claude cho việc đã quen, và cho **Khớp nhanh** (`quick_report`): đọc ngày trong báo cáo rồi khớp dòng với ghi nhớ, không gọi Claude.
 
