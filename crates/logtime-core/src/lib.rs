@@ -7,4 +7,4 @@ pub mod planner;
 pub mod recurring;
 mod settings;
 
-pub use settings::{LeaveType, RecurringTask, Settings, default_allowance};
+pub use settings::{AiAgent, LeaveType, RecurringTask, Settings, default_allowance};

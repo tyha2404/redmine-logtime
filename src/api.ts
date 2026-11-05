@@ -16,6 +16,10 @@ export interface Settings {
   leave_name: string;
   default_activity_id: number | null;
   subtask_tracker_id: number | null;
+  /** The CLI agent that analyses reports. */
+  ai_agent: AiAgent;
+  /** Passed to the agent as its model; empty = the agent's default. */
+  ai_model: string;
   claude_ignore_user_settings: boolean;
   /** Notify on workdays at `reminder_time` when hours are missing. */
   reminder_enabled: boolean;
@@ -25,6 +29,8 @@ export interface Settings {
   /** Fixed work on fixed weekdays, logged before a report's hours are split. */
   recurring: RecurringTask[];
 }
+
+export type AiAgent = "claude" | "agy" | "opencode";
 
 /** One piece of recurring work (stand-up, weekly meeting) on an existing issue. */
 export interface RecurringTask {

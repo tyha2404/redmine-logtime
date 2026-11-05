@@ -1,4 +1,4 @@
-//! Commands that run Claude: a smoke test, Redmine structure discovery and
+//! Commands that run the AI agent (Claude, Antigravity or opencode): a smoke test, Redmine structure discovery and
 //! work-report analysis.
 
 use std::sync::atomic::Ordering;
@@ -9,7 +9,7 @@ use ai_bridge::profile::{self, Profile};
 use ai_bridge::report::{
     self, DayCapacity, DayPlan, Duplicate, KnownWork, ReportAnalysis, ReportContext, ReportTask,
 };
-use ai_bridge::{ClaudeRunner, Progress, RedmineMcp};
+use ai_bridge::{AgentRunner, AiAgent, Progress, RedmineMcp};
 use chrono::{Local, NaiveDate, Utc};
 use logtime_core::Settings;
 use logtime_core::recurring::{self, FixedEntry};
@@ -50,9 +50,12 @@ fn err(e: impl ToString) -> String {
     e.to_string()
 }
 
-fn runner(state: &AppState, ignore_user_settings: bool) -> ClaudeRunner {
-    ClaudeRunner {
-        program: "claude".into(),
+fn runner(state: &AppState, settings: &Settings, ignore_user_settings: bool) -> AgentRunner {
+    AgentRunner {
+        agent: settings.ai_agent,
+        model: Some(settings.ai_model.clone()),
+        program: None,
+        home: None,
         path_env: tools::login_path().to_string(),
         workdir: state.ai_workdir.clone(),
         timeout: Duration::from_secs(15 * 60),
@@ -68,22 +71,26 @@ fn is_auth_error(msg: &str) -> bool {
         .any(|k| m.contains(k))
 }
 
-/// Runs Claude. When the user's Claude config carries an API key that fails
-/// headless, retries once with the claude.ai login and remembers that choice.
-async fn run_claude<T: DeserializeOwned>(
+/// Runs the chosen agent. When the user's Claude config carries an API key
+/// that fails headless, retries once with the claude.ai login and remembers
+/// that choice.
+async fn run_agent<T: DeserializeOwned>(
     state: &AppState,
     prompt: &str,
     schema: &Value,
     mcp: Option<&RedmineMcp>,
     on_progress: &mut (dyn FnMut(Progress) + Send),
 ) -> CmdResult<T> {
-    let ignore = state.settings().claude_ignore_user_settings;
-    let first = runner(state, ignore)
+    let settings = state.settings();
+    let ignore = settings.claude_ignore_user_settings;
+    let first = runner(state, &settings, ignore)
         .run(prompt, schema, mcp, &state.ai_cancel, on_progress)
         .await;
     match first {
-        Err(ai_bridge::Error::Claude(msg)) if !ignore && is_auth_error(&msg) => {
-            let out = runner(state, true)
+        Err(ai_bridge::Error::Agent { msg, .. })
+            if settings.ai_agent == AiAgent::Claude && !ignore && is_auth_error(&msg) =>
+        {
+            let out = runner(state, &settings, true)
                 .run(prompt, schema, mcp, &state.ai_cancel, on_progress)
                 .await
                 .map_err(|e| {
@@ -95,7 +102,7 @@ async fn run_claude<T: DeserializeOwned>(
             Ok(out)
         }
         other => other.map_err(|e| {
-            log::warn!("Claude lỗi: {e}");
+            log::warn!("AI lỗi: {e}");
             err(e)
         }),
     }
@@ -125,16 +132,16 @@ pub fn ai_cancel(state: State<'_, AppState>) {
     state.ai_cancel.store(true, Ordering::Release);
 }
 
-/// Checks that `claude -p` works on this machine (install + login).
+/// Checks that the chosen agent works on this machine (install + login).
 #[tauri::command]
 pub async fn ai_test(state: State<'_, AppState>) -> CmdResult<String> {
-    let _guard = state.begin_ai().ok_or("Claude đang chạy một việc khác.")?;
+    let _guard = state.begin_ai().ok_or("AI đang chạy một việc khác.")?;
     #[derive(Deserialize)]
     struct Pong {
         reply: String,
     }
     let schema = json!({"type": "object", "required": ["reply"], "properties": {"reply": {"type": "string"}}});
-    let pong: Pong = run_claude(
+    let pong: Pong = run_agent(
         &state,
         "Trả lời đúng một câu ngắn bằng tiếng Việt: \"Sẵn sàng phân tích báo cáo.\"",
         &schema,
@@ -166,10 +173,10 @@ fn store_profile(state: &AppState, profile: &Profile) -> CmdResult<()> {
 /// look. Keeps the user's own notes from the previous profile.
 #[tauri::command]
 pub async fn discover_profile(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Profile> {
-    let _guard = state.begin_ai().ok_or("Claude đang chạy một việc khác.")?;
+    let _guard = state.begin_ai().ok_or("AI đang chạy một việc khác.")?;
     let settings = state.settings();
     let mcp = redmine_mcp(&state, &settings)?;
-    let mut found: Profile = run_claude(
+    let mut found: Profile = run_agent(
         &state,
         &profile::discovery_prompt(),
         &profile::schema(),
@@ -279,7 +286,7 @@ pub async fn analyze_report(
     if text.trim().is_empty() {
         return Err("Nhập báo cáo công việc vào trước đã.".into());
     }
-    let _guard = state.begin_ai().ok_or("Claude đang chạy một việc khác.")?;
+    let _guard = state.begin_ai().ok_or("AI đang chạy một việc khác.")?;
     let remember = |view: Option<ReportView>| {
         state.store.set_json(
             &report_key(day),
@@ -312,7 +319,7 @@ pub async fn analyze_report(
             known_tasks: known_tasks.as_deref(),
         },
     );
-    let mut analysis: ReportAnalysis = run_claude(
+    let mut analysis: ReportAnalysis = run_agent(
         &state,
         &prompt,
         &report::schema(),

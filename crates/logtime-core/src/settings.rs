@@ -19,6 +19,10 @@ pub struct Settings {
     pub default_activity_id: Option<u32>,
     /// Tracker used when creating sub-tasks under a BA's parent issue.
     pub subtask_tracker_id: Option<u32>,
+    /// The CLI agent that analyses reports through the read-only Redmine MCP.
+    pub ai_agent: AiAgent,
+    /// Model passed to the agent (`-m`); empty uses the agent's own default.
+    pub ai_model: String,
     /// Run `claude` without ~/.claude/settings.json (e.g. when it sets an
     /// ANTHROPIC_API_KEY that does not work headless), using the claude.ai login.
     pub claude_ignore_user_settings: bool,
@@ -46,6 +50,8 @@ impl Default for Settings {
             leave_name: String::new(),
             default_activity_id: None,
             subtask_tracker_id: None,
+            ai_agent: AiAgent::default(),
+            ai_model: String::new(),
             claude_ignore_user_settings: false,
             reminder_enabled: true,
             reminder_time: "17:30".into(),
@@ -53,6 +59,21 @@ impl Default for Settings {
             recurring: Vec::new(),
         }
     }
+}
+
+/// A headless CLI agent the app can run (see `ai-bridge`'s `agents`).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AiAgent {
+    #[default]
+    Claude,
+    /// Antigravity CLI (`agy`).
+    Agy,
+    Opencode,
+}
+
+impl AiAgent {
+    pub const ALL: [AiAgent; 3] = [AiAgent::Claude, AiAgent::Agy, AiAgent::Opencode];
 }
 
 /// One piece of recurring work, logged on an existing issue.

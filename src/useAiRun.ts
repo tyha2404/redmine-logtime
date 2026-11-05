@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { api, errorText } from "./api";
 
-/** One Claude job and what the user saw of it. Lives outside React so leaving the page does not lose it. */
+/** One AI job and what the user saw of it. Lives outside React so leaving the page does not lose it. */
 interface Job {
   running: boolean;
   label: string;
@@ -39,7 +39,7 @@ export function useAiRun(slot: string) {
   const job = useSyncExternalStore(subscribe, () => jobs.get(slot) ?? IDLE);
 
   const run = useCallback(
-    async <T>(work: () => Promise<T>, what = "Claude đang làm việc"): Promise<T | null> => {
+    async <T>(work: () => Promise<T>, what = "AI đang làm việc"): Promise<T | null> => {
       update(slot, { running: true, label: what, log: [], error: null, startedAt: performance.now() });
       const unlisten = await api.onAiProgress((p) => update(slot, { log: [...(jobs.get(slot)?.log ?? []), p.text] }));
       const done = (async () => {

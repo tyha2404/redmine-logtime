@@ -58,7 +58,7 @@ pub async fn check_update(
 }
 
 /// Installs the release found by `check_update` and restarts the app. Waits
-/// for no write or Claude run, so a restart never cuts one off.
+/// for no write or AI run, so a restart never cuts one off.
 #[tauri::command]
 pub async fn install_update(
     app: AppHandle,
@@ -70,7 +70,7 @@ pub async fn install_update(
         .ok_or("Đang ghi lên Redmine. Đợi ghi xong rồi cập nhật.")?;
     let _ai = state
         .begin_ai()
-        .ok_or("Claude đang phân tích. Đợi xong rồi cập nhật.")?;
+        .ok_or("AI đang phân tích. Đợi xong rồi cập nhật.")?;
     let found = pending.0.lock().unwrap().clone();
     let update = match found {
         Some(u) => u,

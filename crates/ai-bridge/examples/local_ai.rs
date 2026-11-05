@@ -1,14 +1,17 @@
-//! Runs the real Claude CLI + mcp-redmine against the local Docker Redmine:
+//! Runs a real agent CLI + mcp-redmine against the local Docker Redmine:
 //! structure discovery, then analysis of a sample report.
 //!
 //!   REDMINE_API_KEY=<dev1 key> cargo run -p ai-bridge --example local_ai
+//!
+//! `AI_AGENT=agy|opencode` picks another agent (default Claude) and
+//! `AI_MODEL` its model.
 
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use ai_bridge::profile::{self, Profile};
 use ai_bridge::report::{self, DayCapacity, ReportAnalysis, ReportContext};
-use ai_bridge::{ClaudeRunner, RedmineMcp};
+use ai_bridge::{AgentRunner, AiAgent, RedmineMcp};
 use chrono::NaiveDate;
 
 const REPORT: &str = "Dạ em xin gửi báo cáo công việc tuần này 26/10/2026 ạ
@@ -25,8 +28,16 @@ Thứ 4 28/10: nghỉ phép buổi chiều
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let work = std::env::temp_dir().join("local-ai-example");
     std::fs::create_dir_all(&work)?;
-    let runner = ClaudeRunner {
-        program: "claude".into(),
+    let agent = match std::env::var("AI_AGENT").as_deref() {
+        Ok("agy") => AiAgent::Agy,
+        Ok("opencode") => AiAgent::Opencode,
+        _ => AiAgent::Claude,
+    };
+    let runner = AgentRunner {
+        agent,
+        model: std::env::var("AI_MODEL").ok(),
+        program: None,
+        home: None,
         path_env: std::env::var("PATH")?,
         workdir: work.clone(),
         timeout: Duration::from_secs(600),

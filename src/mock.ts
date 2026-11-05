@@ -59,6 +59,8 @@ let settings: Settings = {
   leave_name: "BE - Tên",
   default_activity_id: 9,
   subtask_tracker_id: 4,
+  ai_agent: "claude",
+  ai_model: "",
   claude_ignore_user_settings: true,
   reminder_enabled: true,
   reminder_time: "17:30",
@@ -668,6 +670,8 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown> = {}
     case "check_tools":
       return delay([
         { name: "claude", version: "2.1.312 (Claude Code)", install_hint: "" },
+        { name: "agy", version: null, install_hint: "curl -fsSL https://antigravity.google/cli/install.sh | bash" },
+        { name: "opencode", version: "1.18.34", install_hint: "" },
         { name: "uvx", version: "uv-tool-uvx 0.13.6", install_hint: "" },
       ]);
     case "get_profile":

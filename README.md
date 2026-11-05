@@ -22,7 +22,7 @@ Mở **Redmine Logtime**, nhập địa chỉ Redmine và API key (trên Redmine
 
 ## Ghi logtime từ báo cáo
 
-Cần [Claude CLI](https://claude.ai/install.sh) và [uv](https://docs.astral.sh/uv/): chạy `claude` trong Terminal để đăng nhập, rồi **Cài đặt → Ghi giờ & AI → Chạy thử Claude** và **Phân tích cấu trúc Redmine**.
+Cần [uv](https://docs.astral.sh/uv/) và một agent đã đăng nhập: [Claude CLI](https://claude.ai/install.sh) (mặc định), [Antigravity CLI](https://antigravity.google/docs/cli/reference) (`agy`) hoặc [opencode](https://opencode.ai). Chọn agent ở **Cài đặt → Ghi giờ & AI → AI phân tích báo cáo**, bấm **Chạy thử**, rồi **Phân tích cấu trúc Redmine**. Agent chỉ đọc Redmine; app tắt các công cụ chạy lệnh, sửa file của nó.
 
 **1.** Vào **Ghi logtime**, dán báo cáo (hoặc **Lấy từ Google Chat**) → **Phân tích bằng AI**. Trong lúc chờ có thể sang trang khác; quay lại vẫn thấy tiến trình và kết quả.
 
@@ -58,7 +58,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 **Đổi tên task:** logtime đã ghi thì không sửa số giờ hay xoá được, chỉ đổi được tên task. Chọn ngày trên **Lịch tháng**, rê chuột vào một logtime trong **Đã log trên Redmine** rồi bấm biểu tượng bút. App hỏi xác nhận; **Hoàn tác lô này** trả lại tên cũ. Logtime nghỉ phép giữ tên theo quy định của HR nên không đổi tên ở đây.
 
-**Việc lặp lại:** việc cố định như daily, họp sprint: khai báo ở **Cài đặt → Ghi giờ & AI → Việc lặp lại** (issue, số giờ, các ngày trong tuần). Khi phân tích báo cáo hoặc khớp nhanh, mỗi ngày có sẵn các việc này (bỏ tick được) và app trừ giờ của chúng trước khi chia cho việc khác. Trên **Lịch tháng**, ngày còn thiếu có nút ghi nhanh việc lặp lại.
+**Việc lặp lại:** việc cố định như daily, họp sprint: khai báo ở **Cài đặt → Ghi giờ & AI → Việc lặp lại** (issue, số giờ, các ngày trong tuần). Khi phân tích báo cáo hoặc khớp nhanh, mỗi ngày có sẵn các việc này (bỏ tick được) và app trừ giờ của chúng trước khi chia cho việc khác. Trên **Lịch tháng**, ngày còn thiếu có nút ghi nhanh việc lặp lại; nút **Ghi N việc lặp lại** dưới lịch mở danh sách mọi ngày làm việc tới hôm nay còn thiếu việc lặp lại (đã chọn sẵn), bỏ chọn ngày không làm rồi ghi một lần.
 
 **Xin nghỉ:** lần đầu vào **Cài đặt → Lịch & nghỉ phép → Nghỉ phép → Tìm trên Redmine** → **Lưu cài đặt**. Sau đó **Lịch tháng** → chọn ngày làm việc → **Xin nghỉ ngày này**. Xem số ngày nghỉ còn lại ở trang **Ngày nghỉ**.
 
@@ -86,7 +86,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 ## Khi gặp lỗi
 
 - **Không kết nối được:** kiểm tra địa chỉ, API key, mạng/VPN. Redmine nội bộ dùng SSL tự ký: bật **Chấp nhận chứng chỉ SSL tự ký** trong **Cài đặt**.
-- **AI lỗi:** đăng nhập lại `claude`, rồi **Cài đặt → Ghi giờ & AI → Chạy thử Claude**.
+- **AI lỗi:** đăng nhập lại agent đang chọn trong Terminal (`claude`, `agy` hoặc `opencode auth login`), rồi bấm **Chạy thử** ở **Cài đặt → Ghi giờ & AI**.
 - **macOS hỏi quyền Keychain** (nơi lưu API key) sau khi cập nhật: chọn **Luôn cho phép**.
 - **Báo lỗi:** **Cài đặt → Ứng dụng → Mở thư mục log**, gửi kèm file log (không chứa API key).
 

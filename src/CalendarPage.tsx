@@ -19,6 +19,7 @@ import { Icon } from "./icons";
 import PageHeader, { RefreshButton } from "./PageHeader";
 import QuotaRail from "./QuotaRail";
 import { recurringDue, recurringItem, subjectOf } from "./recurring";
+import RecurringFill, { monthRecurring } from "./RecurringFill";
 import RenameTask from "./RenameTask";
 import { ReportResult, useReportFlow } from "./reportFlow";
 import { fmtDays } from "./leave";
@@ -77,6 +78,10 @@ export default function CalendarPage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string>(todayIso());
+  /** "Ghi việc lặp lại": picking the month's entries, then writing them. */
+  const [fillingRecurring, setFillingRecurring] = useState(false);
+  const [recurringPlan, setRecurringPlan] = useState<WritePlan | null>(null);
+  const toast = useToast();
   const hpd = settings.hours_per_day;
 
   const load = useCallback(async () => {
@@ -150,6 +155,8 @@ export default function CalendarPage({
     .filter((d) => (d.status === "missing" || d.status === "partial") && d.date <= today)
     .map((d) => d.date);
   const isCurrentMonth = ym.year === now.getFullYear() && ym.month === now.getMonth() + 1;
+  /** Recurring work still due on the month's workdays up to today. */
+  const recurringLeft = monthRecurring(settings, shown, today);
 
   return (
     <div className="calendar-page">
@@ -234,20 +241,60 @@ export default function CalendarPage({
                   </li>
                 ))}
               </ul>
-              {shortDays.length > 0 && (
-                <button
-                  className="btn small"
-                  onClick={() => onFillMissing(shortDays)}
-                  title="Lấy tin Google Chat của các ngày thiếu giờ rồi khớp nhanh, để duyệt và ghi một lần"
-                >
-                  <Icon name="report" size={14} />
-                  Điền {shortDays.length} ngày thiếu
-                </button>
-              )}
+              <div className="calendar-actions">
+                {recurringLeft.length > 0 && (
+                  <button
+                    className="btn small"
+                    onClick={() => setFillingRecurring(true)}
+                    title="Ghi việc lặp lại cho các ngày làm việc tới hôm nay còn thiếu, chọn bỏ từng ngày trước khi ghi"
+                  >
+                    <Icon name="recurring" size={14} />
+                    Ghi {recurringLeft.length} việc lặp lại
+                  </button>
+                )}
+                {shortDays.length > 0 && (
+                  <button
+                    className="btn small"
+                    onClick={() => onFillMissing(shortDays)}
+                    title="Lấy tin Google Chat của các ngày thiếu giờ rồi khớp nhanh, để duyệt và ghi một lần"
+                  >
+                    <Icon name="report" size={14} />
+                    Điền {shortDays.length} ngày thiếu
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )}
       </section>
+
+      {fillingRecurring && (
+        <RecurringFill
+          entries={recurringLeft}
+          settings={settings}
+          month={ym.month}
+          onClose={() => setFillingRecurring(false)}
+          onConfirm={(plan) => {
+            setFillingRecurring(false);
+            setRecurringPlan(plan);
+          }}
+        />
+      )}
+      {recurringPlan && (
+        <WriteDialog
+          plan={recurringPlan}
+          redmineUrl={settings.redmine_url}
+          onOpenHistory={onOpenHistory}
+          onClose={(batch) => {
+            setRecurringPlan(null);
+            const ok =
+              batch?.ops.filter((o) => o.payload.op === "create_time_entry" && o.status === "done").length ?? 0;
+            if (ok === 0) return;
+            load();
+            toast(`Đã ghi ${ok} logtime việc lặp lại lên Redmine.`);
+          }}
+        />
+      )}
 
       {!shown && !error ? (
         <PanelSkeleton />

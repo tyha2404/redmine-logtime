@@ -11,7 +11,7 @@ Dành cho người chạy từ mã nguồn, đóng góp hoặc phát hành app. 
 | `crates/redmine-client/` | REST client: đọc Redmine, tạo task con, tạo/xóa logtime |
 | `crates/logtime-core/` | Cài đặt, lịch tháng, nghỉ phép và chia giờ |
 | `crates/logtime-engine/` | Ghi theo lô (SQLite), thử lại, chống trùng và hoàn tác |
-| `crates/ai-bridge/` | Gọi Claude CLI, phân tích cấu trúc Redmine và báo cáo |
+| `crates/ai-bridge/` | Gọi agent CLI (Claude, Antigravity, opencode), phân tích cấu trúc Redmine và báo cáo |
 | `crates/google-chat/` | Đăng nhập Google (OAuth, chỉ đọc) và lấy tin nhắn Google Chat |
 | `docker/` | Redmine local và dữ liệu thử nghiệm |
 | `scripts/` | Cài đặt, kiểm tra phiên bản và phát hành |
@@ -38,7 +38,7 @@ sudo apt update
 sudo apt install -y build-essential pkg-config curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
 ```
 
-CI build trên Ubuntu 22.04. Docker chỉ cần khi thử với Redmine local; Claude CLI đã đăng nhập và `uv` chỉ cần cho tính năng AI.
+CI build trên Ubuntu 22.04. Docker chỉ cần khi thử với Redmine local; một agent CLI đã đăng nhập (Claude, Antigravity hoặc opencode) và `uv` chỉ cần cho tính năng AI.
 
 ## Chạy ứng dụng
 
@@ -103,7 +103,8 @@ REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
 REDMINE_URL=http://localhost:3000 REDMINE_API_KEY=YOUR_LOCAL_API_KEY \
   cargo run -p logtime-engine --example local_e2e
 
-# Thử Claude thật với Redmine local; có sử dụng hạn mức Claude
+# Thử agent thật với Redmine local; có dùng hạn mức của agent
+# (AI_AGENT=agy|opencode để đổi agent, AI_MODEL để chọn model)
 REDMINE_API_KEY=YOUR_LOCAL_API_KEY cargo run -p ai-bridge --example local_ai
 ```
 
@@ -117,9 +118,9 @@ Không có hàng chờ: người dùng chỉnh kết quả (task cha, task con, 
 
 Mỗi lần ghi là một lô trong SQLite: mục lỗi nằm lại trong lô để `retry_batch` gửi lại, mục đã ghi không bao giờ gửi lần hai (task con dùng `key` làm khoá chống trùng). Lỗi có thể Redmine đã nhận (mất kết nối, timeout, 5xx) được đánh dấu `uncertain`; khi thử lại, app tìm logtime/task con đã có trước khi tạo. Hoàn tác xoá logtime lô đã tạo và trả lại tên cũ cho issue đã đổi tên; task con vẫn giữ.
 
-App gọi `claude -p` với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`. Claude tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine, giờ nghỉ và việc lặp lại (`logtime-core::recurring`). Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
+App gọi agent chọn trong cài đặt (`claude -p`, `agy` hoặc `opencode run`) với `mcp-redmine` qua `uvx` và `REDMINE_READ_ONLY=1`; phần khác nhau giữa các agent nằm ở `ai-bridge::agents`. Mỗi agent chỉ có các tool đọc của mcp-redmine: tắt công cụ có sẵn (shell, file, web), không nạp MCP/plugin/hook của người dùng. agy không có cờ chọn file cấu hình nên chạy với `HOME` tạm: chỉ có server Redmine, `settings.json` cho phép đúng ba tool `mcp(redmine/…)` (ở chế độ không tương tác, việc khác như chạy lệnh, sửa file, đọc file ngoài thư mục làm việc rỗng đều bị từ chối), và một symlink tới token đăng nhập của người dùng; API key đi qua biến môi trường, không nằm trong file nào. opencode chạy với `XDG_CONFIG_HOME` tạm, chỉ chép phần provider/model từ cấu hình của người dùng, và xoá phiên sau khi chạy. Claude và agy tự ép JSON schema; với opencode, schema được ghi vào prompt và kết quả được kiểm tra khi đọc. Agent tìm cấu trúc và đề xuất công việc, không quyết định số giờ; app chia giờ theo bước 0,5 giờ cho đủ giờ mỗi ngày, trừ giờ đã có trên Redmine, giờ nghỉ và việc lặp lại (`logtime-core::recurring`). Giữ nguyên quyền đọc của AI khi thay đổi tích hợp.
 
-Sau mỗi lần ghi từ báo cáo, app lưu “dòng báo cáo → task cha, task con” (`ai-bridge::memory`, khoá `task_memory` trong SQLite). Ghi nhớ được dùng để gợi ý trong prompt, ghi đè đề xuất của Claude cho việc đã quen, và cho **Khớp nhanh** (`quick_report`): đọc ngày trong báo cáo rồi khớp dòng với ghi nhớ, không gọi Claude.
+Sau mỗi lần ghi từ báo cáo, app lưu “dòng báo cáo → task cha, task con” (`ai-bridge::memory`, khoá `task_memory` trong SQLite). Ghi nhớ được dùng để gợi ý trong prompt, ghi đè đề xuất của AI cho việc đã quen, và cho **Khớp nhanh** (`quick_report`): đọc ngày trong báo cáo rồi khớp dòng với ghi nhớ, không gọi AI.
 
 ### Google Chat
 

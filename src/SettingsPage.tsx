@@ -2,7 +2,16 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { CardsSkeleton, Skel } from "./Skeleton";
 import AboutCard from "./AboutCard";
 import GchatSettings from "./GchatSettings";
-import { api, errorText, type Activity, type Settings, type SettingsView, type ToolStatus, type Tracker } from "./api";
+import {
+  api,
+  errorText,
+  type Activity,
+  type AiAgent,
+  type Settings,
+  type SettingsView,
+  type ToolStatus,
+  type Tracker,
+} from "./api";
 import LeaveSettings from "./LeaveSettings";
 import { isMac } from "./platform";
 import ProfileSection from "./ProfileSection";
@@ -19,6 +28,28 @@ const WEEKDAYS: [number, string][] = [
   [5, "T6"],
   [6, "T7"],
   [7, "CN"],
+];
+
+/** The agents the app can run (ai-bridge `agents.rs`), with what each needs. */
+const AGENTS: { id: AiAgent; label: string; hint: string; model: string }[] = [
+  {
+    id: "claude",
+    label: "Claude",
+    hint: "Claude Code, đăng nhập bằng tài khoản claude.ai (chạy claude rồi /login) hoặc API key.",
+    model: "Ví dụ: sonnet, opus.",
+  },
+  {
+    id: "agy",
+    label: "Antigravity",
+    hint: "Antigravity CLI (agy) của Google, đăng nhập bằng cách chạy agy trong Terminal. App không nạp MCP, plugin, hook và quyền tự chạy tool của bạn.",
+    model: "Ví dụ: gemini-3.8-flash, gemini-4-argon, claude-sonnet-5-5. Xem bằng agy models.",
+  },
+  {
+    id: "opencode",
+    label: "opencode",
+    hint: "Dùng nhà cung cấp đã đăng nhập bằng opencode auth login hoặc khai trong opencode.json (OpenAI, OpenRouter, Ollama…). App không nạp MCP, plugin của bạn.",
+    model: "Dạng nhà-cung-cấp/model, ví dụ: openai/gpt-5, ollama/qwen3. Xem bằng opencode models.",
+  },
 ];
 
 const SETTINGS_TABS = [
@@ -125,6 +156,13 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
   const loaded = settings !== null;
   const current = settings === null ? "" : snapshot(settings, holidayText, apiKey);
   const dirty = settings !== null && current !== savedSnapshot;
+  /** The test runs what is saved, so an unsaved agent or model would mislead it. */
+  const aiDirty = (() => {
+    if (!settings || !savedSnapshot) return false;
+    const saved = JSON.parse(savedSnapshot) as Settings;
+    return saved.ai_agent !== settings.ai_agent || saved.ai_model !== settings.ai_model;
+  })();
+  const agent = AGENTS.find((a) => a.id === settings?.ai_agent) ?? AGENTS[0];
   // A save error is about the values it tried; editing them retires it.
   useEffect(() => setSaveNotice((n) => (n?.kind === "error" ? null : n)), [current]);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
@@ -429,43 +467,80 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
           />
 
           <section className="card">
-            <h3>Claude</h3>
-            <p className="hint">Phân tích báo cáo cần Claude CLI (đã đăng nhập) và uv để chạy MCP Redmine.</p>
+            <h3>AI phân tích báo cáo</h3>
+            <p className="hint">
+              Agent chạy trên máy bạn và chỉ đọc Redmine qua MCP (cần uv); app tắt các công cụ chạy lệnh, sửa file của
+              agent.
+            </p>
+            <div className="segmented" role="radiogroup" aria-label="Agent">
+              {AGENTS.map((a) => (
+                <button
+                  key={a.id}
+                  role="radio"
+                  aria-checked={a.id === agent.id}
+                  onClick={() => {
+                    if (a.id === agent.id) return;
+                    // A model name only means something to its own agent.
+                    setSettings({ ...settings, ai_agent: a.id, ai_model: "" });
+                    setAiCheck(null);
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint">{agent.hint}</p>
             {!tools ? (
               <p className="muted">Đang kiểm tra…</p>
             ) : (
               <ul className="tools">
-                {tools.map((t) => (
-                  <li key={t.name}>
-                    <code>{t.name}</code>
-                    {t.version ? (
-                      <span className="text-ok">{t.version}</span>
-                    ) : (
-                      <span>
-                        <span className="text-missing">Chưa cài.</span> Cài bằng <code>{t.install_hint}</code>
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {tools
+                  .filter((t) => t.name === agent.id || t.name === "uvx")
+                  .map((t) => (
+                    <li key={t.name}>
+                      <code>{t.name}</code>
+                      {t.version ? (
+                        <span className="text-ok">{t.version}</span>
+                      ) : (
+                        <span>
+                          <span className="text-missing">Chưa cài.</span> Cài bằng <code>{t.install_hint}</code>
+                        </span>
+                      )}
+                    </li>
+                  ))}
               </ul>
             )}
-            <label className="check">
+            <label className="field">
+              <span>Model</span>
               <input
-                type="checkbox"
-                checked={settings.claude_ignore_user_settings}
-                onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
+                value={settings.ai_model}
+                placeholder={`Để trống: mặc định của ${agent.label}`}
+                onChange={(e) => update("ai_model", e.target.value)}
+                spellCheck={false}
+                autoCapitalize="off"
               />
-              <span>
-                Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng nhập).
-                App tự bật khi cấu hình Claude của bạn bị từ chối API key.
-              </span>
+              <small className="muted">{agent.model}</small>
             </label>
+            {agent.id === "claude" && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={settings.claude_ignore_user_settings}
+                  onChange={(e) => update("claude_ignore_user_settings", e.target.checked)}
+                />
+                <span>
+                  Không dùng <code>~/.claude/settings.json</code> khi gọi Claude (dùng tài khoản claude.ai đã đăng
+                  nhập). App tự bật khi cấu hình Claude của bạn bị từ chối API key.
+                </span>
+              </label>
+            )}
             <div className="card-foot">
               {aiCheck && aiCheck !== "running" && <p className={`notice ${aiCheck.kind}`}>{aiCheck.text}</p>}
               <div className="row">
                 <button
                   className="btn"
-                  disabled={aiCheck === "running"}
+                  disabled={aiCheck === "running" || aiDirty}
+                  title={aiDirty ? "Lưu cài đặt trước khi chạy thử" : undefined}
                   onClick={async () => {
                     setAiCheck("running");
                     try {
@@ -482,13 +557,13 @@ const SettingsPage = forwardRef<SettingsHandle, Props>(function SettingsPage(
                           claude_ignore_user_settings: saved.settings.claude_ignore_user_settings,
                         }),
                       );
-                      setAiCheck({ kind: "ok", text: `Claude trả lời: “${reply}”` });
+                      setAiCheck({ kind: "ok", text: `${agent.label} trả lời: “${reply}”` });
                     } catch (e) {
                       setAiCheck({ kind: "error", text: errorText(e) });
                     }
                   }}
                 >
-                  {aiCheck === "running" ? "Đang gọi Claude…" : "Chạy thử Claude"}
+                  {aiCheck === "running" ? `Đang gọi ${agent.label}…` : `Chạy thử ${agent.label}`}
                 </button>
               </div>
             </div>

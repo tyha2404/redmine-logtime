@@ -117,7 +117,7 @@ const ReportComposer = forwardRef<ComposerHandle, Props>(function ReportComposer
         )}
       </header>
       <p className="hint">
-        Dán báo cáo tuần hoặc các báo cáo ngày. Claude đọc Redmine (chỉ đọc) để tìm task cha, rồi app chia giờ cho đủ{" "}
+        Dán báo cáo tuần hoặc các báo cáo ngày. AI đọc Redmine (chỉ đọc) để tìm task cha, rồi app chia giờ cho đủ{" "}
         {fmtHours(settings.hours_per_day)} mỗi ngày. Việc đã log sẽ được bỏ qua. <strong>Khớp nhanh</strong> không cần
         AI, dùng các việc bạn đã ghi trước đây.
       </p>

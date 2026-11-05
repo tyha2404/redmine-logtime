@@ -10,7 +10,7 @@ Redmine Logtime combines Tauri 2, React/TypeScript, and a Rust workspace.
 - `crates/redmine-client/`: Redmine REST client.
 - `crates/logtime-core/`: settings, calendar, leave, recurring work, and planning logic.
 - `crates/logtime-engine/`: SQLite-backed write batches (new entries and issue renames), retry, deduplication, and undo.
-- `crates/ai-bridge/`: Claude CLI integration, report analysis, and remembered task choices (`memory.rs`, also used by the no-AI quick match).
+- `crates/ai-bridge/`: CLI agent integration (Claude Code, Antigravity CLI `agy`, opencode), report analysis, and remembered task choices (`memory.rs`, also used by the no-AI quick match).
 - `docker/`: local Redmine and seed data; `scripts/`: installation and releases; `docs/`: development notes and screenshots.
 
 ## Build, Test, and Development Commands

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AiRun } from "./useAiRun";
 
-/** Live view of a Claude run: elapsed time, the Redmine requests, cancel. */
+/** Live view of an AI run: elapsed time, the Redmine requests, cancel. */
 export default function AiLog({ ai, idleHint }: { ai: AiRun; idleHint?: string }) {
   const [seconds, setSeconds] = useState(0);
   const listRef = useRef<HTMLOListElement>(null);

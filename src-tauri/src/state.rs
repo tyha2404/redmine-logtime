@@ -19,7 +19,7 @@ pub struct AppState {
     pub credentials: Credentials,
     /// Markdown profile handed to mcp-redmine as request instructions.
     pub profile_md_path: PathBuf,
-    /// Scratch dir for Claude runs (temporary MCP configs).
+    /// Scratch dir for AI agent runs (temporary MCP configs).
     pub ai_workdir: PathBuf,
     executing: AtomicBool,
     ai_running: AtomicBool,
@@ -80,7 +80,7 @@ impl AppState {
         claim(&self.executing)
     }
 
-    /// Allows one Claude run at a time and clears any stale cancel request.
+    /// Allows one AI run at a time and clears any stale cancel request.
     pub fn begin_ai(&self) -> Option<ExecutionGuard<'_>> {
         let guard = claim(&self.ai_running)?;
         self.ai_cancel.store(false, Ordering::Release);

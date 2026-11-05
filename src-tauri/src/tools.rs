@@ -1,4 +1,5 @@
-//! Detects the external CLIs the AI features need (`claude`, `uvx`).
+//! Detects the external CLIs the AI features need: the agents (`claude`,
+//! `agy`, `opencode`) and `uvx` for the Redmine MCP server.
 //!
 //! GUI apps launched from Finder/the dock do not inherit the user's shell
 //! PATH, so we ask the login shell for it once and reuse it.
@@ -50,16 +51,23 @@ fn version_of(bin: &str) -> Option<String> {
 }
 
 pub fn check_all() -> Vec<ToolStatus> {
-    vec![
-        ToolStatus {
-            name: "claude",
-            version: version_of("claude"),
-            install_hint: "curl -fsSL https://claude.ai/install.sh | bash",
-        },
-        ToolStatus {
-            name: "uvx",
-            version: version_of("uvx"),
-            install_hint: "curl -LsSf https://astral.sh/uv/install.sh | sh",
-        },
-    ]
+    // Each `--version` is its own process; ask them all at once.
+    let agents: Vec<_> = ai_bridge::AiAgent::ALL
+        .iter()
+        .map(|a| ai_bridge::agents::info(*a))
+        .map(|info| {
+            std::thread::spawn(move || ToolStatus {
+                name: info.program,
+                version: version_of(info.program),
+                install_hint: info.install_hint,
+            })
+        })
+        .collect();
+    let mut out: Vec<ToolStatus> = agents.into_iter().filter_map(|t| t.join().ok()).collect();
+    out.push(ToolStatus {
+        name: "uvx",
+        version: version_of("uvx"),
+        install_hint: "curl -LsSf https://astral.sh/uv/install.sh | sh",
+    });
+    out
 }
