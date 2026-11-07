@@ -30,7 +30,7 @@ dependencies = [
 
 [[package]]
 name = "ai-bridge"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "chrono",
  "logtime-core",
@@ -1661,7 +1661,7 @@ dependencies = [
 
 [[package]]
 name = "google-chat"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2464,7 +2464,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "logtime-core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "chrono",
  "redmine-client",
@@ -2473,7 +2473,7 @@ dependencies = [
 
 [[package]]
 name = "logtime-engine"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "chrono",
  "logtime-core",
@@ -3536,7 +3536,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "redmine-client"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "chrono",
  "reqwest",
@@ -3550,7 +3550,7 @@ dependencies = [
 
 [[package]]
 name = "redmine-logtime"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "ai-bridge",
  "chrono",
