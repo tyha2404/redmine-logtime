@@ -500,15 +500,21 @@ sleep 5"#,
     #[tokio::test]
     async fn missing_binary_is_reported() {
         let dir = tmpdir("missing");
-        let err = runner(
+        // Signed in, so the launch gets as far as spawning the program.
+        let user = dir.join("user");
+        fs::create_dir_all(user.join(agents::AGY_TOKEN).parent().unwrap()).unwrap();
+        fs::write(user.join(agents::AGY_TOKEN), "token").unwrap();
+        let mut r = runner(
             &dir,
             AiAgent::Agy,
             "/nonexistent/agy".into(),
             Duration::from_secs(1),
-        )
-        .run::<Answer>("hi", &json!({}), None, &AtomicBool::new(false), &mut |_| {})
-        .await
-        .unwrap_err();
+        );
+        r.home = Some(user);
+        let err = r
+            .run::<Answer>("hi", &json!({}), None, &AtomicBool::new(false), &mut |_| {})
+            .await
+            .unwrap_err();
         assert!(matches!(
             err,
             Error::NotInstalled {

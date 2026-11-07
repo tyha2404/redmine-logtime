@@ -10,7 +10,7 @@ mod tools;
 mod tray;
 mod update_commands;
 
-use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
+use tauri::{AppHandle, Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
@@ -123,7 +123,7 @@ pub fn run() {
     app.run(|app, event| {
         // macOS: clicking the Dock icon brings the hidden window back.
         #[cfg(target_os = "macos")]
-        if let RunEvent::Reopen { .. } = event {
+        if let tauri::RunEvent::Reopen { .. } = event {
             show_main(app);
         }
         #[cfg(not(target_os = "macos"))]
