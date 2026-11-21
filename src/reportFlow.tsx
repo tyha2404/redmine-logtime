@@ -215,6 +215,26 @@ export function useReportFlow(day: string | null, settings: Settings) {
       return next;
     });
 
+  /**
+   * Unticks every pending entry of tasks that still have no parent. The hours
+   * of the other ticked entries are pinned first, so they stay as planned and
+   * the freed hours are left for a later analysis (Redmine's own hours are
+   * taken off then).
+   */
+  const dropParentless = () => {
+    const parentless = (t: TaskView) => !choices[t.task.key]?.parent;
+    const drop = tasks.filter(parentless).flatMap((t) => daysOf(t).filter((d) => d.on && !d.written));
+    if (!drop.length) return;
+    const pin: Record<string, number> = {};
+    for (const t of tasks.filter((x) => !parentless(x)))
+      for (const d of daysOf(t)) if (d.on && !d.written) pin[d.id] = d.hours;
+    setEdits((e) => ({ ...e, ...pin }));
+    setOn(
+      drop.map((d) => d.id),
+      false,
+    );
+  };
+
   const changeParent = (key: string, parent: IssueBrief) => {
     setChoice(key, { parent, subtask: "new", subKey: newId() });
     setTasks((ts) =>
@@ -290,6 +310,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
 
   const trackerId = settings.subtask_tracker_id ?? profile?.subtask_tracker_id ?? null;
   const tasksToWrite = [...new Set(pending.map((x) => x.t))];
+  /** Tasks with entries still ticked but no parent. */
+  const parentlessCount = tasksToWrite.filter((t) => !choices[t.task.key].parent).length;
   const missingParent = tasksToWrite.filter((t) => !choices[t.task.key].parent).length;
   const needsTracker = tasksToWrite.some((t) => choices[t.task.key].subtask === "new");
   const badHours = pending.some((x) => !(x.d.hours <= 24)) || pendingRecurring.some((r) => !(r.hours <= 24));
@@ -437,6 +459,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
     choices,
     setChoice,
     setOn,
+    dropParentless,
+    parentlessCount,
     allIds,
     off,
     leaveOn,
@@ -560,11 +584,23 @@ export function ReportResult({
 
       <div className="rtasks-head">
         <h3 className="composer-sub">{days.length > 1 ? `Theo ngày (${days.length} ngày)` : "Việc trong báo cáo"}</h3>
-        {f.allIds.length > 1 && (
-          <button className="link" onClick={() => f.setOn(f.allIds, !allOn)} disabled={f.ai.running}>
-            {allOn ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-          </button>
-        )}
+        <div className="rtasks-actions">
+          {f.parentlessCount > 0 && (
+            <button
+              className="link"
+              onClick={f.dropParentless}
+              disabled={f.ai.running || f.planning}
+              title="Giữ nguyên giờ của các việc còn lại; chạy lại phân tích sau khi có task cha để bù phần giờ thiếu."
+            >
+              Bỏ chọn {f.parentlessCount} việc chưa có task cha
+            </button>
+          )}
+          {f.allIds.length > 1 && (
+            <button className="link" onClick={() => f.setOn(f.allIds, !allOn)} disabled={f.ai.running}>
+              {allOn ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rdays">
@@ -882,6 +918,7 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
             options={f.reportParents}
             load={recentParents}
             remote
+            parentsOnly
           />
           {t.parent_reason && fromAi && <p className="rtask-reason">{t.parent_reason}</p>}
         </dd>

@@ -19,6 +19,8 @@ interface Props {
   extra?: { label: string; chosen: boolean; onPick: () => void };
   /** The field's text when nothing is chosen. */
   empty?: string;
+  /** Only top-level issues (no parent of their own), for a "task cha" field. */
+  parentsOnly?: boolean;
 }
 
 /** Lower case without Vietnamese accents, so "cong no" finds "Công nợ". */
@@ -52,7 +54,18 @@ const searchable = (q: string) => /^#?\d+$/.test(q) || q.length >= 2;
  * finds open issues on Redmine. Esc or a click outside closes it without
  * changing anything.
  */
-export default function IssuePicker({ value, onPick, label, disabled, options, load, remote, extra, empty }: Props) {
+export default function IssuePicker({
+  value,
+  onPick,
+  label,
+  disabled,
+  options,
+  load,
+  remote,
+  extra,
+  empty,
+  parentsOnly,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [loaded, setLoaded] = useState<IssueBrief[] | null>(null);
@@ -127,9 +140,11 @@ export default function IssuePicker({ value, onPick, label, disabled, options, l
   const listed = useMemo(() => {
     const all = [...(options ?? []), ...(loaded ?? [])];
     const seen = new Set<number>();
-    return all.filter((i) => !seen.has(i.id) && seen.add(i.id) && (!text || matches(i, text)));
-  }, [options, loaded, text]);
-  const more = (found ?? []).filter((i) => !listed.some((x) => x.id === i.id));
+    return all.filter(
+      (i) => !seen.has(i.id) && seen.add(i.id) && !(parentsOnly && i.parent_id) && (!text || matches(i, text)),
+    );
+  }, [options, loaded, text, parentsOnly]);
+  const more = (found ?? []).filter((i) => !(parentsOnly && i.parent_id) && !listed.some((x) => x.id === i.id));
   const showExtra = !!extra && !text;
   /** Every row in order, for the arrow keys: the extra row is -1. */
   const rows: (IssueBrief | null)[] = [...(showExtra ? [null] : []), ...listed, ...more];

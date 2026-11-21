@@ -330,6 +330,13 @@ Here "tuần này" is just habit: the single date makes it the report for 27/10;
 - Different work under the same feature stays separate tasks; they may share the parent.
 - An issue number in the report (e.g. #1234): use it as existing_subtask_id when it is the developer's own sub-task, otherwise as the parent.
 
+## Finding the project and parent task
+Names in a report are rarely exact: people shorten, abbreviate, drop accents, change word order, mix languages or use a nickname for a customer or product.
+- Start by listing the projects once (GET /projects.json?limit=100, with offset for more) and keep the list in mind. Match each `project_hint` to it by meaning: ignore case, accents, "-", "_" and spaces; accept abbreviations, initials, a part of the name, a customer name that appears in a project's name or parent project, and small misspellings.
+- A hint can fit several projects (a customer with one project per product or year). Keep every plausible candidate, not just the first, and look for the parent task in each before choosing the best fit by the work's content.
+- When searching issues, try more than one keyword (the feature name, the module, a shorter stem, the words without accents) and drop `subject=~` for a plain listing of the open parents of a candidate project when the keyword finds nothing. Use `parent_id=!*` style filters only if they work; otherwise skip tasks that have a parent of their own.
+- If no project fits, search issues across all projects by the feature keywords before giving up. Say in `parent_reason` which project you matched and why when the match is loose, and lower `parent_confidence` accordingly.
+
 ## What to produce
 - period_from / period_to: the first and last work dates you kept (not leftovers, not dates after today).
 - leave: days the report says the developer was off ("nghỉ phép", "nghỉ ốm", "off", "nghỉ nửa ngày" = {half}h). kind: "sick" for unplanned or ill ("đột xuất", "ốm", "bệnh"), "unpaid" for "không lương", otherwise "annual".
@@ -342,7 +349,7 @@ Here "tuần này" is just habit: the single date makes it the report for 27/10;
   - comment: short Vietnamese time-entry comment.
 - questions: short Vietnamese questions for anything the user should check: unclear dates, unknown project, planned-but-unreported work, ignored leftovers, attendance requests outside the period. Empty if none.
 
-{day_rule}Keep it under ~40 Redmine requests. The report follows between the markers.
+{day_rule}Keep it under ~60 Redmine requests. The report follows between the markers.
 
 <report>
 {report}

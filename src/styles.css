@@ -2644,6 +2644,10 @@ select::-ms-expand {
 .rtasks-head .composer-sub {
   margin: 0;
 }
+.rtasks-actions {
+  display: flex;
+  gap: 16px;
+}
 
 /* The sub-task, and the new one's name on its own line below. */
 .rtask-sub {
