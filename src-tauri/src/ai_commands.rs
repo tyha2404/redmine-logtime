@@ -273,6 +273,25 @@ pub fn clear_last_report(state: State<'_, AppState>, day: Option<NaiveDate>) -> 
     state.store.set_json(&key, &last).map_err(err)
 }
 
+/// Active activities usable for work (not the ones reserved for leave), best effort.
+async fn work_activities(
+    client: &redmine_client::RedmineClient,
+    settings: &Settings,
+) -> Vec<(u32, String)> {
+    let all = client.time_entry_activities().await.unwrap_or_default();
+    let leave: Vec<u32> = settings
+        .leave_types
+        .iter()
+        .filter_map(|t| t.activity_id)
+        .collect();
+    all.into_iter()
+        .filter(|a| {
+            a.active && (!leave.contains(&a.id) || Some(a.id) == settings.default_activity_id)
+        })
+        .map(|a| (a.id, a.name))
+        .collect()
+}
+
 /// Report text → tasks with verified parent issues and each day's free hours.
 /// With `day`, the text is that one calendar day's report. Work already
 /// logged for a day is dropped from the plan as a duplicate.
@@ -307,6 +326,7 @@ pub async fn analyze_report(
     let memory = load_memory(&state)?;
     let known_tasks = memory.prompt_hint();
     let today = Local::now().date_naive();
+    let activities = work_activities(&client, &settings).await;
 
     let prompt = report::prompt(
         &report::tidy_report(&text),
@@ -317,6 +337,7 @@ pub async fn analyze_report(
             profile: profile_md.as_deref(),
             day,
             known_tasks: known_tasks.as_deref(),
+            activities: &activities,
         },
     );
     let mut analysis: ReportAnalysis = run_agent(
@@ -329,6 +350,14 @@ pub async fn analyze_report(
     .await?;
     if let Some(d) = day {
         analysis.pin_to_day(d);
+    }
+    // An id outside the offered list is a guess: drop it (the default applies).
+    for t in &mut analysis.tasks {
+        if t.activity_id
+            .is_some_and(|id| !activities.iter().any(|(a, _)| *a == id))
+        {
+            t.activity_id = None;
+        }
     }
     // The user's earlier choice beats a fresh guess for the same work.
     let remembered = memory.apply(&mut analysis);

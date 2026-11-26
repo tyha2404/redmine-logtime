@@ -291,6 +291,8 @@ export interface ReportTask {
   existing_subtask_id: number | null;
   subtask_subject: string;
   comment: string;
+  /** Activity the AI picked from the Redmine list, if any. */
+  activity_id?: number | null;
   days: { date: string; weight: number }[];
 }
 

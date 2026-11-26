@@ -4,6 +4,7 @@ import {
   errorText,
   issueBrief,
   newId,
+  type Activity,
   type Batch,
   type DayPlan,
   type FixedEntry,
@@ -38,6 +39,8 @@ export interface Choice {
   subject: string;
   /** Idempotency key of the new sub-task, renewed when its parent or name changes. */
   subKey: string;
+  /** Time-entry activity picked by the AI or the user; null falls back to the default. */
+  activity: number | null;
 }
 
 export interface DayHours {
@@ -77,6 +80,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [plans, setPlans] = useState<DayPlan[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  /** Activities a work entry can use (leave ones left out), for the activity picker. */
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   /** Hours the user typed, by item id; the planner's split otherwise. */
   const [edits, setEdits] = useState<Record<string, number>>({});
@@ -106,6 +111,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
             subtask: t.existing_subtask?.id ?? "new",
             subject: t.task.subtask_subject || t.task.text,
             subKey: newId(),
+            activity: t.task.activity_id ?? null,
           },
         ]),
       ),
@@ -204,6 +210,16 @@ export function useReportFlow(day: string | null, settings: Settings) {
     const v = await ai.run(() => api.quickReport(src, day), "Đang khớp với việc đã ghi trước đây");
     if (v) adopt(v);
   };
+
+  useEffect(() => {
+    const leave = new Set(settings.leave_types.flatMap((t) => (t.activity_id ? [t.activity_id] : [])));
+    api
+      .listActivities()
+      .then((all) =>
+        setActivities(all.filter((a) => a.active && (!leave.has(a.id) || a.id === settings.default_activity_id))),
+      )
+      .catch(() => {});
+  }, [settings.leave_types, settings.default_activity_id]);
 
   const setChoice = (key: string, patch: Partial<Choice>) =>
     setChoices((c) => ({ ...c, [key]: { ...c[key], ...patch } }));
@@ -379,7 +395,7 @@ export function useReportFlow(day: string | null, settings: Settings) {
           date: d.date,
           target,
           hours: d.hours,
-          activity_id: settings.default_activity_id,
+          activity_id: c.activity ?? settings.default_activity_id,
           comments: t.task.comment || t.task.text,
           kind: "work",
         });
@@ -457,6 +473,8 @@ export function useReportFlow(day: string | null, settings: Settings) {
     view,
     tasks,
     choices,
+    activities,
+    defaultActivityId: settings.default_activity_id,
     setChoice,
     setOn,
     dropParentless,
@@ -772,9 +790,6 @@ function DayGroup({
             onEdit={(on) => onEdit(on ? d.id : null)}
           />
         ))}
-        {rows.length === 0 && !leave && fixed.length === 0 && day.workday && (
-          <li className="rentry is-static muted">Báo cáo không có việc nào cho ngày này.</li>
-        )}
       </ul>
       {(warnings.length > 0 || dups.length > 0) && (
         <div className="rday-notes">
@@ -817,6 +832,7 @@ function EntryRow({
   const fromAi = !!c.parent && t.parent_issue_id === c.parent.id;
   const confClass = conf >= 80 ? "hi" : conf >= 60 ? "mid" : "lo";
   const label = fmtDayShort(day.date);
+  const activity = f.activities.find((a) => a.id === (c.activity ?? f.defaultActivityId));
 
   return (
     <li
@@ -862,6 +878,7 @@ function EntryRow({
               <span className="rentry-id">#{c.subtask}</span> {sub?.subject ?? ""}
             </span>
           )}
+          {activity && <span className="rentry-activity">{activity.name}</span>}
           {fromAi &&
             (t.parent_reason === REMEMBERED ? (
               <span className="conf conf-hi" title={t.parent_reason}>
@@ -901,6 +918,7 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
   const t = view.task;
   const key = t.key;
   const fromAi = !!c.parent && t.parent_issue_id === c.parent.id;
+  const defaultActivity = f.activities.find((a) => a.id === f.defaultActivityId);
   return (
     <>
       {span > 1 && (
@@ -948,6 +966,22 @@ function TaskEditor({ f, view, span }: { f: ReportFlow; view: TaskView; span: nu
               />
             )}
           </div>
+        </dd>
+        <dt>Hoạt động</dt>
+        <dd>
+          <select
+            className="activity-select"
+            value={c.activity ?? ""}
+            onChange={(e) => f.setChoice(key, { activity: e.target.value ? Number(e.target.value) : null })}
+            aria-label={`Hoạt động của “${t.text}”`}
+          >
+            <option value="">{defaultActivity ? `Mặc định (${defaultActivity.name})` : "Mặc định của Redmine"}</option>
+            {f.activities.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
         </dd>
       </dl>
     </>

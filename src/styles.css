@@ -1765,6 +1765,18 @@ select::-ms-expand {
   font-size: 13px;
   color: var(--ink-2);
 }
+.activity-select {
+  width: 100%;
+  height: var(--control-h-s);
+  border: 1px solid var(--input-line);
+  border-radius: var(--radius-s);
+  background: var(--input-bg);
+  padding: 0 6px;
+}
+.activity-select:focus {
+  border-color: var(--focus);
+  outline: none;
+}
 .subject-input:focus {
   border-color: var(--focus);
   outline: none;
@@ -3020,6 +3032,15 @@ select::-ms-expand {
   color: var(--partial);
   font-size: 11px;
   font-weight: 600;
+}
+.rentry-activity {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-2) 16%, transparent);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .rentry-problem {
   margin: 2px 0 0;

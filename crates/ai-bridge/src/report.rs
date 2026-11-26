@@ -33,6 +33,9 @@ pub struct ReportTask {
     pub subtask_subject: String,
     #[serde(default)]
     pub comment: String,
+    /// Time-entry activity the model picked from the list it was given.
+    #[serde(default)]
+    pub activity_id: Option<u32>,
     pub days: Vec<DayWeight>,
 }
 
@@ -167,6 +170,8 @@ pub struct ReportContext<'a> {
     pub day: Option<NaiveDate>,
     /// Work the user logged before, from `memory::Memory::prompt_hint`.
     pub known_tasks: Option<&'a str>,
+    /// Activities a time entry can use (id, name); empty skips the choice.
+    pub activities: &'a [(u32, String)],
 }
 
 pub fn schema() -> Value {
@@ -187,7 +192,8 @@ pub fn schema() -> Value {
             "tasks": {"type": "array", "items": {
                 "type": "object",
                 "required": ["key", "text", "project_hint", "parent_issue_id", "parent_confidence",
-                             "parent_reason", "existing_subtask_id", "subtask_subject", "comment", "days"],
+                             "parent_reason", "existing_subtask_id", "subtask_subject", "comment", "activity_id",
+                             "days"],
                 "properties": {
                     "key": {"type": "string"},
                     "text": {"type": "string"},
@@ -198,6 +204,7 @@ pub fn schema() -> Value {
                     "existing_subtask_id": {"type": ["integer", "null"]},
                     "subtask_subject": {"type": "string"},
                     "comment": {"type": "string"},
+                    "activity_id": {"type": ["integer", "null"]},
                     "days": {"type": "array", "items": {
                         "type": "object", "required": ["date", "weight"],
                         "properties": {"date": date, "weight": {"type": "number", "minimum": 0}}
@@ -347,7 +354,7 @@ Names in a report are rarely exact: people shorten, abbreviate, drop accents, ch
   - existing_subtask_id: if the parent already has a child assigned to the current user (GET /issues.json?parent_id=…&status_id=*) that matches this work, its id; else null.
   - subtask_subject: Vietnamese sub-task title following the naming conventions, from the report line.
   - comment: short Vietnamese time-entry comment.
-- questions: short Vietnamese questions for anything the user should check: unclear dates, unknown project, planned-but-unreported work, ignored leftovers, attendance requests outside the period. Empty if none.
+{activity_rule}- questions: short Vietnamese questions for anything the user should check: unclear dates, unknown project, planned-but-unreported work, ignored leftovers, attendance requests outside the period. Empty if none.
 
 {day_rule}Keep it under ~60 Redmine requests. The report follows between the markers.
 
@@ -367,6 +374,19 @@ Names in a report are rarely exact: people shorten, abbreviate, drop accents, ch
             ))
             .unwrap_or_default(),
         report = report.trim(),
+        activity_rule = if ctx.activities.is_empty() {
+            String::new()
+        } else {
+            let list: Vec<String> = ctx
+                .activities
+                .iter()
+                .map(|(id, name)| format!("{id} = {name}"))
+                .collect();
+            format!(
+                "  - activity_id: the kind of work, chosen from exactly these Redmine activities ({}). Decide from what was done (coding, testing, meeting, analysis, review, support…); null when none clearly fits. Never invent ids.\n",
+                list.join("; ")
+            )
+        },
         day_rule = ctx
             .day
             .map(|d| format!(
@@ -475,6 +495,7 @@ mod tests {
             existing_subtask_id: None,
             subtask_subject: key.into(),
             comment: String::new(),
+            activity_id: None,
             days: days
                 .iter()
                 .map(|&x| DayWeight {
@@ -507,6 +528,7 @@ mod tests {
             existing_subtask_id: None,
             subtask_subject: key.into(),
             comment: String::new(),
+            activity_id: None,
             days: days
                 .iter()
                 .map(|&(x, w)| DayWeight {
@@ -573,6 +595,7 @@ mod tests {
             existing_subtask_id: subtask,
             subtask_subject: text.into(),
             comment: text.into(),
+            activity_id: None,
             days: days
                 .iter()
                 .map(|&x| DayWeight {
@@ -672,6 +695,7 @@ mod tests {
                 profile: Some("Task cha là Feature."),
                 day: None,
                 known_tasks: None,
+                activities: &[],
             },
         );
         assert!(p.contains("Today is 2026-10-28 (Wed)"));
@@ -680,6 +704,40 @@ mod tests {
         assert!(p.contains("<report>\n1. Dự án ABC\nSửa feedback công nợ\n</report>"));
         assert!(p.contains("The same task on several days"));
         assert!(!p.contains("ONE day"));
+    }
+
+    #[test]
+    fn prompt_offers_the_activities_to_choose_from() {
+        let acts = [(8, "Design".to_string()), (9, "Development".to_string())];
+        let p = prompt(
+            "x",
+            &ReportContext {
+                today: NaiveDate::from_ymd_opt(2026, 10, 29).unwrap(),
+                hours_per_day: 8.0,
+                workdays: &[1, 2, 3, 4, 5],
+                profile: None,
+                day: None,
+                known_tasks: None,
+                activities: &acts,
+            },
+        );
+        assert!(p.contains("8 = Design; 9 = Development"));
+        assert!(!prompt_without_activities().contains("activity_id: the kind"));
+    }
+
+    fn prompt_without_activities() -> String {
+        prompt(
+            "x",
+            &ReportContext {
+                today: NaiveDate::from_ymd_opt(2026, 10, 29).unwrap(),
+                hours_per_day: 8.0,
+                workdays: &[1],
+                profile: None,
+                day: None,
+                known_tasks: None,
+                activities: &[],
+            },
+        )
     }
 
     #[test]
@@ -693,6 +751,7 @@ mod tests {
                 profile: None,
                 day: None,
                 known_tasks: Some("- “Sửa feedback công nợ” → parent #1 “Công nợ”"),
+                activities: &[],
             },
         );
         assert!(p.contains("## Tasks this developer logged before"));

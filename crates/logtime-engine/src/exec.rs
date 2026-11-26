@@ -200,12 +200,24 @@ async fn create_entry(
             return Ok(found.id);
         }
     }
+    // Redmine rejects an entry without an activity: fall back to its default one.
+    let activity_id = match item.activity_id {
+        Some(id) => Some(id),
+        None => {
+            let all = client.time_entry_activities().await?;
+            let active = || all.iter().filter(|a| a.active);
+            active()
+                .find(|a| a.is_default)
+                .or_else(|| active().next())
+                .map(|a| a.id)
+        }
+    };
     let entry = client
         .create_time_entry(&NewTimeEntry {
             issue_id,
             spent_on: item.date,
             hours: item.hours,
-            activity_id: item.activity_id,
+            activity_id,
             comments: item.comments.clone(),
         })
         .await?;

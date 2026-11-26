@@ -9,7 +9,6 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
-  const [confirmUndo, setConfirmUndo] = useState<number | null>(null);
 
   const load = useCallback(() => {
     api
@@ -26,7 +25,6 @@ export default function HistoryPage() {
   const act = async (id: number, fn: (id: number) => Promise<Batch>) => {
     setBusy(id);
     setError(null);
-    setConfirmUndo(null);
     try {
       await fn(id);
     } catch (e) {
@@ -50,10 +48,7 @@ export default function HistoryPage() {
 
   return (
     <div className="history page-pad">
-      <PageHeader
-        title="Lịch sử ghi"
-        description="Xem kết quả từng lần ghi hoặc đổi tên task, thử lại mục lỗi hoặc hoàn tác. Task con vẫn được giữ trên Redmine."
-      />
+      <PageHeader title="Lịch sử ghi" description="Xem kết quả từng lần ghi hoặc đổi tên task, thử lại mục lỗi." />
       {error && <p className="notice error">{error}</p>}
       {batches.length === 0 && <div className="empty">Chưa ghi lô nào.</div>}
 
@@ -61,12 +56,9 @@ export default function HistoryPage() {
         {batches.map((b) => {
           const entries = b.ops.filter(isMainOp);
           const { verb } = batchWhat(b.ops);
-          /** Undo deletes new entries; a renamed issue gets its old name back. */
-          const onlyNew = entries.every((o) => o.payload.op === "create_time_entry");
           const count = (s: string) => entries.filter((o) => o.status === s).length;
           const subtasks = b.ops.filter((o) => o.payload.op === "create_subtask" && o.status === "done").length;
           const interrupted = b.ops.some((o) => o.status === "pending" || o.status === "running");
-          const undoable = count("done") > 0;
           const isOpen = open === b.id;
 
           return (
@@ -125,26 +117,6 @@ export default function HistoryPage() {
                         {busy === b.id ? "Đang ghi…" : "Tiếp tục ghi phần còn lại"}
                       </button>
                     )}
-                    {undoable &&
-                      (confirmUndo === b.id ? (
-                        <>
-                          <span className="confirm-text">
-                            {onlyNew
-                              ? `Xoá ${count("done")} logtime khỏi Redmine?`
-                              : `Hoàn tác ${count("done")} thay đổi trên Redmine?`}
-                          </span>
-                          <button className="btn danger-solid" onClick={() => act(b.id, api.undoBatch)}>
-                            {onlyNew ? "Xoá logtime" : "Hoàn tác"}
-                          </button>
-                          <button className="btn ghost" onClick={() => setConfirmUndo(null)}>
-                            Thôi
-                          </button>
-                        </>
-                      ) : (
-                        <button className="btn" disabled={busy !== null} onClick={() => setConfirmUndo(b.id)}>
-                          {busy === b.id ? "Đang hoàn tác…" : "Hoàn tác lô này"}
-                        </button>
-                      ))}
                   </div>
                 </div>
               )}

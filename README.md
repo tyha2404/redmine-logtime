@@ -40,7 +40,7 @@ Bấm dòng **task cha › task con** dưới tên việc để đổi task. Ô 
 
 ![Popup xác nhận](docs/images/write-confirm.png)
 
-Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này**; mục lỗi có nút **Thử lại phần lỗi**.
+Popup hiện từng mục đã ghi. Mục lỗi có nút **Thử lại phần lỗi**.
 
 ![Kết quả ghi](docs/images/write-done.png)
 
@@ -56,7 +56,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Ghi tay vào issue](docs/images/manual-entry.png)
 
-**Đổi tên task:** logtime đã ghi thì không sửa số giờ hay xoá được, chỉ đổi được tên task. Chọn ngày trên **Lịch tháng**, rê chuột vào một logtime trong **Đã log trên Redmine** rồi bấm biểu tượng bút. App hỏi xác nhận; **Hoàn tác lô này** trả lại tên cũ. Logtime nghỉ phép giữ tên theo quy định của HR nên không đổi tên ở đây.
+**Đổi tên task:** logtime đã ghi thì không sửa số giờ hay xoá được, chỉ đổi được tên task. Chọn ngày trên **Lịch tháng**, rê chuột vào một logtime trong **Đã log trên Redmine** rồi bấm biểu tượng bút. App hỏi xác nhận trước khi đổi. Logtime nghỉ phép giữ tên theo quy định của HR nên không đổi tên ở đây.
 
 **Việc lặp lại:** việc cố định như daily, họp sprint: khai báo ở **Cài đặt → Ghi giờ & AI → Việc lặp lại** (issue, số giờ, các ngày trong tuần). Khi phân tích báo cáo hoặc khớp nhanh, mỗi ngày có sẵn các việc này (bỏ tick được) và app trừ giờ của chúng trước khi chia cho việc khác. Trên **Lịch tháng**, ngày còn thiếu có nút ghi nhanh việc lặp lại; nút **Ghi N việc lặp lại** dưới lịch mở danh sách mọi ngày làm việc tới hôm nay còn thiếu việc lặp lại (đã chọn sẵn), bỏ chọn ngày không làm rồi ghi một lần.
 
@@ -66,7 +66,7 @@ Popup hiện từng mục đã ghi. Ghi nhầm thì bấm **Hoàn tác lô này*
 
 ![Ngày nghỉ trong năm](docs/images/leave-overview.png)
 
-**Lịch sử, hoàn tác:** trang **Lịch sử ghi** liệt kê mọi lần ghi và đổi tên task; **Hoàn tác lô này** xoá logtime vừa ghi hoặc trả lại tên cũ cho task. Task con vẫn giữ.
+**Lịch sử:** trang **Lịch sử ghi** liệt kê mọi lần ghi và đổi tên task, kèm nút thử lại mục lỗi.
 
 ![Lịch sử ghi](docs/images/history.png)
 

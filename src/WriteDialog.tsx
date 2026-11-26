@@ -5,8 +5,8 @@ import { useModal } from "./useModal";
 
 type Phase =
   | { kind: "confirm" }
-  | { kind: "running"; what: "write" | "retry" | "undo"; ops: Op[] }
-  | { kind: "done"; batch: Batch; undone: boolean };
+  | { kind: "running"; what: "write" | "retry"; ops: Op[] }
+  | { kind: "done"; batch: Batch };
 
 /** "3 logtime, 26/10–28/10" or "Đổi tên #77": the batch name in the history. */
 export function batchLabel(plan: WritePlan): string {
@@ -40,14 +40,13 @@ interface Props {
 
 /**
  * The last step before Redmine: what will be created and logged, an explicit
- * "Ghi ngay", then live progress, failures with a retry, and undo.
+ * "Ghi ngay", then live progress and failures with a retry.
  */
 export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "confirm" });
   const [ack, setAck] = useState(false);
   const [preview, setPreview] = useState<ApiCall[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmUndo, setConfirmUndo] = useState(false);
   const running = phase.kind === "running";
   const finish = () => onClose(phase.kind === "done" ? phase.batch : null);
   const { close, ...modal } = useModal(finish, running);
@@ -72,7 +71,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
   ].filter(Boolean);
 
   /** Runs a write, retry or undo, showing each op as Redmine answers. */
-  const run = async (what: "write" | "retry" | "undo", start: Op[], call: () => Promise<Batch>) => {
+  const run = async (what: "write" | "retry", start: Op[], call: () => Promise<Batch>) => {
     setError(null);
     setPhase({ kind: "running", what, ops: start });
     const unlisten = await api.onProgress((e) =>
@@ -85,7 +84,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
     );
     try {
       const batch = await call();
-      setPhase({ kind: "done", batch, undone: what === "undo" });
+      setPhase({ kind: "done", batch });
     } catch (e) {
       setError(errorText(e));
       setPhase((p) => (p.kind === "running" && what === "write" ? { kind: "confirm" } : p));
@@ -109,11 +108,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
   const entries = ops.filter(isMainOp);
   const ok = entries.filter((o) => o.status === "done").length;
   const failed = entries.filter((o) => o.status === "failed").length;
-  const undone = entries.filter((o) => o.status === "undone").length;
   const { verb, noun } = batchWhat(phase.kind === "done" ? phase.batch.ops : ops);
-  /** Undo of new entries only deletes them; a rename gets its old name back. */
-  const onlyNew = entries.every((o) => o.payload.op === "create_time_entry");
-  const madeSubtasks = ops.some((o) => o.payload.op === "create_subtask" && o.status === "done");
 
   return (
     <dialog {...modal} className="confirm-dialog write-dialog" aria-labelledby="write-title">
@@ -226,19 +221,14 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
         <>
           <h2 id="write-title">
             {phase.kind === "running"
-              ? { write: "Đang ghi lên Redmine…", retry: "Đang ghi lại phần lỗi…", undo: "Đang hoàn tác…" }[phase.what]
-              : phase.undone
-                ? onlyNew
-                  ? `Đã hoàn tác ${undone} logtime`
-                  : `Đã hoàn tác ${undone} thay đổi`
-                : failed
-                  ? `Đã ${verb} ${ok}/${entries.length} ${noun}, ${failed} mục lỗi`
-                  : `Đã ${verb} ${ok} ${noun} trên Redmine`}
+              ? { write: "Đang ghi lên Redmine…", retry: "Đang ghi lại phần lỗi…" }[phase.what]
+              : failed
+                ? `Đã ${verb} ${ok}/${entries.length} ${noun}, ${failed} mục lỗi`
+                : `Đã ${verb} ${ok} ${noun} trên Redmine`}
           </h2>
-          {phase.kind === "done" && failed > 0 && !phase.undone && (
+          {phase.kind === "done" && failed > 0 && (
             <p>Sửa nguyên nhân bên dưới rồi bấm Thử lại, hoặc đóng để chỉnh lại.</p>
           )}
-          {phase.kind === "done" && phase.undone && madeSubtasks && <p>Task con đã tạo vẫn giữ trên Redmine.</p>}
 
           <div className="write-body">
             {ops.length === 0 ? (
@@ -280,24 +270,7 @@ export default function WriteDialog({ plan, redmineUrl, onClose, onOpenHistory }
                   Xem lịch sử ghi
                 </button>
               )}
-              {ok > 0 &&
-                !phase.undone &&
-                (confirmUndo ? (
-                  <button
-                    className="btn danger-solid"
-                    onClick={() => {
-                      setConfirmUndo(false);
-                      run("undo", phase.batch.ops, () => api.undoBatch(phase.batch.id));
-                    }}
-                  >
-                    {onlyNew ? `Xoá ${ok} logtime khỏi Redmine` : `Hoàn tác ${ok} thay đổi`}
-                  </button>
-                ) : (
-                  <button className="btn" onClick={() => setConfirmUndo(true)}>
-                    Hoàn tác lô này
-                  </button>
-                ))}
-              {failed > 0 && !phase.undone && (
+              {failed > 0 && (
                 <button
                   className="btn"
                   onClick={() => run("retry", phase.batch.ops, () => api.retryBatch(phase.batch.id))}

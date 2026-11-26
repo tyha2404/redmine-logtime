@@ -267,6 +267,7 @@ const task = (
   existing_subtask_id: existing,
   subtask_subject: text,
   comment: text,
+  activity_id: /review/i.test(text) ? 8 : 9,
   days: days.map((date) => ({ date, weight: 1 })),
 });
 

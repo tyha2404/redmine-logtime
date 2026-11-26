@@ -333,6 +333,7 @@ pub fn quick_analysis(
                 } else {
                     e.comment.clone()
                 },
+                activity_id: None,
                 days: days
                     .into_iter()
                     .map(|date| DayWeight { date, weight: 1.0 })
@@ -430,6 +431,7 @@ mod tests {
             existing_subtask_id: None,
             subtask_subject: String::new(),
             comment: String::new(),
+            activity_id: None,
             days: vec![],
         };
         let mut a = ReportAnalysis {
